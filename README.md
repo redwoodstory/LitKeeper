@@ -55,7 +55,7 @@ GET <server-url>/api/download?url=<literotica-story-url>&wait=false
 To trigger a download using iOS Shortcuts, using the folowing format:
 1. Receive [URLs and Apps] input from [Share Sheet]
 2. Get URLs from [Shortcut Input]
-3. URL: <server-url>/api/download?url=https://www.literotica.com/s/example-story&wait=false
+3. URL: <server-url>/api/download?url=<literotica-story-url>&wait=false
 4. Get contents of [URL]
 
 [iOS Shortcut Screenshot](images/ios_shortcut_image.jpeg)
