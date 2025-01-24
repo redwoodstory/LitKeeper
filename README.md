@@ -1,0 +1,61 @@
+# Literotica ePub Saver
+
+This is a simple web app to save stories from [Literotica](https://www.literotica.com) to ePub. In my own workflow, I download stories to a local server running [Calibre-Web-Automated](https://github.com/crocodilestick/Calibre-Web-Automated), which renders the stories available to other devices through its OPDS functionality.
+
+This app includes the following features:
+- Renders a simple web page prompting the user for a Literotica URL to download
+- Retrieves story, converts to ePub, and saves to a predefined location (defined in Docker Compose file)
+- Bundles story category and tags into metadata
+- Generates a cover image showing the story title and author name
+- Identifies if the story is part of a series and bundles subquent stories into a single ePub
+- Provides an API to download stories directly from iOS shortcuts (see example below)
+- (Optional) Sends Telegram notifications when the story is downloaded
+- (Optional) Provides somewhat extensive logging (helpful for debugging but can be disabled in Docker Compose file)
+
+
+## Installation
+
+1. Create a docker-compose.yml file:
+```yaml
+services:
+  lit-epub-saver:
+    image: ghcr.io/redwoodstory/lit-epub-saver:latest
+    restart: unless-stopped
+    ports:
+      - "5020:5000"
+    volumes:
+      - ./epubs:/lit-epub-saver/app/data/epubs
+      - ./logs:/lit-epub-saver/app/data/logs
+    environment:
+      # Logging controls
+      - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
+      - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
+      - ENABLE_URL_LOG=true       # Set to false to disable URL logging
+      
+      # Telegram notification configuration
+      - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
+      - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
+```
+
+2. Run the following command
+`docker compose up -d`
+
+3. Navigate to `http://<server-ip>:5020`
+
+
+## API Configuration
+
+To use the API, send a GET request in the following format:
+```
+GET <server-url>/api/download?url=<literotica-story-url>&wait=false
+```
+
+### iOS Shortcuts
+
+To trigger a download using iOS Shortcuts, using the folowing format:
+1. Receive [URLs and Apps] input from [Share Sheet]
+2. Get URLs from [Shortcut Input]
+3. URL: <server-url>/api/download?url=https://www.literotica.com/s/example-story&wait=false
+4. Get contents of [URL]
+
+[iOS Shortcut Screenshot](images/ios_shortcut_image.jpeg)

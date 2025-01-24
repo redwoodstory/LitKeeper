@@ -1,0 +1,18 @@
+services:
+  lit-epub-saver:
+    image: ghcr.io/redwoodstory/lit-epub-saver:latest
+    restart: unless-stopped
+    ports:
+      - "5020:5000"
+    volumes:
+      - ./epubs:/lit-epub-saver/app/data/epubs
+      - ./logs:/lit-epub-saver/app/data/logs
+    environment:
+      # Logging controls
+      - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
+      - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
+      - ENABLE_URL_LOG=true       # Set to false to disable URL logging
+      
+      # Telegram notification configuration
+      - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
+      - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
