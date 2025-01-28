@@ -10,7 +10,7 @@ This app includes the following features:
 - Identifies if the story is part of a series and bundles subquent stories into a single ePub
 - Provides an API to download stories directly from iOS shortcuts (see example below)
 - (Optional) Sends Telegram notifications when the story is downloaded
-- (Optional) Provides somewhat extensive logging (helpful for debugging but can be disabled in Docker Compose file) 
+- (Optional) Provides somewhat extensive logging (helpful for debugging but can be disabled in Docker Compose file)
 
 
 ## Installation
