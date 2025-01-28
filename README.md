@@ -18,14 +18,14 @@ This app includes the following features:
 1. Create a docker-compose.yml file:
 ```yaml
 services:
-  lit-epub-saver:
-    image: ghcr.io/redwoodstory/lit-epub-saver:latest
+  LitKeeper:
+    image: ghcr.io/redwoodstory/LitKeeper:latest
     restart: unless-stopped
     ports:
-      - "5020:5000"
+      - "5000:5000"
     volumes:
-      - ./epubs:/lit-epub-saver/app/data/epubs
-      - ./logs:/lit-epub-saver/app/data/logs
+      - ./epubs:/LitKeeper/app/data/epubs
+      - ./logs:/LitKeeper/app/data/logs
     environment:
       # Logging controls
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
@@ -40,7 +40,7 @@ services:
 2. Run the following command
 `docker compose up -d`
 
-3. Navigate to `http://<server-ip>:5020`
+3. Navigate to `http://<server-ip>:5000`
 
 
 ## API Configuration

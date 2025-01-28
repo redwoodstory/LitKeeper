@@ -1,12 +1,12 @@
 services:
-  lit-epub-saver:
-    image: ghcr.io/redwoodstory/lit-epub-saver:latest
+  LitKeeper:
+    image: ghcr.io/redwoodstory/LitKeeper:latest
     restart: unless-stopped
     ports:
-      - "5020:5000"
+      - "5000:5000"
     volumes:
-      - ./epubs:/lit-epub-saver/app/data/epubs
-      - ./logs:/lit-epub-saver/app/data/logs
+      - ./epubs:/LitKeeper/app/data/epubs
+      - ./logs:/LitKeeper/app/data/logs
     environment:
       # Logging controls
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
