@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up application directory
-WORKDIR /LitKeeper
+WORKDIR /litkeeper
 
 # Copy only necessary files
 COPY app app/
@@ -47,7 +47,7 @@ RUN mkdir -p app/data/epubs app/data/logs && \
 # Set environment variables
 ENV FLASK_APP=app
 ENV FLASK_ENV=production
-ENV PYTHONPATH=/LitKeeper
+ENV PYTHONPATH=/litkeeper
 ENV PYTHONUNBUFFERED=1
 
 # Expose port

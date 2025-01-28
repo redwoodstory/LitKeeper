@@ -1,18 +1,18 @@
 services:
-  LitKeeper:
-    image: ghcr.io/redwoodstory/LitKeeper:latest
+  litkeeper:
+    image: ghcr.io/redwoodstory/litkeeper:latest
     restart: unless-stopped
     ports:
       - "5000:5000"
     volumes:
-      - ./epubs:/LitKeeper/app/data/epubs
-      - ./logs:/LitKeeper/app/data/logs
+      - ./epubs:/litkeeper/app/data/epubs
+      - ./logs:/litkeeper/app/data/logs
     environment:
-      # Logging controls
+      # Optional logging controls
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
       
-      # Telegram notification configuration
+      # Optional Telegram notification configuration
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
       - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)

@@ -1,4 +1,4 @@
-# Literotica ePub Saver
+# LitKeeper
 
 This is a simple web app to save stories from [Literotica](https://www.literotica.com) to ePub. In my own workflow, I download stories to a local server running [Calibre-Web-Automated](https://github.com/crocodilestick/Calibre-Web-Automated), which renders the stories available to other devices through its OPDS functionality.
 
@@ -18,21 +18,21 @@ This app includes the following features:
 1. Create a docker-compose.yml file:
 ```yaml
 services:
-  LitKeeper:
-    image: ghcr.io/redwoodstory/LitKeeper:latest
+  litkeeper:
+    image: ghcr.io/redwoodstory/litkeeper:latest
     restart: unless-stopped
     ports:
       - "5000:5000"
     volumes:
-      - ./epubs:/LitKeeper/app/data/epubs
-      - ./logs:/LitKeeper/app/data/logs
+      - ./epubs:/litkeeper/app/data/epubs
+      - ./logs:/litkeeper/app/data/logs
     environment:
-      # Logging controls
+      # Optional logging controls
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
       
-      # Telegram notification configuration
+      # Optional Telegram notification configuration
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
       - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
 ```
