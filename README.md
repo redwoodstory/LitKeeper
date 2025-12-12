@@ -9,7 +9,7 @@ This app includes the following features:
 - Generates a cover image showing the story title and author name
 - Identifies if the story is part of a series and bundles subquent stories into a single ePub
 - Provides an API to download stories directly from iOS shortcuts (see example below)
-- (Optional) Sends Telegram notifications when the story is downloaded
+- (Optional) Sends notifications when the story is downloaded
 - (Optional) Provides somewhat extensive logging (helpful for debugging but can be disabled in Docker Compose file)
 
 
@@ -32,9 +32,18 @@ services:
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
       
-      # Optional Telegram notification configuration
+      # Legacy Telegram notification configuration
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
       - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
+
+      # New notification configuration based on Apprise (supports multiple services)
+      # Add your notification URLs here, separated by commas. Examples:
+      # - Telegram: tgram://BOT_TOKEN/CHAT_ID
+      # - Discord: discord://webhook_id/webhook_token
+      # - Slack: slack://tokenA/tokenB/tokenC
+      # - Email: mailto://user:pass@gmail.com
+      # - Pushover: pover://user_key/app_token
+      - NOTIFICATION_URLS=        # Add your notification URLs here (optional)
 ```
 
 2. Run the following command
