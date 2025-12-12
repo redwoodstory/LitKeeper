@@ -13,6 +13,15 @@ services:
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
       
-      # Optional Telegram notification configuration
+      # Legacy Telegram notification configuration (still supported)
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
       - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
+      
+      # New notification configuration based on Apprise (supports multiple services)
+      # Add your notification URLs here, separated by commas. Examples:
+      # - Telegram: tgram://BOT_TOKEN/CHAT_ID
+      # - Discord: discord://webhook_id/webhook_token
+      # - Slack: slack://tokenA/tokenB/tokenC
+      # - Email: mailto://user:pass@gmail.com
+      # - Pushover: pover://user_key/app_token
+      - NOTIFICATION_URLS=        # Add your notification URLs here (optional)

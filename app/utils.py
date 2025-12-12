@@ -17,10 +17,18 @@ ENABLE_ACTION_LOG = os.getenv('ENABLE_ACTION_LOG', 'true').lower() == 'true'
 ENABLE_ERROR_LOG = os.getenv('ENABLE_ERROR_LOG', 'true').lower() == 'true'
 ENABLE_URL_LOG = os.getenv('ENABLE_URL_LOG', 'true').lower() == 'true'
 
-# Environment variables for Telegram
+# Environment variables for notifications
+NOTIFICATION_URLS = os.getenv('NOTIFICATION_URLS', '').split(',')
+
+# Legacy Telegram support
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-ENABLE_TELEGRAM = all([TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID])
+if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+    telegram_url = f"tgram://{TELEGRAM_BOT_TOKEN}/{TELEGRAM_CHAT_ID}"
+    if telegram_url not in NOTIFICATION_URLS:
+        NOTIFICATION_URLS.append(telegram_url)
+
+ENABLE_NOTIFICATIONS = bool(NOTIFICATION_URLS and NOTIFICATION_URLS[0])
 
 def log_action(message):
     """Log an action to log.txt with timestamp."""
@@ -71,31 +79,34 @@ def log_url(url):
     
     log_action("URL logged to url_log.txt")
 
-def send_telegram_message(message, is_error=False):
-    """Send a message to Telegram chat."""
-    if not ENABLE_TELEGRAM:
+def send_notification(message, is_error=False):
+    """Send a notification using Apprise to configured notification services."""
+    if not ENABLE_NOTIFICATIONS:
         return
 
     try:
+        import apprise
+
+        # Create an Apprise instance
+        apobj = apprise.Apprise()
+        
+        # Add all notification URLs
+        for url in NOTIFICATION_URLS:
+            url = url.strip()
+            if url:  # Only add non-empty URLs
+                apobj.add(url)
+
+        # Format the message
         icon = "❌" if is_error else "✅"
         formatted_message = f"{icon} {message}"
         
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": formatted_message,
-            "parse_mode": "HTML"
-        }
-        
-        response = requests.post(url, json=data)
-        response.raise_for_status()
-        
-        if response.status_code == 200:
-            log_action(f"Telegram notification sent: {message}")
+        # Send the notification
+        if apobj.notify(body=formatted_message):
+            log_action(f"Notification sent: {message}")
         else:
-            log_error(f"Failed to send Telegram notification. Status code: {response.status_code}")
+            log_error("Failed to send notification")
     except Exception as e:
-        log_error(f"Error sending Telegram notification: {str(e)}")
+        log_error(f"Error sending notification: {str(e)}")
 
 def get_random_user_agent():
     """Return a random User-Agent string."""
@@ -155,31 +166,37 @@ def download_story(url):
                     log_action("Successfully parsed page content")
 
                     if current_page == 1:
-                        title_tag = soup.find("h1", class_="headline")
-                        author_tag = soup.find("a", class_="y_eU")
+                        # Find title using partial class match
+                        title_tag = soup.find("h1", class_=lambda c: c and c.startswith("_title_"))
+                        # Find author using partial class match
+                        author_tag = soup.find("a", class_=lambda c: c and "_author__title_" in str(c))
                         current_title = title_tag.text.strip() if title_tag else "Unknown Chapter"
-                        
+
                         if current_chapter == 1:
                             story_title = current_title
                             story_author = author_tag.text.strip() if author_tag else story_author
                             log_action(f"Extracted story metadata - Title: {story_title}, Author: {story_author}")
-                            
-                            breadcrumb = soup.find("div", id="BreadCrumbComponent")
+
+                            # Find category from breadcrumbs using partial class match
+                            breadcrumb = soup.find("nav", class_=lambda c: c and "_breadcrumbs_" in str(c))
                             if breadcrumb:
-                                category_links = breadcrumb.find_all("a", class_="h_aZ")
-                                if len(category_links) >= 2:
-                                    story_category = category_links[1].text.strip()
+                                # The second breadcrumb item is usually the category
+                                breadcrumb_items = breadcrumb.find_all("span", itemprop="name")
+                                if len(breadcrumb_items) >= 2:
+                                    story_category = breadcrumb_items[1].text.strip()
                                     if story_category.lower().startswith("inc"):
                                         story_category = "I/T"
-                            
-                            tag_elements = soup.find_all("a", class_="av_as av_r")
-                            story_tags = [tag.text.strip() for tag in tag_elements 
+
+                            # Find tags using partial class match
+                            tag_elements = soup.find_all("a", class_=lambda c: c and "_tags__link_" in str(c))
+                            story_tags = [tag.text.strip() for tag in tag_elements
                                         if not tag.text.strip().lower().startswith("inc")]
                             if story_category and story_category not in story_tags:
                                 story_tags = [story_category] + story_tags
                             log_action(f"Extracted category: {story_category} and {len(story_tags)} tags")
 
-                    content_div = soup.find("div", class_="aa_ht")
+                    # Find content using partial class match
+                    content_div = soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
                     if content_div:
                         if current_page == 1:
                             chapter_titles.append(current_title)
@@ -189,7 +206,16 @@ def download_story(url):
                             current_chapter_content += paragraph.get_text(strip=True) + "\n\n"
                         log_action(f"Extracted content from page {current_page}")
 
-                    next_page_link = soup.find("a", class_="l_bJ", title="Next Page")
+                    # Find pagination links using partial class match
+                    # Look for links with ?page= parameter in href
+                    next_page_link = None
+                    pagination_links = soup.find_all("a", class_=lambda c: c and "_pagination__item_" in str(c))
+                    for link in pagination_links:
+                        href = link.get("href", "")
+                        if f"?page={current_page + 1}" in href or f"&page={current_page + 1}" in href:
+                            next_page_link = link
+                            break
+
                     if next_page_link:
                         next_url = next_page_link["href"]
                         if not next_url.startswith("http"):
@@ -201,35 +227,43 @@ def download_story(url):
                         chapter_contents.append(current_chapter_content)
                         log_action(f"Completed chapter {current_chapter}")
                         
-                        series_panel = soup.find("div", class_="panel z_r z_R")
-                        if series_panel:
-                            if not series_title:
-                                story_links = series_panel.find_all("div", class_="z_S")
-                                for story_div in story_links:
-                                    series_info_span = story_div.find("span", class_="z_pm", string="Series Info")
-                                    if series_info_span:
-                                        link = story_div.find("a", class_="z_t")
+                        # Look for series navigation using partial class match
+                        # Find section with "READ MORE OF THIS SERIES" heading (must be actual h3 tag, not i18n string)
+                        series_section = None
+                        for section in soup.find_all("section", class_=lambda c: c and "_panel_" in str(c)):
+                            heading = section.find("h3", class_=lambda c: c and "_heading_" in str(c))
+                            if heading and heading.get_text(strip=True) == "READ MORE OF THIS SERIES":
+                                series_section = section
+                                log_action("Found series section with 'READ MORE OF THIS SERIES' heading")
+                                break
+
+                        if series_section:
+                            # Find the data list container (div with _data_list_ class)
+                            data_list = series_section.find("div", class_=lambda c: c and "_data_list_" in str(c))
+                            if data_list:
+                                # Find all items in the list (div with _item_ class)
+                                items = data_list.find_all("div", class_=lambda c: c and "_item_" in str(c))
+                                log_action(f"Found {len(items)} items in series list")
+
+                                for item in items:
+                                    # Look for "Next Part" indicator
+                                    next_part_span = item.find("span", string=lambda s: s and "Next Part" in s)
+                                    if next_part_span:
+                                        # Find the story link in this item
+                                        link = item.find("a", href=lambda h: h and "/s/" in h)
                                         if link:
-                                            series_title = link.get_text().strip()
-                                            story_title = series_title
-                                            log_action(f"Found series title: {series_title}")
-                                            break
-                            
-                            story_links = series_panel.find_all("div", class_="z_S")
-                            for story_div in story_links:
-                                link = story_div.find("a", class_="z_t")
-                                if not link:
-                                    continue
-                                    
-                                next_part_span = story_div.find("span", class_="z_pm")
-                                if next_part_span and next_part_span.get_text().strip() == "Next Part":
-                                    next_url = link["href"]
-                                    if not next_url.startswith("http"):
-                                        next_url = "https://www.literotica.com" + next_url
-                                    if next_url not in processed_urls:
-                                        chapter_urls.append(next_url)
-                                        log_action(f"Found next chapter link: {next_url}")
-                                    break
+                                            next_url = link.get("href", "")
+                                            if not next_url.startswith("http"):
+                                                next_url = "https://www.literotica.com" + next_url
+
+                                            # Remove query parameters to get base URL
+                                            base_next_url = next_url.split("?")[0]
+
+                                            # Check if not already processed
+                                            if base_next_url not in processed_urls:
+                                                chapter_urls.append(base_next_url)
+                                                log_action(f"Found next part in series: {base_next_url}")
+                                                break
                         
                         current_url = None
                         current_page = 1
@@ -533,14 +567,14 @@ def create_epub_file(story_title, story_author, story_content, output_directory,
         epub.write_epub(epub_path, book, {})
         log_action(f"Successfully wrote EPUB file to: {epub_path}")
         
-        # send_telegram_message(f"EPUB created: {story_title} by {story_author}")
+        send_notification(f"EPUB created: {story_title} by {story_author}")
         
         return epub_path
 
     except Exception as e:
         error_msg = f"Error creating EPUB file for '{story_title}' by {story_author}: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        send_telegram_message(f"EPUB creation failed: {story_title} by {story_author}", is_error=True)
+        send_notification(f"EPUB creation failed: {story_title} by {story_author}", is_error=True)
         raise
 
 # Example usage:

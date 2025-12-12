@@ -1,5 +1,5 @@
 from flask import Blueprint, request, render_template, send_from_directory, jsonify, abort, current_app
-from .utils import download_story, create_epub_file, log_error, log_action, log_url, send_telegram_message
+from .utils import download_story, create_epub_file, log_error, log_action, log_url, send_notification
 import os
 from datetime import datetime
 import traceback
@@ -20,7 +20,7 @@ def background_process_url(app, url):
                 error_msg = f"Failed to download the story from the given URL: {url}"
                 log_error(error_msg, url)
                 log_action(f"Download failed: {error_msg}")
-                send_telegram_message(f"Story download failed: {url}", is_error=True)
+                send_notification(f"Story download failed: {url}", is_error=True)
                 return
 
             log_action(f"Successfully downloaded story: '{story_title}' by {story_author}")
@@ -35,13 +35,13 @@ def background_process_url(app, url):
                 story_tags=story_tags
             )
             log_action(f"Successfully created EPUB file: {epub_file_name}")
-            send_telegram_message(f"Story downloaded successfully: '{story_title}' by {story_author}")
+            send_notification(f"Story downloaded successfully: '{story_title}' by {story_author}")
 
     except Exception as e:
         error_msg = f"{str(e)}\n{traceback.format_exc()}"
         log_error(error_msg, url)
         log_action(f"Error occurred: {str(e)}")
-        send_telegram_message(f"Error processing story: {str(e)}", is_error=True)
+        send_notification(f"Error processing story: {str(e)}", is_error=True)
 
 @main.route("/api/download", methods=['GET', 'POST'])
 def api_download():
@@ -119,7 +119,7 @@ def process_url(url):
             error_msg = f"Failed to download the story from the given URL: {url}"
             log_error(error_msg, url)
             log_action(f"Download failed: {error_msg}")
-            send_telegram_message(f"Story download failed: {url}", is_error=True)
+            send_notification(f"Story download failed: {url}", is_error=True)
             return jsonify({
                 "success": "false",
                 "message": error_msg
@@ -137,7 +137,7 @@ def process_url(url):
             story_tags=story_tags
         )
         log_action(f"Successfully created EPUB file: {epub_file_name}")
-        send_telegram_message(f"Story downloaded successfully: '{story_title}' by {story_author}")
+        send_notification(f"Story downloaded successfully: '{story_title}' by {story_author}")
 
         # Get the base filename without path
         base_filename = os.path.basename(epub_file_name)
@@ -153,7 +153,7 @@ def process_url(url):
         error_msg = f"{str(e)}\n{traceback.format_exc()}"
         log_error(error_msg, url)
         log_action(f"Error occurred: {str(e)}")
-        send_telegram_message(f"Error processing story: {str(e)}", is_error=True)
+        send_notification(f"Error processing story: {str(e)}", is_error=True)
         return jsonify({
             "success": "false",
             "message": str(e)
