@@ -175,3 +175,17 @@ cython_debug/
 .DS_Store
 
 app/data
+epubs
+html
+logs
+covers
+
+plans
+scripts
+.windsurfrules
+CLAUDE.md
+claude
+claude_plans
+
+# Local testing docker-compose
+docker-compose.local.yml

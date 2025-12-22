@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" class="{% block html_class %}h-full{% endblock %}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>{% block title %}LitKeeper{% endblock %}</title>
+
+  {% block meta_tags %}
+  <meta name="description" content="Download and read stories from Literotica in EPUB and HTML formats">
+  <meta name="theme-color" content="#4a90e2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="LitKeeper">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  {% endblock %}
+
+  {% block stylesheets %}
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4a90e2',
+            'primary-dark': '#357abd',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer components {
+      .btn-primary {
+        @apply bg-primary hover:bg-primary-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+      }
+      .card {
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6;
+      }
+    }
+  </style>
+  {% endblock %}
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}bg-gray-50 dark:bg-gray-900 transition-colors h-full{% endblock %}">
+  {% block theme_toggle %}
+  <div class="fixed top-4 right-4 z-50">
+    <button id="themeToggle"
+            class="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:scale-110 transition-transform"
+            aria-label="Toggle theme">
+      <svg class="w-6 h-6 hidden dark:block text-gray-800 dark:text-white" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path>
+      </svg>
+      <svg class="w-6 h-6 block dark:hidden text-gray-800" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+      </svg>
+    </button>
+  </div>
+  {% endblock %}
+
+  {% block content %}{% endblock %}
+
+  {% block scripts %}
+  <script src="/static/js/theme.js" defer></script>
+  {% endblock %}
+</body>
+</html>

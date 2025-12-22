@@ -1,0 +1,39 @@
+{
+  "name": "LitKeeper",
+  "short_name": "LitKeeper",
+  "description": "Download and read stories from Literotica in EPUB and HTML formats",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a90e2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["books", "entertainment", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Library",
+      "short_name": "Library",
+      "description": "View your downloaded stories",
+      "url": "/#library",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

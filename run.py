@@ -6,4 +6,4 @@ app = create_app()
 if __name__ == "__main__":
     # For local development:
     # Run the app directly using Flask's built-in development server
-    app.run(host="0.0.0.0", port=5015, debug=True)
+    app.run(host="0.0.0.0", port=5017, debug=True)

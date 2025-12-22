@@ -6,17 +6,23 @@ services:
       - "5000:5000"
     volumes:
       - ./epubs:/litkeeper/app/data/epubs
+      - ./html:/litkeeper/app/data/html
       - ./logs:/litkeeper/app/data/logs
+      - ./covers:/litkeeper/app/data/covers
     environment:
+      # Flask Secret Key (REQUIRED for session persistence)
+      # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+      - SECRET_KEY=your-secret-key-here
+
       # Optional logging controls
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
-      
+
       # Legacy Telegram notification configuration (still supported)
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
       - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
-      
+
       # New notification configuration based on Apprise (supports multiple services)
       # Add your notification URLs here, separated by commas. Examples:
       # - Telegram: tgram://BOT_TOKEN/CHAT_ID

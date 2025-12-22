@@ -1,0 +1,196 @@
+from __future__ import annotations
+import os
+import re
+import uuid
+import traceback
+import ebooklib.epub as epub
+from typing import Optional
+from .logger import log_error
+from .notifier import send_notification
+from .cover_generator import generate_cover_image
+
+def format_story_content(content: str) -> str:
+    """Format story content into properly formatted paragraphs for EPUB."""
+    css = """
+        <style>
+            body {
+                margin: 1em;
+                padding: 0 1em;
+            }
+            p {
+                margin: 1.5em 0;
+                line-height: 1.7;
+                font-size: 1.1em;
+            }
+            h1 {
+                margin: 2em 0 1em 0;
+                text-align: center;
+            }
+        </style>
+    """
+    
+    paragraphs = content.split('\n\n')
+    formatted_paragraphs = [f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()]
+    return css + '\n'.join(formatted_paragraphs)
+
+def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None) -> str:
+    """Format metadata content with proper styling."""
+    css = """
+        <style>
+            body {
+                margin: 1em;
+                padding: 0 1em;
+            }
+            h1 {
+                margin: 2em 0 1em 0;
+                text-align: center;
+            }
+            .metadata {
+                margin: 1.5em 0;
+                line-height: 1.7;
+                font-size: 1.1em;
+            }
+            .metadata-item {
+                margin: 1em 0;
+            }
+            .metadata-label {
+                font-weight: bold;
+                margin-right: 0.5em;
+            }
+        </style>
+    """
+    
+    content = f"{css}<h1>Story Information</h1><div class='metadata'>"
+    if category:
+        content += f"<div class='metadata-item'><span class='metadata-label'>Category: </span>{category}</div>"
+    if tags:
+        content += f"<div class='metadata-item'><span class='metadata-label'>Tags: </span>{', '.join(tags)}</div>"
+    content += "</div>"
+    return content
+
+def create_epub_file(
+    story_title: str,
+    story_author: str,
+    story_content: str,
+    output_directory: str,
+    cover_image_path: Optional[str] = None,
+    story_category: Optional[str] = None,
+    story_tags: Optional[list[str]] = None
+) -> str:
+    """Create an EPUB file from the story content."""
+    try:
+        os.makedirs(output_directory, exist_ok=True)
+
+        if cover_image_path is None:
+            def sanitize_filename(filename):
+                return re.sub(r'[^a-zA-Z0-9._-]', '', filename)
+
+            cover_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "covers")
+            os.makedirs(cover_directory, exist_ok=True)
+
+            cover_filename = f"{sanitize_filename(story_title)}.jpg"
+            cover_image_path = os.path.join(cover_directory, cover_filename)
+
+            generate_cover_image(story_title, story_author, cover_image_path)
+
+        book = epub.EpubBook()
+
+        book.set_identifier(str(uuid.uuid4()))
+        book.set_title(story_title)
+        book.set_language('en')
+        book.add_author(story_author)
+
+        if story_category:
+            book.add_metadata('DC', 'subject', story_category)
+        if story_tags:
+            for tag in story_tags:
+                book.add_metadata('DC', 'subject', tag)
+
+        try:
+            if os.path.exists(cover_image_path):
+                with open(cover_image_path, 'rb') as cover_file:
+                    book.set_cover("cover.jpg", cover_file.read())
+        except Exception as e:
+            error_msg = f"Error adding cover image: {str(e)}"
+            log_error(error_msg)
+
+        chapters = []
+        toc = []
+
+        if story_category or story_tags:
+            try:
+                metadata_content = format_metadata_content(story_category, story_tags)
+                metadata_chapter = epub.EpubHtml(title='Story Information',
+                                               file_name='metadata.xhtml',
+                                               content=metadata_content)
+                book.add_item(metadata_chapter)
+                chapters.append(metadata_chapter)
+                toc.append(metadata_chapter)
+            except Exception as e:
+                error_msg = f"Error adding metadata chapter: {str(e)}"
+                log_error(error_msg)
+
+        chapter_texts = story_content.split("\n\nChapter ")
+        
+        if chapter_texts[0].strip():
+            try:
+                intro_content = format_story_content(chapter_texts[0])
+                intro_chapter = epub.EpubHtml(title='Introduction',
+                                            file_name='intro.xhtml',
+                                            content=f'<h1>Introduction</h1>{intro_content}')
+                book.add_item(intro_chapter)
+                chapters.append(intro_chapter)
+                toc.append(intro_chapter)
+            except Exception as e:
+                error_msg = f"Error adding introduction chapter: {str(e)}"
+                log_error(error_msg)
+
+        for i, chapter_text in enumerate(chapter_texts[1:], 1):
+            try:
+                title_end = chapter_text.find("\n\n")
+                if title_end == -1:
+                    chapter_title = f"Chapter {i}"
+                    chapter_content = chapter_text
+                else:
+                    chapter_title = f"Chapter {chapter_text[:title_end]}"
+                    chapter_content = chapter_text[title_end:].strip()
+                
+                formatted_content = format_story_content(chapter_content)
+                chapter = epub.EpubHtml(title=chapter_title,
+                                      file_name=f'chapter_{i}.xhtml',
+                                      content=f'<h1>{chapter_title}</h1>{formatted_content}')
+                
+                book.add_item(chapter)
+                chapters.append(chapter)
+                toc.append(chapter)
+            except Exception as e:
+                error_msg = f"Error processing chapter {i}: {str(e)}"
+                log_error(error_msg)
+                continue
+
+        if not chapters:
+            error_msg = "No valid chapters found to create EPUB"
+            log_error(error_msg)
+            raise ValueError(error_msg)
+
+        book.add_item(epub.EpubNcx())
+        book.add_item(epub.EpubNav())
+
+        book.toc = toc
+        book.spine = ['nav'] + chapters
+
+        def sanitize_filename(filename):
+            return re.sub(r'[^a-zA-Z0-9._-]', '', filename)
+
+        epub_path = os.path.join(output_directory, f"{sanitize_filename(story_title)}.epub")
+        epub.write_epub(epub_path, book, {})
+        
+        send_notification(f"EPUB created: {story_title} by {story_author}")
+        
+        return epub_path
+
+    except Exception as e:
+        error_msg = f"Error creating EPUB file for '{story_title}' by {story_author}: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        send_notification(f"EPUB creation failed: {story_title} by {story_author}", is_error=True)
+        raise

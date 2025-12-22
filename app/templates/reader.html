@@ -1,0 +1,50 @@
+{% extends "layouts/reader.html" %}
+
+{% block content %}
+<article class="story-container">
+  <header class="story-header">
+    <h1 class="story-title">{{ story.title }}</h1>
+    <p class="story-author">by {{ story.author }}</p>
+    {% if story.category or story.tags %}
+    <div class="story-metadata">
+      {% if story.category %}
+      <span class="category">{{ story.category }}</span>
+      {% endif %}
+      {% if story.tags %}
+      <span class="tags">Tags: {{ story.tags|join(', ') if story.tags is iterable and story.tags is not string else story.tags }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </header>
+
+  {% if story.chapters|length > 1 %}
+  <nav class="table-of-contents">
+    <h2 class="toc-title">Table of Contents</h2>
+    <ol class="toc-list">
+      {% for chapter in story.chapters %}
+      <li><a href="#chapter-{{ chapter.number }}" class="toc-link">{{ chapter.title }}</a></li>
+      {% endfor %}
+    </ol>
+  </nav>
+  {% endif %}
+
+  <div class="story-content">
+    {% for chapter in story.chapters %}
+    <section class="chapter" id="chapter-{{ chapter.number }}">
+      <h2 class="chapter-title">{{ chapter.title }}</h2>
+      <div class="chapter-content">
+        {% for paragraph in chapter.paragraphs %}
+        <p>{{ paragraph }}</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if not loop.last %}
+    <div class="chapter-separator" aria-hidden="true">
+      <span>◆ ◆ ◆</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</article>
+{% endblock %}

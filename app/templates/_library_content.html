@@ -1,0 +1,25 @@
+{% from 'macros.html' import story_card_detailed, story_card_cover_grid %}
+
+{% if stories|length == 0 %}
+  <div class="text-center text-gray-500 dark:text-gray-400 py-12">
+    <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    </svg>
+    <p class="text-lg font-medium">No stories found</p>
+    <p class="text-sm mt-1">Try adjusting your search or filter</p>
+  </div>
+{% else %}
+  {% if view == 'detailed' %}
+    <div class="space-y-3">
+      {% for story in stories %}
+        {{ story_card_detailed(story) }}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+      {% for story in stories %}
+        {{ story_card_cover_grid(story) }}
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endif %}

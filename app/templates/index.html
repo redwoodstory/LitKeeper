@@ -1,181 +1,206 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Story Downloader</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #4a90e2;
-            --success-color: #2ecc71;
-            --error-color: #e74c3c;
-            --text-color: #2c3e50;
-            --bg-color: #f5f6fa;
-        }
+{% extends "layouts/dashboard.html" %}
+{% from 'macros.html' import story_card_detailed, story_card_cover_grid %}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block main_content %}
+<div class="card mb-8">
+  <form id="downloadForm" class="grid md:grid-cols-[1fr_auto] gap-6 items-start">
+    <div class="space-y-4">
+      <div>
+        <label for="url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Story URL
+        </label>
+        <input
+          type="url"
+          id="url"
+          name="url"
+          placeholder="https://www.literotica.com/s/..."
+          required
+          class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                 focus:ring-2 focus:ring-primary focus:border-transparent
+                 placeholder-gray-400 dark:placeholder-gray-500"
+        >
+      </div>
 
-        body {
-            font-family: 'Inter', sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            background: var(--bg-color);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 2rem;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 600px;
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 2rem;
-            color: var(--text-color);
-            font-size: 2rem;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        label {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        input {
-            padding: 0.8rem;
-            border: 2px solid #e1e1e1;
-            border-radius: 6px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        button {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 1rem;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background: #357abd;
-        }
-
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin-top: 1rem;
-            color: #666;
-        }
-
-        .result {
-            display: none;
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-
-        .result.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .result.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Story Downloader</h1>
-        <form id="downloadForm">
-            <label for="url">Enter Story URL:</label>
-            <input type="url" id="url" name="url" placeholder="Enter URL" required>
-            <button type="submit" id="submitBtn">Download Story</button>
-        </form>
-        <div class="loading">
-            Processing your request... Please wait.
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Download Format
+        </label>
+        <div class="flex flex-wrap gap-4">
+          <label class="flex items-center cursor-pointer">
+            <input type="checkbox" name="format" value="epub" checked
+                   class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+            <span class="ml-2 text-gray-700 dark:text-gray-300">EPUB (E-reader)</span>
+          </label>
+          <label class="flex items-center cursor-pointer">
+            <input type="checkbox" name="format" value="html" checked
+                   class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+            <span class="ml-2 text-gray-700 dark:text-gray-300">HTML (Read Online)</span>
+          </label>
         </div>
-        <div class="result"></div>
+        <p id="formatError" class="hidden text-sm text-red-600 dark:text-red-400 mt-1">
+          Please select at least one format
+        </p>
+      </div>
     </div>
 
-    <script>
-        const form = document.getElementById('downloadForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const loading = document.querySelector('.loading');
-        const result = document.querySelector('.result');
+    <div class="flex md:pt-7">
+      <button type="submit" class="btn-primary w-full md:w-auto md:px-8 whitespace-nowrap">
+        Download Story
+      </button>
+    </div>
+  </form>
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Reset UI
-            result.style.display = 'none';
-            result.className = 'result';
-            loading.style.display = 'block';
-            submitBtn.disabled = true;
-            
-            try {
-                const formData = new FormData(form);
-                const response = await fetch('/', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                result.style.display = 'block';
-                if (data.success === "true") {
-                    result.classList.add('success');
-                    result.textContent = data.message;
-                } else {
-                    result.classList.add('error');
-                    result.textContent = data.message;
-                }
-            } catch (error) {
-                result.style.display = 'block';
-                result.classList.add('error');
-                result.textContent = 'An error occurred while processing your request.';
-            } finally {
-                loading.style.display = 'none';
-                submitBtn.disabled = false;
-            }
-        });
-    </script>
-</body>
-</html>
+  <div id="loading" class="hidden mt-4 text-center">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-primary"></div>
+    <p class="mt-2 text-gray-600 dark:text-gray-400">Processing your request...</p>
+  </div>
+
+  <div id="result" class="hidden mt-4 p-4 rounded-lg"></div>
+</div>
+
+<div class="card" x-data="{ view: localStorage.getItem('libraryView') || 'detailed' }" x-init="$watch('view', val => localStorage.setItem('libraryView', val))">
+  <div class="flex flex-col gap-4 mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Library</h2>
+        <p id="libraryCount" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {% if stories|length == 0 %}
+            No stories yet
+          {% elif stories|length == 1 %}
+            1 story
+          {% else %}
+            {{ stories|length }} stories
+          {% endif %}
+        </p>
+      </div>
+      <button id="syncAllStories"
+              class="px-3 py-2 text-sm bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-all duration-200 font-medium whitespace-nowrap inline-flex items-center"
+              aria-label="Sync all stories offline">
+        Sync All Offline
+      </button>
+    </div>
+
+    <input type="hidden" name="view" :value="view">
+
+    <div class="flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <input type="text"
+               id="searchInput"
+               name="search"
+               placeholder="Search stories..."
+               hx-get="/library/filter"
+               hx-trigger="keyup changed delay:300ms"
+               hx-target="#library"
+               hx-include="[name='category'],[name='view']"
+               class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
+                      bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
+                      focus:ring-2 focus:ring-primary focus:border-transparent
+                      placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200">
+        <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+
+      <select id="categoryFilter"
+              name="category"
+              hx-get="/library/filter"
+              hx-trigger="change"
+              hx-target="#library"
+              hx-include="[name='search'],[name='view']"
+              class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
+                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                     sm:w-48">
+        <option value="all">All Categories</option>
+        <option value="uncategorized">Uncategorized</option>
+        {% for category in categories %}
+        <option value="{{ category }}">{{ category }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 h-10">
+        <button @click="view = 'detailed'"
+                hx-get="/library/filter"
+                hx-trigger="click"
+                hx-target="#library"
+                hx-include="[name='search'],[name='category']"
+                hx-vals='js:{view: "detailed"}'
+                :class="view === 'detailed' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+                class="px-3 py-1.5 text-sm font-medium rounded transition-all duration-200"
+                aria-label="Detailed view">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+        <button @click="view = 'grid'"
+                hx-get="/library/filter"
+                hx-trigger="click"
+                hx-target="#library"
+                hx-include="[name='search'],[name='category']"
+                hx-vals='js:{view: "grid"}'
+                :class="view === 'grid' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+                class="px-3 py-1.5 text-sm font-medium rounded transition-all duration-200"
+                aria-label="Grid view">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% if stories|length == 0 %}
+  <div class="text-center text-gray-500 dark:text-gray-400 py-12">
+    <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+    </svg>
+    <p class="text-lg font-medium">No stories in your library</p>
+    <p class="text-sm mt-1">Download a story to get started</p>
+  </div>
+  {% else %}
+  <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
+    <template x-if="view === 'detailed'">
+      <div class="space-y-3">
+        {% for story in stories %}
+          {{ story_card_detailed(story) }}
+        {% endfor %}
+      </div>
+    </template>
+    <template x-if="view === 'grid'">
+      <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+        {% for story in stories %}
+          {{ story_card_cover_grid(story) }}
+        {% endfor %}
+      </div>
+    </template>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid md:grid-cols-2 gap-6 mt-6">
+  <div class="card">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Service Worker Status</h2>
+      <button id="forceUpdate" class="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded transition-colors">
+        Force Update
+      </button>
+    </div>
+    <div id="swStatus" class="space-y-2 text-sm">
+      <p class="text-gray-600 dark:text-gray-400">Checking service worker...</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Storage Info</h2>
+      <button id="refreshStorage" class="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors">
+        Refresh
+      </button>
+    </div>
+    <div id="storageInfo" class="space-y-2 text-sm">
+      <p class="text-gray-600 dark:text-gray-400">Loading storage information...</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}{% block page_title %}LitKeeper - Story Downloader & Reader{% endblock %}{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/library.js" defer></script>
+<script src="/static/js/sync.js" defer></script>
+<script src="/static/js/story-modal.js" defer></script>
+<script src="/static/js/sw-status.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+  {% block header %}
+  <header class="text-center mb-12">
+    <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2">
+      LitKeeper
+    </h1>
+    <p class="text-gray-600 dark:text-gray-400 text-lg">
+      Download and read Literotica stories beautifully
+    </p>
+  </header>
+  {% endblock %}
+
+  {% block main_content %}{% endblock %}
+</div>
+{% endblock %}
