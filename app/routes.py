@@ -1,7 +1,8 @@
 from __future__ import annotations
 from flask import Blueprint, request, render_template, send_from_directory, jsonify, abort, current_app, Response, Flask
 from flask.typing import ResponseReturnValue
-from .services import download_story, create_epub_file, create_html_file, log_error, log_action, log_url, send_notification, extract_chapter_titles
+from .services import download_story, create_epub_file, create_html_file, log_error, log_action, log_url, send_notification, extract_chapter_titles, copy_to_secondary_output
+from .services.system_checks import check_mount_warning, check_secret_key_warning
 from .validators import StoryDownloadRequest, LibraryFilterRequest
 from pydantic import ValidationError
 import os
@@ -43,6 +44,10 @@ def background_process_url(app: Flask, url: str, formats: Optional[list[str]] = 
                 )
                 created_files.append(f"EPUB: {os.path.basename(epub_file_name)}")
                 log_action(f"Created EPUB: {epub_file_name}")
+
+                secondary_epub = copy_to_secondary_output(epub_file_name, 'epub')
+                if secondary_epub:
+                    log_action(f"Copied EPUB to secondary output: {secondary_epub}")
 
             if "html" in formats:
                 chapter_titles = extract_chapter_titles(story_content)
@@ -147,6 +152,10 @@ def process_url(url: str, formats: Optional[list[str]] = None) -> ResponseReturn
             created_files.append(f"EPUB: {os.path.basename(epub_file_name)}")
             log_action(f"Created EPUB: {epub_file_name}")
 
+            secondary_epub = copy_to_secondary_output(epub_file_name, 'epub')
+            if secondary_epub:
+                log_action(f"Copied EPUB to secondary output: {secondary_epub}")
+
         if "html" in formats:
             chapter_titles = extract_chapter_titles(story_content)
 
@@ -198,17 +207,24 @@ def index() -> ResponseReturnValue:
             error_details = e.errors()[0]
             error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
             log_error(f"Validation error on index form: {error_msg}")
-            stories = get_library_data()
-            categories = sorted(set(s.get('category') for s in stories if s.get('category')))
-            return render_template("index.html", stories=stories, categories=categories, view='detailed', error=error_msg)
+            enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
+            stories = get_library_data() if enable_library else []
+            categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
+            mount_warning = check_mount_warning()
+            secret_key_warning = check_secret_key_warning()
+            return render_template("index.html", stories=stories, categories=categories, view='detailed', error=error_msg, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library)
+
+    enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
     try:
-        stories = get_library_data()
-        categories = sorted(set(s.get('category') for s in stories if s.get('category')))
-        return render_template("index.html", stories=stories, categories=categories)
+        stories = get_library_data() if enable_library else []
+        categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
+        mount_warning = check_mount_warning()
+        secret_key_warning = check_secret_key_warning()
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library)
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
-        return render_template("index.html", stories=[], categories=[])
+        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, secret_key_warning=False, enable_library=enable_library)
 
 @main.route("/download/<filename>")
 def download_file(filename: str) -> ResponseReturnValue:

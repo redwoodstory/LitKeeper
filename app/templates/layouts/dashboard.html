@@ -23,6 +23,99 @@
   </header>
   {% endblock %}
 
+  {% if mount_warning and mount_warning.show_warning %}
+  <div id="mountWarning" class="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+    <div class="flex items-start gap-3">
+      <svg class="w-6 h-6 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <div class="flex-1">
+        <h3 class="font-semibold text-amber-900 dark:text-amber-200 mb-1">
+          Docker Configuration Warning
+        </h3>
+        <p class="text-sm text-amber-800 dark:text-amber-300 mb-3">
+          Your Docker container is missing bind mounts for data persistence. Without these, your converted books and covers will be lost when the container is updated or recreated.
+        </p>
+        <details class="text-sm text-amber-900 dark:text-amber-200">
+          <summary class="cursor-pointer font-medium hover:text-amber-700 dark:hover:text-amber-100">
+            How to fix this
+          </summary>
+          <div class="mt-2 space-y-2 text-amber-800 dark:text-amber-300">
+            <p>Add these volume mounts to your <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
+            <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">volumes:
+  - ./epubs:/litkeeper/app/data/epubs
+  - ./html:/litkeeper/app/data/html
+  - ./logs:/litkeeper/app/data/logs
+  - ./covers:/litkeeper/app/data/covers</pre>
+            <p class="text-xs">After updating, restart your container: <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker compose down && docker compose up -d</code></p>
+          </div>
+        </details>
+      </div>
+      <button onclick="dismissMountWarning()" class="text-amber-600 dark:text-amber-500 hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+  <script>
+    function dismissMountWarning() {
+      sessionStorage.setItem('mountWarningDismissed', 'true');
+      document.getElementById('mountWarning').remove();
+    }
+    if (sessionStorage.getItem('mountWarningDismissed') === 'true') {
+      const warning = document.getElementById('mountWarning');
+      if (warning) warning.remove();
+    }
+  </script>
+  {% endif %}
+
+  {% if secret_key_warning %}
+  <div id="secretKeyWarning" class="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+    <div class="flex items-start gap-3">
+      <svg class="w-6 h-6 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <div class="flex-1">
+        <h3 class="font-semibold text-red-900 dark:text-red-200 mb-1">
+          Security Warning: Missing SECRET_KEY
+        </h3>
+        <p class="text-sm text-red-800 dark:text-red-300 mb-3">
+          Your application is running without a proper SECRET_KEY. This is required for secure session management and should be set immediately.
+        </p>
+        <details class="text-sm text-red-900 dark:text-red-200">
+          <summary class="cursor-pointer font-medium hover:text-red-700 dark:hover:text-red-100">
+            How to fix this
+          </summary>
+          <div class="mt-2 space-y-2 text-red-800 dark:text-red-300">
+            <p>Generate a secure key and add it to your environment:</p>
+            <pre class="bg-red-100 dark:bg-red-900/40 p-3 rounded text-xs overflow-x-auto">python -c "import secrets; print(secrets.token_hex(32))"</pre>
+            <p>Add the generated key to your <code class="bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
+            <pre class="bg-red-100 dark:bg-red-900/40 p-3 rounded text-xs overflow-x-auto">environment:
+  - SECRET_KEY=your-generated-key-here</pre>
+            <p class="text-xs">Restart your container after updating.</p>
+          </div>
+        </details>
+      </div>
+      <button onclick="dismissSecretKeyWarning()" class="text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-300 transition-colors">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+  <script>
+    function dismissSecretKeyWarning() {
+      sessionStorage.setItem('secretKeyWarningDismissed', 'true');
+      document.getElementById('secretKeyWarning').remove();
+    }
+    if (sessionStorage.getItem('secretKeyWarningDismissed') === 'true') {
+      const warning = document.getElementById('secretKeyWarning');
+      if (warning) warning.remove();
+    }
+  </script>
+  {% endif %}
+
   {% block main_content %}{% endblock %}
 </div>
 {% endblock %}

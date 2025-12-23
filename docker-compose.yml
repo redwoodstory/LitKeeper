@@ -14,10 +14,14 @@ services:
       # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
       - SECRET_KEY=your-secret-key-here
 
-      # Optional logging controls
+      # Optional feature toggles
+      - ENABLE_LIBRARY=true       # Set to false to hide library UI (download-only mode)
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
+
+      # Optional secondary output (for integration with Calibre-Web, etc.)
+      - SECONDARY_EPUB_OUTPUT_PATH=  # Path to copy EPUBs (e.g., /secondary-output for Calibre-Web ingest)
 
       # Legacy Telegram notification configuration (still supported)
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather

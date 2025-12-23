@@ -48,17 +48,22 @@ services:
       - ./epubs:/litkeeper/app/data/epubs
       - ./html:/litkeeper/app/data/html
       - ./logs:/litkeeper/app/data/logs
+      - ./covers:/litkeeper/app/data/covers
     environment:
       # Flask Secret Key (REQUIRED for session persistence)
       # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
       - SECRET_KEY=your-secret-key-here
 
-      # Optional logging controls
+      # Optional feature toggles
+      - ENABLE_LIBRARY=true       # Set to false to hide library UI (download-only mode)
       - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
       - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
       - ENABLE_URL_LOG=true       # Set to false to disable URL logging
 
-      # Legacy Telegram notification configuration
+      # Optional secondary output (for integration with Calibre-Web, etc.)
+      - SECONDARY_EPUB_OUTPUT_PATH=  # Path to copy EPUBs (e.g., /secondary-output for Calibre-Web ingest)
+
+      # Legacy Telegram notification configuration (still supported)
       - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
       - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
 
@@ -79,6 +84,58 @@ services:
 
 **Note:** For PWA features to work, you'll need HTTPS. See [HTTPS Setup](#https-setup) below.
 
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRET_KEY` | *Required* | Flask secret key for session security. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ENABLE_LIBRARY` | `true` | Show library UI with story management. Set to `false` for download-only mode (hides library, search, and reader features) |
+| `SECONDARY_EPUB_OUTPUT_PATH` | - | Optional path to copy EPUBs after creation. Useful for Calibre-Web integration (e.g., `/secondary-output` mounted to Calibre-Web ingest folder) |
+| `ENABLE_ACTION_LOG` | `true` | Log application actions to `logs/action.log` |
+| `ENABLE_ERROR_LOG` | `true` | Log errors to `logs/error.log` |
+| `ENABLE_URL_LOG` | `true` | Log processed URLs to `logs/url.log` |
+| `TELEGRAM_BOT_TOKEN` | - | Legacy Telegram bot token for notifications |
+| `TELEGRAM_CHAT_ID` | - | Legacy Telegram chat ID for notifications |
+| `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Discord, Slack, Email, Pushover, etc.) |
+
+### Volume Mounts
+
+**Important:** All volume mounts are required for data persistence:
+
+| Mount | Purpose | Required |
+|-------|---------|----------|
+| `./epubs:/litkeeper/app/data/epubs` | EPUB file storage | ✅ Yes |
+| `./html:/litkeeper/app/data/html` | HTML file storage | ✅ Yes |
+| `./logs:/litkeeper/app/data/logs` | Application logs | ✅ Yes |
+| `./covers:/litkeeper/app/data/covers` | Generated cover images | ✅ Yes |
+
+**⚠️ Warning:** Without these bind mounts, your converted books and covers will be lost when the container is updated or recreated. The app will display a warning if bind mounts are not properly configured.
+
+### Calibre-Web Integration
+
+If you use Calibre-Web and want EPUBs automatically copied to its ingest folder:
+
+```yaml
+services:
+  litkeeper:
+    image: ghcr.io/redwoodstory/litkeeper:latest
+    volumes:
+      - ./litkeeper-epubs:/litkeeper/app/data/epubs  # LitKeeper's library
+      - ./calibre-ingest:/secondary-output            # Calibre-Web ingest folder
+      - ./html:/litkeeper/app/data/html
+      - ./logs:/litkeeper/app/data/logs
+      - ./covers:/litkeeper/app/data/covers
+    environment:
+      - SECRET_KEY=your-secret-key-here
+      - SECONDARY_EPUB_OUTPUT_PATH=/secondary-output  # Copy EPUBs here
+```
+
+This configuration:
+- Keeps EPUBs in LitKeeper's library (`./litkeeper-epubs`)
+- Automatically copies them to Calibre-Web's ingest folder (`./calibre-ingest`)
+- Calibre-Web can delete files from the ingest folder without affecting LitKeeper's library
 
 ## HTTPS Setup
 

@@ -6,6 +6,7 @@ from .story_downloader import download_story, extract_chapter_titles, get_sessio
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
 from .cover_generator import generate_cover_image, extract_cover_from_epub
+from .file_operations import copy_to_secondary_output
 
 __all__ = [
     'log_action',
@@ -23,4 +24,5 @@ __all__ = [
     'create_html_file',
     'generate_cover_image',
     'extract_cover_from_epub',
+    'copy_to_secondary_output',
 ]

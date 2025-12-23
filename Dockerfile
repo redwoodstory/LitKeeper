@@ -41,7 +41,7 @@ COPY app app/
 COPY run.py .
 
 # Create data directories with correct permissions
-RUN mkdir -p app/data/epubs app/data/logs && \
+RUN mkdir -p app/data/epubs app/data/logs app/data/html app/data/covers && \
     chmod -R 777 app/data
 
 # Set environment variables

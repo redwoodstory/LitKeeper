@@ -59,6 +59,7 @@
   <div id="result" class="hidden mt-4 p-4 rounded-lg"></div>
 </div>
 
+{% if enable_library %}
 <div class="card" x-data="{ view: localStorage.getItem('libraryView') || 'detailed' }" x-init="$watch('view', val => localStorage.setItem('libraryView', val))">
   <div class="flex flex-col gap-4 mb-6">
     <div class="flex items-center justify-between">
@@ -179,6 +180,8 @@
 </div>
 
 <div class="grid md:grid-cols-2 gap-6 mt-6">
+{% else %}
+<div class="grid md:grid-cols-2 gap-6">
   <div class="card">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-gray-800 dark:text-white">Service Worker Status</h2>
@@ -203,4 +206,5 @@
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
