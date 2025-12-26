@@ -1,10 +1,10 @@
 from __future__ import annotations
 import os
-import re
 import uuid
 import traceback
 import ebooklib.epub as epub
 from typing import Optional
+from app.utils import sanitize_filename, get_cover_directory
 from .logger import log_error
 from .notifier import send_notification
 from .cover_generator import generate_cover_image
@@ -82,10 +82,7 @@ def create_epub_file(
         os.makedirs(output_directory, exist_ok=True)
 
         if cover_image_path is None:
-            def sanitize_filename(filename):
-                return re.sub(r'[^a-zA-Z0-9._-]', '', filename)
-
-            cover_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "covers")
+            cover_directory = get_cover_directory()
             os.makedirs(cover_directory, exist_ok=True)
 
             cover_filename = f"{sanitize_filename(story_title)}.jpg"
@@ -178,9 +175,6 @@ def create_epub_file(
 
         book.toc = toc
         book.spine = ['nav'] + chapters
-
-        def sanitize_filename(filename):
-            return re.sub(r'[^a-zA-Z0-9._-]', '', filename)
 
         epub_path = os.path.join(output_directory, f"{sanitize_filename(story_title)}.epub")
         epub.write_epub(epub_path, book, {})

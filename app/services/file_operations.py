@@ -6,7 +6,10 @@ from typing import Optional
 
 def copy_to_secondary_output(source_file: str, file_type: str) -> Optional[str]:
     """
-    Copy a file to a secondary output directory if configured.
+    Copy a file to a secondary output directory if mounted.
+
+    For EPUBs, copies to /litkeeper/app/data/secondary-epubs if the directory exists
+    (indicating a bind mount is configured).
 
     Args:
         source_file: Full path to the source file
@@ -15,27 +18,21 @@ def copy_to_secondary_output(source_file: str, file_type: str) -> Optional[str]:
     Returns:
         Path to the copied file if successful, None otherwise
     """
-    if file_type == 'epub':
-        secondary_path = os.getenv('SECONDARY_EPUB_OUTPUT_PATH')
-    else:
+    if file_type != 'epub':
         return None
 
-    if not secondary_path:
-        return None
+    secondary_path = Path(__file__).parent.parent / "data" / "secondary-epubs"
 
-    secondary_path = secondary_path.strip()
-    if not secondary_path:
+    if not secondary_path.exists():
         return None
 
     try:
-        Path(secondary_path).mkdir(parents=True, exist_ok=True)
-
         filename = os.path.basename(source_file)
-        destination = os.path.join(secondary_path, filename)
+        destination = secondary_path / filename
 
-        shutil.copy2(source_file, destination)
+        shutil.copy2(source_file, str(destination))
 
-        return destination
+        return str(destination)
     except (OSError, PermissionError, shutil.Error) as e:
         from .logger import log_error
         log_error(f"Failed to copy {file_type} to secondary output: {str(e)}", "secondary_output")

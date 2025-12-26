@@ -1,39 +1,35 @@
 # LitKeeper
 
-This is a web app to save stories from [Literotica](https://www.literotica.com) to EPUB and/or HTML formats. In my own workflow, I download stories to a local server running [Calibre-Web-Automated](https://github.com/crocodilestick/Calibre-Web-Automated), which renders the stories available to other devices through its OPDS functionality.
+This is a web app to save stories from [Literotica](https://www.literotica.com) to EPUB and/or HTML formats.
+
+This started as a tool to download stories as EPUBs to use on an e-reader. It has evolved to also include an optional interactive library within the app itself. The library allows you to either download EPUBs from the web browser or read your stories in HTML format within the app. As LitKeeper can be installed to your device as a PWA, you can choose to sync your HTML stories offline too.
 
 ## Features
 
 ### Core Functionality
-- Modern web interface with dark mode support and library management
 - Download stories in EPUB format (for e-readers) and/or HTML format (for in-browser reading)
-- Beautiful HTML reader with customizable fonts, sizes, line spacing, and reading width
+- Provides customizable fonts, sizes, line spacing, and reading width for HTML reading
 - Retrieves story content and converts to selected format(s)
 - Bundles story category and tags into metadata
 - Generates cover images for EPUB files showing the story title and author name
 - Identifies if the story is part of a series and bundles subsequent stories into a single file
 - Table of contents for easy navigation in multi-chapter stories
 - Provides an API to download stories directly from iOS shortcuts (see example below)
-- (Optional) Sends notifications when stories are downloaded
-- (Optional) Provides extensive logging (helpful for debugging but can be disabled in Docker Compose file)
+- Sends notifications when stories are downloaded
 
 ### Progressive Web App (PWA) Features
-- **Install as native app** on mobile and desktop devices
-- **Offline reading** - Read downloaded HTML stories without internet connection
-- **OPFS storage** - Store thousands of stories locally (gigabytes of storage on modern browsers)
-- **Automatic caching** - Stories are cached when you first read them
-- **Persistent storage** - Stories won't be evicted under storage pressure
+Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection.
 
 **⚠️ HTTPS Required for PWA Features**
 
-PWA features (offline support, installation, OPFS storage) require HTTPS due to browser security requirements. See the [HTTPS Setup](#https-setup) section below for deployment options.
+PWA features (offline reading, app installation, OPFS storage) require HTTPS. This is a browser security requirement, not a LitKeeper limitation. Without HTTPS, the app still works as a web app, but you won't be able to read HTML stories offline.
 
 
 ## Installation
 
 1. Generate a secure SECRET_KEY:
 ```bash
-python -c "import secrets; print(secrets.token_hex(32))"
+openssl rand -hex 32
 ```
 
 2. Create a docker-compose.yml file:
@@ -45,36 +41,48 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      # Set /epubs mount to enable downloading epubs to the file system
+      # If the app library is enabled, these files will be shown on the app UI too
       - ./epubs:/litkeeper/app/data/epubs
+
+      # Optional: Set a secondary bind mount to save epubs to a different location
+      # This could be useful for a tool like Calibre-Web to ingest (and subsequently delete) saved files
+      # There files are only for external consumption and are not shown on the app library
+      - ./secondary-epubs:/litkeeper/app/data/secondary-epubs
+
+      # Set /html and /covers mounts to use the interactive library in the app
+      # Ensure that ENABLE_LIBRARY is also set to true to use the library
       - ./html:/litkeeper/app/data/html
-      - ./logs:/litkeeper/app/data/logs
       - ./covers:/litkeeper/app/data/covers
+
+      # Set /logs mount to persist logs between container restarts
+      - ./logs:/litkeeper/app/data/logs
+
+
     environment:
-      # Flask Secret Key (REQUIRED for session persistence)
-      # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+      # Flask Secret Key (required for session persistence)
+      # Generate with: openssl rand -hex 32
       - SECRET_KEY=your-secret-key-here
 
-      # Optional feature toggles
-      - ENABLE_LIBRARY=true       # Set to false to hide library UI (download-only mode)
-      - ENABLE_ACTION_LOG=true    # Set to false to disable action logging
-      - ENABLE_ERROR_LOG=true     # Set to false to disable error logging
-      - ENABLE_URL_LOG=true       # Set to false to disable URL logging
+      # Set to false to hide library UI (download-only mode)
+      - ENABLE_LIBRARY=true
 
-      # Optional secondary output (for integration with Calibre-Web, etc.)
-      - SECONDARY_EPUB_OUTPUT_PATH=  # Path to copy EPUBs (e.g., /secondary-output for Calibre-Web ingest)
+      # Optional logging toggles
+      - ENABLE_ACTION_LOG=true
+      - ENABLE_ERROR_LOG=true
+      - ENABLE_URL_LOG=true
 
-      # Legacy Telegram notification configuration (still supported)
-      - TELEGRAM_BOT_TOKEN=      # Your bot token from @BotFather
-      - TELEGRAM_CHAT_ID=        # Your chat ID (can be channel, group, or user ID)
+      # Notification configuration based on Apprise (supports multiple services)
+      # See Apprise docs for full list: https://github.com/caronc/apprise#supported-notifications
+      # - NOTIFICATION_URLS=tgram://BOT_TOKEN/CHAT_ID
 
-      # New notification configuration based on Apprise (supports multiple services)
-      # Add your notification URLs here, separated by commas. Examples:
+      # Examples for a few services:
       # - Telegram: tgram://BOT_TOKEN/CHAT_ID
       # - Discord: discord://webhook_id/webhook_token
       # - Slack: slack://tokenA/tokenB/tokenC
       # - Email: mailto://user:pass@gmail.com
       # - Pushover: pover://user_key/app_token
-      - NOTIFICATION_URLS=        # Add your notification URLs here (optional)
+      - NOTIFICATION_URLS=
 ```
 
 3. Run the following command
@@ -90,15 +98,12 @@ services:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SECRET_KEY` | *Required* | Flask secret key for session security. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `SECRET_KEY` | *Required* | Flask secret key for session security. Generate with: `openssl rand -hex 32` |
 | `ENABLE_LIBRARY` | `true` | Show library UI with story management. Set to `false` for download-only mode (hides library, search, and reader features) |
-| `SECONDARY_EPUB_OUTPUT_PATH` | - | Optional path to copy EPUBs after creation. Useful for Calibre-Web integration (e.g., `/secondary-output` mounted to Calibre-Web ingest folder) |
 | `ENABLE_ACTION_LOG` | `true` | Log application actions to `logs/action.log` |
 | `ENABLE_ERROR_LOG` | `true` | Log errors to `logs/error.log` |
 | `ENABLE_URL_LOG` | `true` | Log processed URLs to `logs/url.log` |
-| `TELEGRAM_BOT_TOKEN` | - | Legacy Telegram bot token for notifications |
-| `TELEGRAM_CHAT_ID` | - | Legacy Telegram chat ID for notifications |
-| `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Discord, Slack, Email, Pushover, etc.) |
+| `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Telegram, Discord, Slack, Email, Pushover, etc.) |
 
 ### Volume Mounts
 
@@ -111,135 +116,7 @@ services:
 | `./logs:/litkeeper/app/data/logs` | Application logs | ✅ Yes |
 | `./covers:/litkeeper/app/data/covers` | Generated cover images | ✅ Yes |
 
-**⚠️ Warning:** Without these bind mounts, your converted books and covers will be lost when the container is updated or recreated. The app will display a warning if bind mounts are not properly configured.
-
-### Calibre-Web Integration
-
-If you use Calibre-Web and want EPUBs automatically copied to its ingest folder:
-
-```yaml
-services:
-  litkeeper:
-    image: ghcr.io/redwoodstory/litkeeper:latest
-    volumes:
-      - ./litkeeper-epubs:/litkeeper/app/data/epubs  # LitKeeper's library
-      - ./calibre-ingest:/secondary-output            # Calibre-Web ingest folder
-      - ./html:/litkeeper/app/data/html
-      - ./logs:/litkeeper/app/data/logs
-      - ./covers:/litkeeper/app/data/covers
-    environment:
-      - SECRET_KEY=your-secret-key-here
-      - SECONDARY_EPUB_OUTPUT_PATH=/secondary-output  # Copy EPUBs here
-```
-
-This configuration:
-- Keeps EPUBs in LitKeeper's library (`./litkeeper-epubs`)
-- Automatically copies them to Calibre-Web's ingest folder (`./calibre-ingest`)
-- Calibre-Web can delete files from the ingest folder without affecting LitKeeper's library
-
-## HTTPS Setup
-
-PWA features (offline reading, app installation, OPFS storage) require HTTPS. This is a browser security requirement, not a LitKeeper limitation.
-
-### Why HTTPS is Required
-
-Service Workers (which power PWA features) only work in "secure contexts":
-- ✅ `https://` URLs (production)
-- ✅ `localhost` or `127.0.0.1` (development exception)
-- ❌ `http://` URLs (blocked)
-- ❌ Local IP addresses like `http://192.168.x.x` (blocked)
-
-Without HTTPS, the app still works as a web app, but you won't be able to:
-- Install it as a PWA on mobile/desktop
-- Read stories offline
-- Use OPFS for massive storage capacity
-
-### Deployment Options
-
-#### Option 1: Reverse Proxy (Recommended)
-
-Use a reverse proxy to handle HTTPS while LitKeeper runs on HTTP internally.
-
-**Using Caddy (Easiest - Auto SSL):**
-```
-litkeeper.yourdomain.com {
-    reverse_proxy localhost:5000
-}
-```
-Caddy automatically obtains and renews Let's Encrypt certificates.
-
-**Using Nginx with Let's Encrypt:**
-```nginx
-server {
-    listen 443 ssl;
-    server_name litkeeper.yourdomain.com;
-    
-    ssl_certificate /etc/letsencrypt/live/litkeeper.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/litkeeper.yourdomain.com/privkey.pem;
-    
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Get Let's Encrypt certificate:
-```bash
-sudo certbot --nginx -d litkeeper.yourdomain.com
-```
-
-#### Option 2: Cloudflare Tunnel (No Domain/Port Forwarding Needed)
-
-Free HTTPS without exposing ports or managing certificates:
-
-```bash
-# Install cloudflared
-# Visit: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/
-
-# Create tunnel
-cloudflared tunnel create litkeeper
-
-# Configure tunnel (config.yml)
-tunnel: <tunnel-id>
-credentials-file: /path/to/credentials.json
-
-ingress:
-  - hostname: litkeeper.yourdomain.com
-    service: http://localhost:5000
-  - service: http_status:404
-
-# Run tunnel
-cloudflared tunnel run litkeeper
-```
-
-#### Option 3: Tailscale (VPN Approach)
-
-Access via Tailscale uses the `localhost` exception:
-- Install Tailscale on server and devices
-- Access via `http://100.x.x.x:5000` (Tailscale IP)
-- Service Workers work because Tailscale IPs are treated as secure
-
-#### Option 4: Local Development Only
-
-If you only access from the same machine:
-- Use `http://localhost:5000` or `http://127.0.0.1:5000`
-- PWA features work due to localhost exception
-- Won't work from other devices on your network
-
-### Requirements Summary
-
-| Access Method | PWA Features | Notes |
-|--------------|--------------|-------|
-| `https://domain.com` | ✅ Yes | Requires domain + SSL certificate |
-| `http://localhost:5000` | ✅ Yes | Same machine only |
-| `http://192.168.x.x:5000` | ❌ No | Blocked by browsers |
-| `http://domain.com` | ❌ No | Must use HTTPS |
-| Cloudflare Tunnel | ✅ Yes | Free HTTPS, no port forwarding |
-| Tailscale VPN | ✅ Yes | Treated as localhost |
+**⚠️ Warning:** Without these bind mounts, your converted books and covers will be lost when the container is updated or recreated. The app will display a warning if bind mounts are not properly configured. You can also set the environment variable ENABLE_LIBRARY=false to hide the /html and /covers warning messages.
 
 
 ## API Configuration

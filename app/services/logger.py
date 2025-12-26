@@ -3,12 +3,13 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from typing import Optional
+from app.utils import get_logs_directory
 
 ENABLE_ACTION_LOG = os.getenv('ENABLE_ACTION_LOG', 'true').lower() == 'true'
 ENABLE_ERROR_LOG = os.getenv('ENABLE_ERROR_LOG', 'true').lower() == 'true'
 ENABLE_URL_LOG = os.getenv('ENABLE_URL_LOG', 'true').lower() == 'true'
 
-log_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "logs")
+log_directory = get_logs_directory()
 os.makedirs(log_directory, exist_ok=True)
 
 def _setup_logger(name: str, log_file: str, level: int = logging.INFO) -> logging.Logger:

@@ -15,8 +15,13 @@ def check_mount_warning() -> dict[str, bool]:
     if not is_running_in_docker():
         return {"show_warning": False, "missing_mounts": []}
 
+    enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
+    if not enable_library:
+        return {"show_warning": False, "missing_mounts": []}
+
     data_dir = Path(__file__).parent.parent / "data"
     critical_dirs = {
+        "epubs": data_dir / "epubs",
         "html": data_dir / "html",
         "covers": data_dir / "covers"
     }

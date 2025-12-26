@@ -52,7 +52,11 @@ def create_app() -> Flask:
             return ''
 
     # Register Blueprints
-    from .routes import main
-    app.register_blueprint(main)
+    from .blueprints import api, library, downloads, errors
+
+    app.register_blueprint(api)
+    app.register_blueprint(library)
+    app.register_blueprint(downloads)
+    app.register_blueprint(errors)
 
     return app

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Internal Server Error{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4">
+  <div class="max-w-md w-full text-center">
+    <div class="mb-8">
+      <h1 class="text-9xl font-bold text-gray-200 dark:text-gray-700">500</h1>
+      <div class="text-4xl font-bold text-gray-900 dark:text-white mt-4 mb-2">
+        Server Error
+      </div>
+      <p class="text-gray-600 dark:text-gray-400 text-lg">
+        Something went wrong on our end. We've been notified and are working on it.
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      <a href="/" class="inline-block btn-primary px-8 py-3">
+        Return Home
+      </a>
+      <p class="text-sm text-gray-500 dark:text-gray-500">
+        If the problem persists, please check the logs.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -161,20 +161,16 @@
   </div>
   {% else %}
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
-    <template x-if="view === 'detailed'">
-      <div class="space-y-3">
-        {% for story in stories %}
-          {{ story_card_detailed(story) }}
-        {% endfor %}
-      </div>
-    </template>
-    <template x-if="view === 'grid'">
-      <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
-        {% for story in stories %}
-          {{ story_card_cover_grid(story) }}
-        {% endfor %}
-      </div>
-    </template>
+    <div x-show="view === 'detailed'" class="space-y-3">
+      {% for story in stories %}
+        {{ story_card_detailed(story) }}
+      {% endfor %}
+    </div>
+    <div x-show="view === 'grid'" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+      {% for story in stories %}
+        {{ story_card_cover_grid(story) }}
+      {% endfor %}
+    </div>
   </div>
   {% endif %}
 </div>

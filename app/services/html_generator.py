@@ -1,9 +1,9 @@
 from __future__ import annotations
 import os
-import re
 import json
 import traceback
 from typing import Optional
+from app.utils import sanitize_filename, get_cover_directory
 from .logger import log_error
 from .notifier import send_notification
 from .cover_generator import generate_cover_image
@@ -33,10 +33,7 @@ def create_html_file(
         Path to the created JSON file
     """
     try:
-        def sanitize_filename(filename):
-            return re.sub(r'[^a-zA-Z0-9._-]', '', filename)
-
-        cover_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "covers")
+        cover_directory = get_cover_directory()
         os.makedirs(cover_directory, exist_ok=True)
 
         cover_filename = f"{sanitize_filename(story_title)}.jpg"

@@ -41,13 +41,20 @@
             How to fix this
           </summary>
           <div class="mt-2 space-y-2 text-amber-800 dark:text-amber-300">
+            <p class="font-medium">Option 1: Add volume mounts (recommended for library features)</p>
             <p>Add these volume mounts to your <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
             <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">volumes:
   - ./epubs:/litkeeper/app/data/epubs
   - ./html:/litkeeper/app/data/html
-  - ./logs:/litkeeper/app/data/logs
-  - ./covers:/litkeeper/app/data/covers</pre>
+  - ./covers:/litkeeper/app/data/covers
+  - ./logs:/litkeeper/app/data/logs  # Optional: only needed if logging is enabled</pre>
             <p class="text-xs">After updating, restart your container: <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker compose down && docker compose up -d</code></p>
+            <hr class="border-amber-200 dark:border-amber-800 my-3">
+            <p class="font-medium">Option 2: Use download-only mode</p>
+            <p>If you don't need the library features, set <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">ENABLE_LIBRARY=false</code> in your environment variables:</p>
+            <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">environment:
+  - ENABLE_LIBRARY=false</pre>
+            <p class="text-xs">This will hide the library UI and focus on downloading stories only.</p>
           </div>
         </details>
       </div>

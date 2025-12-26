@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}403 - Forbidden{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4">
+  <div class="max-w-md w-full text-center">
+    <div class="mb-8">
+      <h1 class="text-9xl font-bold text-gray-200 dark:text-gray-700">403</h1>
+      <div class="text-4xl font-bold text-gray-900 dark:text-white mt-4 mb-2">
+        Access Forbidden
+      </div>
+      <p class="text-gray-600 dark:text-gray-400 text-lg">
+        You don't have permission to access this resource.
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      <a href="/" class="inline-block btn-primary px-8 py-3">
+        Return Home
+      </a>
+      <p class="text-sm text-gray-500 dark:text-gray-500">
+        If you believe this is a mistake, please contact support.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
