@@ -1,10 +1,9 @@
 name: Docker
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types: [published]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -34,10 +33,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag with the SemVer version (e.g., 1.0.0) if this is a release
+            type=semver,pattern={{version}}
+            # Always tag with 'latest' if we are on main or releasing
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') || github.event_name == 'release' }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

@@ -107,6 +107,8 @@ def get_library_data() -> list[dict]:
                     category = story_data.get('category')
                     tags = story_data.get('tags', [])
                     cover = story_data.get('cover')
+                    source_url = story_data.get('source_url')
+                    author_url = story_data.get('author_url')
             except:
                 pass
 
@@ -119,6 +121,10 @@ def get_library_data() -> list[dict]:
             story["tags"] = tags
         if cover:
             story["cover"] = cover
+        if 'source_url' in locals() and source_url:
+            story["source_url"] = source_url
+        if 'author_url' in locals() and author_url:
+            story["author_url"] = author_url
 
         if filename_base in epub_files:
             epub_path = os.path.join(epub_directory, epub_files[filename_base])
@@ -156,7 +162,7 @@ def get_library() -> ResponseReturnValue:
 def get_cover(filename: str) -> ResponseReturnValue:
     from app.services import generate_cover_image, extract_cover_from_epub
 
-    if '..' in filename or filename.startswith('/'):
+    if '/..' in filename or filename.startswith('/') or filename.startswith('..'):
         log_error(f"Attempted path traversal in cover request: {filename}")
         abort(404)
 

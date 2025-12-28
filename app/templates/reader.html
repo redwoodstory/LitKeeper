@@ -4,7 +4,9 @@
 <article class="story-container">
   <header class="story-header">
     <h1 class="story-title">{{ story.title }}</h1>
-    <p class="story-author">by {{ story.author }}</p>
+    <p class="story-author">
+      by {% if story.author_url %}<a href="{{ story.author_url }}" target="_blank" rel="noopener noreferrer" class="author-link">{{ story.author }}</a>{% else %}{{ story.author }}{% endif %}
+    </p>
     {% if story.category or story.tags %}
     <div class="story-metadata">
       {% if story.category %}

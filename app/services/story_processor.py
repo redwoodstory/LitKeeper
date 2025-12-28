@@ -55,7 +55,7 @@ def download_story_and_create_files(
 
     try:
         log_action(f"Starting download: {url}")
-        story_content, story_title, story_author, story_category, story_tags = download_story(url)
+        story_content, story_title, story_author, story_category, story_tags, story_author_url = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to download story from: {url}"
@@ -97,7 +97,9 @@ def download_story_and_create_files(
                 get_html_directory(),
                 story_category=story_category,
                 story_tags=story_tags,
-                chapter_titles=chapter_titles if chapter_titles else None
+                chapter_titles=chapter_titles if chapter_titles else None,
+                source_url=url,
+                author_url=story_author_url
             )
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")

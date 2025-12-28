@@ -40,13 +40,17 @@
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-slate-200/60 dark:border-gray-700">
     <div class="p-4">
       <div class="flex gap-4 mb-3">
-        <div class="flex-shrink-0">
+        <div class="flex-shrink-0 relative">
           {% set cover_filename = story.cover if story.cover else story.filename_base + '.jpg' %}
           <img src="/api/cover/{{ cover_filename }}"
                alt="{{ story.title }} cover"
-               class="w-16 h-24 sm:w-24 sm:h-32 object-cover rounded-lg shadow-sm"
+               class="w-16 h-24 sm:w-24 sm:h-32 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
+               style="box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);"
                loading="lazy"
-               onerror="this.style.display='none'">
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+          <div class="w-16 h-24 sm:w-24 sm:h-32 bg-gradient-to-br from-slate-700 to-slate-900 hidden items-center justify-center p-2 text-center rounded-lg">
+            <span class="text-white text-2xl">📚</span>
+          </div>
         </div>
 
         <div class="flex-1 min-w-0">
@@ -96,7 +100,10 @@
 
 {% macro story_card_cover_grid(story) %}
   <div class="story-card-cover cursor-pointer" data-story='{{ story | tojson }}'>
-    <div class="aspect-[3/4] overflow-hidden rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div class="aspect-[3/4] overflow-hidden rounded-lg border-2 border-white/80 dark:border-white/10 transition-all duration-200"
+         style="box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);"
+         onmouseenter="this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)'"
+         onmouseleave="this.style.boxShadow='0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)'">
       {% set cover_filename = story.cover if story.cover else story.filename_base + '.jpg' %}
       <img src="/api/cover/{{ cover_filename }}"
            alt="{{ story.title }} by {{ story.author if story.author else 'Unknown Author' }}"
@@ -122,7 +129,8 @@
       {% set cover_filename = story.cover if story.cover else story.filename_base + '.jpg' %}
       <img src="/api/cover/{{ cover_filename }}"
            alt="{{ story.title }} cover"
-           class="w-48 h-64 object-cover rounded-lg shadow-md"
+           class="w-48 h-64 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
+           style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);"
            onerror="this.style.display='none'">
     </div>
 
@@ -146,7 +154,7 @@
           <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags:</p>
           <div class="flex flex-wrap gap-2">
             {% for tag in story.tags %}
-              <span class="text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded">
+              <span class="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full">
                 {{ tag }}
               </span>
             {% endfor %}

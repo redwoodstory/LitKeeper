@@ -228,7 +228,43 @@ body {
   font-size: 1.2rem;
   color: var(--secondary-text);
   font-style: italic;
+  margin-bottom: 0.75rem;
+}
+
+.author-link {
+  color: var(--link-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  border-bottom: 1px dotted var(--link-color);
+}
+
+.author-link:hover {
+  color: var(--link-hover);
+  border-bottom-color: var(--link-hover);
+}
+
+.story-source {
+  font-size: 0.95rem;
   margin-bottom: 1rem;
+}
+
+.source-link {
+  color: var(--secondary-text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.source-link:hover {
+  color: var(--link-color);
+}
+
+.source-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 .story-metadata {
