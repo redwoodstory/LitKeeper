@@ -1,0 +1,21 @@
+{
+  "title": "Test Story Title",
+  "author": "TestAuthor",
+  "url": "https://www.literotica.com/s/test-story-1",
+  "category": "Romance",
+  "tags": ["Romance", "Love", "Passion"],
+  "date": "2024-01-15",
+  "rating": "4.5",
+  "chapters": [
+    {
+      "title": "Chapter 1: The Beginning",
+      "content": "This is chapter one content...",
+      "number": 1
+    },
+    {
+      "title": "Chapter 2: The Middle",
+      "content": "This is chapter two content...",
+      "number": 2
+    }
+  ]
+}
