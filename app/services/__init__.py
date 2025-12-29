@@ -8,6 +8,7 @@ from .html_generator import create_html_file
 from .cover_generator import generate_cover_image, extract_cover_from_epub
 from .file_operations import copy_to_secondary_output
 from .story_processor import download_story_and_create_files, StoryProcessingResult
+from .library import get_library_data
 
 __all__ = [
     'log_action',
@@ -28,4 +29,5 @@ __all__ = [
     'copy_to_secondary_output',
     'download_story_and_create_files',
     'StoryProcessingResult',
+    'get_library_data',
 ]

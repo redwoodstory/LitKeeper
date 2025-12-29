@@ -33,28 +33,42 @@
         <h3 class="font-semibold text-amber-900 dark:text-amber-200 mb-1">
           Docker Configuration Warning
         </h3>
+        {% if mount_warning.epubs_only %}
+        <p class="text-sm text-amber-800 dark:text-amber-300 mb-3">
+          Your Docker container is missing the <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/epubs</code> bind mount. Without this, your downloaded EPUB files will be lost when the container is updated or recreated.
+        </p>
+        {% else %}
         <p class="text-sm text-amber-800 dark:text-amber-300 mb-3">
           Your Docker container is missing bind mounts for data persistence. Without these, your converted books and covers will be lost when the container is updated or recreated.
         </p>
+        {% endif %}
         <details class="text-sm text-amber-900 dark:text-amber-200">
           <summary class="cursor-pointer font-medium hover:text-amber-700 dark:hover:text-amber-100">
             How to fix this
           </summary>
           <div class="mt-2 space-y-2 text-amber-800 dark:text-amber-300">
-            <p class="font-medium">Option 1: Add volume mounts (recommended for library features)</p>
+            {% if mount_warning.epubs_only %}
+            <p class="font-medium">Add the /epubs volume mount (required)</p>
+            <p>Add this volume mount to your <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
+            <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">volumes:
+  - ./epubs:/litkeeper/app/data/epubs</pre>
+            <p class="text-xs">After updating, restart your container: <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker compose down && docker compose up -d</code></p>
+            {% else %}
+            <p class="font-medium">Add volume mounts to persist your data</p>
             <p>Add these volume mounts to your <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
             <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">volumes:
-  - ./epubs:/litkeeper/app/data/epubs
-  - ./html:/litkeeper/app/data/html
-  - ./covers:/litkeeper/app/data/covers
-  - ./logs:/litkeeper/app/data/logs  # Optional: only needed if logging is enabled</pre>
+  - ./epubs:/litkeeper/app/data/epubs      # Required for downloads
+  - ./html:/litkeeper/app/data/html        # Required for library
+  - ./covers:/litkeeper/app/data/covers    # Required for library
+  - ./logs:/litkeeper/app/data/logs        # Optional: only needed if logging is enabled</pre>
             <p class="text-xs">After updating, restart your container: <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker compose down && docker compose up -d</code></p>
             <hr class="border-amber-200 dark:border-amber-800 my-3">
-            <p class="font-medium">Option 2: Use download-only mode</p>
-            <p>If you don't need the library features, set <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">ENABLE_LIBRARY=false</code> in your environment variables:</p>
+            <p class="font-medium">Alternative: Disable library features</p>
+            <p>If you only need downloads and don't want the library, set <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">ENABLE_LIBRARY=false</code> in your environment:</p>
             <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">environment:
   - ENABLE_LIBRARY=false</pre>
-            <p class="text-xs">This will hide the library UI and focus on downloading stories only.</p>
+            <p class="text-xs">Note: You still need the <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/epubs</code> mount to persist downloads.</p>
+            {% endif %}
           </div>
         </details>
       </div>

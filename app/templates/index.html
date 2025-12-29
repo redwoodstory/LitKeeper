@@ -174,33 +174,5 @@
   </div>
   {% endif %}
 </div>
-
-<div class="grid md:grid-cols-2 gap-6 mt-6">
-{% else %}
-<div class="grid md:grid-cols-2 gap-6">
-  <div class="card">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Service Worker Status</h2>
-      <button id="forceUpdate" class="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded transition-colors">
-        Force Update
-      </button>
-    </div>
-    <div id="swStatus" class="space-y-2 text-sm">
-      <p class="text-gray-600 dark:text-gray-400">Checking service worker...</p>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Storage Info</h2>
-      <button id="refreshStorage" class="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors">
-        Refresh
-      </button>
-    </div>
-    <div id="storageInfo" class="space-y-2 text-sm">
-      <p class="text-gray-600 dark:text-gray-400">Loading storage information...</p>
-    </div>
-  </div>
-</div>
 {% endif %}
 {% endblock %}

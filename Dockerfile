@@ -39,19 +39,21 @@ WORKDIR /litkeeper
 # Copy only necessary files
 COPY app app/
 COPY run.py .
+COPY gunicorn.docker.conf.py .
+COPY startup.sh .
 
 # Create data directories with correct permissions
 RUN mkdir -p app/data/epubs app/data/logs app/data/html app/data/covers app/data/secondary-epubs && \
-    chmod -R 777 app/data
+    chmod -R 777 app/data && \
+    chmod +x startup.sh
 
 # Set environment variables
-ENV FLASK_APP=app
-ENV FLASK_ENV=production
 ENV PYTHONPATH=/litkeeper
 ENV PYTHONUNBUFFERED=1
 
 # Expose port
 EXPOSE 5000
 
-# Run the application with Flask development server
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Run the application with Gunicorn via startup script
+ENTRYPOINT ["/litkeeper/startup.sh"]
+CMD ["gunicorn", "-c", "gunicorn.docker.conf.py", "app:create_app()"]
