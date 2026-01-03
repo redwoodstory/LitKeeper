@@ -11,6 +11,14 @@ function formatFileSize(bytes) {
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 }
 
+function formatWordCount(count) {
+  if (!count) return '';
+  if (count < 1000) {
+    return `${count} words`;
+  }
+  return `${(count / 1000).toFixed(1)}k words`;
+}
+
 document.addEventListener('click', function(e) {
   const storyCard = e.target.closest('.story-card-cover');
   if (storyCard) {
@@ -88,6 +96,8 @@ window.showStoryModal = function(story) {
 
               <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Added ${formattedDate}
+                ${story.page_count ? ` • ${story.page_count} page${story.page_count !== 1 ? 's' : ''}` : ''}
+                ${story.word_count ? ` • ${formatWordCount(story.word_count)}` : ''}
                 ${size ? ` • ${size}` : ''}
               </p>
 

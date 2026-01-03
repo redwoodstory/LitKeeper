@@ -35,6 +35,8 @@ def get_library_data() -> list[dict]:
         category = None
         tags = []
         cover = None
+        page_count = None
+        word_count = None
 
         if filename_base in story_files and story_files[filename_base].endswith('.json'):
             try:
@@ -48,6 +50,8 @@ def get_library_data() -> list[dict]:
                     cover = story_data.get('cover')
                     source_url = story_data.get('source_url')
                     author_url = story_data.get('author_url')
+                    page_count = story_data.get('page_count')
+                    word_count = story_data.get('word_count')
             except:
                 pass
 
@@ -64,6 +68,10 @@ def get_library_data() -> list[dict]:
             story["source_url"] = source_url
         if 'author_url' in locals() and author_url:
             story["author_url"] = author_url
+        if page_count:
+            story["page_count"] = page_count
+        if word_count:
+            story["word_count"] = word_count
 
         if filename_base in epub_files:
             epub_path = os.path.join(epub_directory, epub_files[filename_base])

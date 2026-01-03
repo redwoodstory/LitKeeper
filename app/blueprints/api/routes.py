@@ -42,7 +42,7 @@ def preview_story() -> ResponseReturnValue:
     try:
         from app.services import story_processor
         story_data = download_story(validated.url)
-        story_content, title, author, category, tags, author_url = story_data
+        story_content, title, author, category, tags, author_url, page_count = story_data
 
         if not story_content or not title:
             return jsonify({

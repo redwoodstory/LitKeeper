@@ -59,9 +59,30 @@ def filter_library() -> ResponseReturnValue:
         stories = get_library_data()
 
         if validated.search:
-            stories = [s for s in stories if
-                      validated.search in s.get('title', '').lower() or
-                      validated.search in s.get('author', '').lower()]
+            search_term = validated.search.lower()
+            scored_stories = []
+
+            for story in stories:
+                score = 0
+                title = story.get('title', '').lower()
+                author = story.get('author', '').lower()
+                category = story.get('category', '').lower()
+                tags = [tag.lower() for tag in story.get('tags', [])]
+
+                if search_term in title:
+                    score += 100
+                if search_term in author:
+                    score += 50
+                if search_term in category:
+                    score += 25
+                if any(search_term in tag for tag in tags):
+                    score += 10
+
+                if score > 0:
+                    scored_stories.append((score, story))
+
+            scored_stories.sort(key=lambda x: x[0], reverse=True)
+            stories = [story for _, story in scored_stories]
 
         if validated.category and validated.category != 'all':
             if validated.category == 'uncategorized':

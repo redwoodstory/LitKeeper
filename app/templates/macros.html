@@ -102,61 +102,6 @@
   </div>
 {% endmacro %}
 
-{% macro story_modal_content(story) %}
-  <div class="flex flex-col md:flex-row gap-6">
-    <div class="flex-shrink-0 mx-auto md:mx-0">
-      {% set cover_filename = story.cover if story.cover else story.filename_base + '.jpg' %}
-      <img src="/api/cover/{{ cover_filename }}"
-           alt="{{ story.title }} cover"
-           class="w-48 h-64 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
-           style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);"
-           onerror="this.style.display='none'">
-    </div>
-
-    <div class="flex-1 min-w-0">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ story.title }}</h2>
-      {% if story.author %}
-        <p class="text-gray-600 dark:text-gray-400 mb-4">by {{ story.author }}</p>
-      {% endif %}
-
-      <div class="flex flex-wrap gap-2 mb-4">
-        {% for format in story.formats %}
-          {{ format_badge(format) }}
-        {% endfor %}
-        {% if story.category %}
-          {{ category_tag(story.category) }}
-        {% endif %}
-      </div>
-
-      {% if story.tags and story.tags | length > 0 %}
-        <div class="mb-4">
-          <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags:</p>
-          <div class="flex flex-wrap gap-2">
-            {% for tag in story.tags %}
-              <span class="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full">
-                {{ tag }}
-              </span>
-            {% endfor %}
-          </div>
-        </div>
-      {% endif %}
-
-      {% if story.created_at %}
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Added {{ story.created_at | format_date }}
-          {% if story.size %}
-            • {{ story.size | format_size }}
-          {% endif %}
-        </p>
-      {% endif %}
-
-      <div class="flex flex-wrap gap-3 mt-6">
-        {{ story_actions(story) }}
-      </div>
-    </div>
-  </div>
-{% endmacro %}
-
 {% macro empty_library_state() %}
   <div class="text-center text-gray-500 dark:text-gray-400 py-12">
     <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

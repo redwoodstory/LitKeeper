@@ -62,10 +62,10 @@ def save_story_with_metadata(
         log_action(f"Saving story with custom metadata: '{title}' by {author}")
 
         if url in _story_cache:
-            story_content, _, _, _, _, story_author_url = _story_cache[url]
+            story_content, _, _, _, _, story_author_url, story_pages = _story_cache[url]
             del _story_cache[url]
         else:
-            story_content, _, _, _, _, story_author_url = download_story(url)
+            story_content, _, _, _, _, story_author_url, story_pages = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to retrieve story content from: {url}"
@@ -108,7 +108,8 @@ def save_story_with_metadata(
                 story_tags=tags,
                 chapter_titles=chapter_titles if chapter_titles else None,
                 source_url=url,
-                author_url=story_author_url
+                author_url=story_author_url,
+                page_count=story_pages
             )
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")
@@ -149,7 +150,7 @@ def download_story_and_create_files(
 
     try:
         log_action(f"Starting download: {url}")
-        story_content, story_title, story_author, story_category, story_tags, story_author_url = download_story(url)
+        story_content, story_title, story_author, story_category, story_tags, story_author_url, story_pages = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to download story from: {url}"
@@ -193,7 +194,8 @@ def download_story_and_create_files(
                 story_tags=story_tags,
                 chapter_titles=chapter_titles if chapter_titles else None,
                 source_url=url,
-                author_url=story_author_url
+                author_url=story_author_url,
+                page_count=story_pages
             )
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")

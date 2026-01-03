@@ -51,6 +51,19 @@ def create_app() -> Flask:
         except:
             return ''
 
+    @app.template_filter('format_word_count')
+    def format_word_count(count: Any) -> str:
+        if not count:
+            return ''
+        try:
+            count = int(count)
+            if count < 1000:
+                return f'{count} words'
+            else:
+                return f'{count / 1000:.1f}k words'
+        except:
+            return ''
+
     # Register Blueprints
     from .blueprints import api, library, downloads, errors
 
