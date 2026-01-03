@@ -1,0 +1,63 @@
+.btn-primary {
+    @apply px-4 py-2 bg-blue-600 text-white rounded-lg font-medium;
+    @apply hover:bg-blue-700 active:bg-blue-800;
+    @apply transition-all duration-200;
+    @apply flex items-center justify-center;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+    @apply px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium;
+    @apply hover:bg-slate-200 active:bg-slate-300;
+    @apply border border-slate-300;
+    @apply transition-all duration-200;
+    @apply flex items-center justify-center;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-danger {
+    @apply px-4 py-2 bg-red-600 text-white rounded-lg font-medium;
+    @apply hover:bg-red-700 active:bg-red-800;
+    @apply transition-all duration-200;
+    @apply flex items-center justify-center;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+#migrationProgress {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#progressBar {
+    transition: width 0.5s ease-out;
+}
+
+.status-badge {
+    @apply px-2 py-1 text-xs font-medium rounded-full;
+}
+
+.status-success {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-failed {
+    @apply bg-red-100 text-red-800;
+}
+
+.status-duplicate {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-skipped {
+    @apply bg-slate-100 text-slate-800;
+}

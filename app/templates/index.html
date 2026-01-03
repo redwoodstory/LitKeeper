@@ -2,6 +2,77 @@
 {% from 'macros.html' import story_card_cover_grid %}
 
 {% block main_content %}
+{% if sync_status and not sync_status.in_sync %}
+<div id="syncBanner" class="mb-6 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-600 rounded-lg p-6">
+  <div class="flex items-start gap-4">
+    <svg class="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+    <div class="flex-1">
+      <h3 class="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+        Your library needs to be synced
+      </h3>
+      <p id="syncMessage" class="text-sm text-amber-800 dark:text-amber-300 mb-4">
+        {% if sync_status.orphaned_files_count > 0 and sync_status.orphaned_db_count == 0 %}
+          You have <strong>{{ sync_status.orphaned_files_count }}</strong> {{ 'story' if sync_status.orphaned_files_count == 1 else 'stories' }} that {{ 'needs' if sync_status.orphaned_files_count == 1 else 'need' }} to be added to your library.
+        {% elif sync_status.orphaned_db_count > 0 and sync_status.orphaned_files_count == 0 %}
+          <strong>{{ sync_status.orphaned_db_count }}</strong> {{ 'story' if sync_status.orphaned_db_count == 1 else 'stories' }} in your library {{ 'is' if sync_status.orphaned_db_count == 1 else 'are' }} missing from disk and should be removed.
+        {% else %}
+          <strong>{{ sync_status.orphaned_files_count }}</strong> {{ 'story' if sync_status.orphaned_files_count == 1 else 'stories' }} to add, <strong>{{ sync_status.orphaned_db_count }}</strong> to remove.
+        {% endif %}
+      </p>
+      <button id="btnFixSync" onclick="fixLibrarySync()"
+         class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span id="btnFixSyncText">Fix Now</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function fixLibrarySync() {
+  const btn = document.getElementById('btnFixSync');
+  const btnText = document.getElementById('btnFixSyncText');
+  const message = document.getElementById('syncMessage');
+  const banner = document.getElementById('syncBanner');
+  
+  btn.disabled = true;
+  btnText.textContent = 'Syncing...';
+  
+  try {
+    const response = await fetch('/admin/sync/full', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      banner.className = 'mb-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-600 rounded-lg p-6';
+      banner.querySelector('svg').className = 'w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5';
+      banner.querySelector('h3').className = 'font-semibold text-green-900 dark:text-green-200 mb-2';
+      banner.querySelector('h3').textContent = 'Library synced successfully!';
+      message.className = 'text-sm text-green-800 dark:text-green-300 mb-4';
+      message.innerHTML = data.message;
+      btn.style.display = 'none';
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
+      throw new Error(data.error || 'Sync failed');
+    }
+  } catch (error) {
+    message.innerHTML = `<strong class="text-red-600 dark:text-red-400">Error:</strong> ${error.message}`;
+    btnText.textContent = 'Retry';
+    btn.disabled = false;
+  }
+}
+</script>
+{% endif %}
+
 <div class="card mb-8">
   <form id="downloadForm" class="grid md:grid-cols-[1fr_auto] gap-6 items-start">
     <div class="space-y-4">

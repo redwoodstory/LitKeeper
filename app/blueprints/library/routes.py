@@ -39,11 +39,23 @@ def index() -> ResponseReturnValue:
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
     try:
-        stories = get_library_data() if enable_library else []
-        categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
+        from app.services.migration.file_scanner import FileScanner
+        from app.services.migration.sync_checker import SyncChecker
+        from app.models import Story
+
         mount_warning = check_mount_warning()
         secret_key_warning = check_secret_key_warning()
-        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library)
+
+        sync_status = None
+
+        if enable_library:
+            sync_checker = SyncChecker()
+            sync_status = sync_checker.check_sync()
+
+        stories = get_library_data() if enable_library else []
+        categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
+
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library, sync_status=sync_status)
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
         return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, secret_key_warning=False, enable_library=enable_library)

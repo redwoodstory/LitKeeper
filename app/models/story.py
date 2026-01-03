@@ -1,0 +1,58 @@
+from __future__ import annotations
+from .base import db, BaseModel, TimestampMixin
+from typing import Optional
+
+class Story(BaseModel, TimestampMixin):
+    __tablename__ = 'stories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(500), nullable=False, index=True)
+    author_id = db.Column(db.Integer, db.ForeignKey('authors.id', ondelete='RESTRICT'), nullable=False, index=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id', ondelete='SET NULL'), index=True)
+
+    literotica_url = db.Column(db.String(512), unique=True, index=True)
+    literotica_page_count = db.Column(db.Integer)
+
+    word_count = db.Column(db.Integer)
+    chapter_count = db.Column(db.Integer, default=1)
+
+    filename_base = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    cover_filename = db.Column(db.String(255))
+
+    imported_at = db.Column(db.DateTime)
+    last_metadata_refresh = db.Column(db.DateTime)
+    metadata_refresh_status = db.Column(db.String(50), default='never')
+
+    author = db.relationship('Author', back_populates='stories', lazy='joined')
+    category = db.relationship('Category', back_populates='stories', lazy='joined')
+    tags = db.relationship('Tag', secondary='story_tags', back_populates='stories', lazy='subquery')
+    formats = db.relationship('StoryFormat', back_populates='story', cascade='all, delete-orphan', lazy='subquery')
+    reading_progress = db.relationship('ReadingProgress', back_populates='story', uselist=False, cascade='all, delete-orphan')
+    bookmarks = db.relationship('Bookmark', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
+    highlights = db.relationship('Highlight', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Story {self.title}>'
+
+    def to_library_dict(self) -> dict:
+        """Convert to library display format (backward compatible with current UI)"""
+        epub_format = next((f for f in self.formats if f.format_type == 'epub'), None)
+
+        return {
+            'id': self.id,
+            'title': self.title,
+            'author': self.author.name if self.author else 'Unknown',
+            'author_url': self.author.literotica_url if self.author and self.author.literotica_url else None,
+            'category': self.category.name if self.category else None,
+            'tags': [tag.name for tag in self.tags],
+            'cover': self.cover_filename,
+            'filename_base': self.filename_base,
+            'formats': [fmt.format_type for fmt in self.formats],
+            'epub_file': f"{self.filename_base}.epub" if epub_format else None,
+            'html_file': f"{self.filename_base}.html",
+            'source_url': self.literotica_url,
+            'page_count': self.literotica_page_count,
+            'word_count': self.word_count,
+            'size': epub_format.file_size if epub_format else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

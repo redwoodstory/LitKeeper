@@ -17,7 +17,7 @@
 {% endmacro %}
 
 {% macro story_actions(story) %}
-  {% set has_html = 'html' in story.formats %}
+  {% set has_html = 'html' in story.formats or 'json' in story.formats %}
   {% set has_epub = 'epub' in story.formats %}
   {% set has_both = has_html and has_epub %}
 

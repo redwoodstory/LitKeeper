@@ -22,6 +22,47 @@ def create_app() -> Flask:
 
     app.config['UPLOAD_FOLDER'] = "app/epub_files"  # Directory to store EPUB files
 
+    # Database configuration
+    from flask_migrate import Migrate
+    from app.models.base import db
+
+    instance_path = app.instance_path
+    os.makedirs(instance_path, exist_ok=True)
+    database_path = os.path.join(instance_path, 'litkeeper.db')
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 3600,
+    }
+
+    db.init_app(app)
+    migrate = Migrate(app, db)
+
+    with app.app_context():
+        db.create_all()
+
+        from app.models import AppConfig
+
+        config_defaults = [
+            ('db_mode_enabled', 'false', 'bool', 'Whether database mode is active'),
+            ('migration_completed', 'false', 'bool', 'Whether initial migration has completed'),
+            ('migration_version', '1', 'int', 'Database schema version'),
+            ('auto_refresh_metadata', 'false', 'bool', 'Auto-refresh missing metadata on startup'),
+        ]
+
+        for key, value, value_type, description in config_defaults:
+            existing = AppConfig.query.filter_by(key=key).first()
+            if not existing:
+                config = AppConfig(key=key, value=value, value_type=value_type, description=description)
+                db.session.add(config)
+
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()
+
     # Register template filters
     @app.template_filter('format_date')
     def format_date(value: Any) -> str:
@@ -64,12 +105,20 @@ def create_app() -> Flask:
         except:
             return ''
 
+    @app.template_filter('basename')
+    def basename_filter(path: str) -> str:
+        if not path:
+            return ''
+        return os.path.basename(path)
+
     # Register Blueprints
     from .blueprints import api, library, downloads, errors
+    from .blueprints.admin import admin
 
     app.register_blueprint(api)
     app.register_blueprint(library)
     app.register_blueprint(downloads)
     app.register_blueprint(errors)
+    app.register_blueprint(admin)
 
     return app

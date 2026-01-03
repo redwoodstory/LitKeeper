@@ -34,7 +34,7 @@ document.addEventListener('click', function(e) {
 
 window.showStoryModal = function(story) {
   const hasEpub = story.formats.includes('epub');
-  const hasHtml = story.formats.includes('html');
+  const hasHtml = story.formats.includes('html') || story.formats.includes('json');
   const date = new Date(story.created_at);
   const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const size = story.size ? formatFileSize(story.size) : '';
