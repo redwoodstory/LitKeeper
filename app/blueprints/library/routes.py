@@ -1,9 +1,9 @@
 from __future__ import annotations
-from flask import Blueprint, render_template, request, send_from_directory, jsonify, abort
+from flask import Blueprint, render_template, request, send_from_directory, jsonify, abort, make_response
 from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, get_library_data
 from app.services.system_checks import check_mount_warning, check_secret_key_warning
-from app.utils import get_html_directory
+from app.utils import get_html_directory, get_epub_directory
 from app.validators import StoryDownloadRequest, LibraryFilterRequest
 from pydantic import ValidationError
 import os
@@ -110,6 +110,63 @@ def read_story(filename: str) -> ResponseReturnValue:
 
     else:
         abort(404)
+
+@library.route("/download/<format_type>/<filename>")
+def download_story(format_type: str, filename: str) -> ResponseReturnValue:
+    if '..' in filename or filename.startswith('/'):
+        log_error(f"Attempted path traversal in download: {filename}")
+        abort(404)
+
+    if format_type not in ['html', 'epub']:
+        abort(404)
+
+    html_directory = get_html_directory()
+
+    if filename.endswith('.html'):
+        json_filename = filename.replace('.html', '.json')
+    elif filename.endswith('.json'):
+        json_filename = filename
+    else:
+        abort(404)
+
+    if format_type == 'html':
+        json_path = os.path.join(html_directory, json_filename)
+
+        if not os.path.exists(json_path):
+            abort(404)
+
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                story_data = json.load(f)
+
+            html_content = render_template('download.html', story=story_data)
+
+            response = make_response(html_content)
+            response.headers['Content-Type'] = 'text/html; charset=utf-8'
+
+            safe_title = "".join(c for c in story_data.get('title', 'story') if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_title = safe_title.replace(' ', '_')
+            response.headers['Content-Disposition'] = f'attachment; filename="{safe_title}.html"'
+
+            return response
+
+        except Exception as e:
+            log_error(f"Error creating HTML download for {json_filename}: {str(e)}\n{traceback.format_exc()}")
+            abort(500)
+
+    elif format_type == 'epub':
+        epub_directory = get_epub_directory()
+        epub_filename = json_filename.replace('.json', '.epub')
+        epub_path = os.path.join(epub_directory, epub_filename)
+
+        if not os.path.exists(epub_path):
+            abort(404)
+
+        try:
+            return send_from_directory(epub_directory, epub_filename, as_attachment=True)
+        except Exception as e:
+            log_error(f"Error sending EPUB download for {epub_filename}: {str(e)}\n{traceback.format_exc()}")
+            abort(500)
 
 @library.route("/sw.js")
 def service_worker() -> ResponseReturnValue:

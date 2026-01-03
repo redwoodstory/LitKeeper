@@ -68,6 +68,24 @@
       <label class="settings-label">Reading Width <span id="widthValue" class="range-value">800px</span></label>
       <input type="range" id="widthRange" class="settings-range" min="600" max="1200" value="800" step="50">
     </div>
+    {% block download_button %}
+    <div class="settings-group">
+      <div class="download-buttons">
+        <a href="/download/html/{{ request.path.split('/')[-1] }}" class="download-btn" download>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          HTML
+        </a>
+        <a href="/download/epub/{{ request.path.split('/')[-1] }}" class="download-btn" download>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          EPUB
+        </a>
+      </div>
+    </div>
+    {% endblock %}
   </div>
   {% endblock %}
 
