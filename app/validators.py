@@ -35,6 +35,48 @@ class StoryDownloadRequest(BaseModel):
         
         return v
 
+class StoryMetadataUpdate(BaseModel):
+    """Validation schema for story metadata updates."""
+    url: str
+    title: str
+    author: str = "Unknown Author"
+    category: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    formats: list[Literal["epub", "html"]] = Field(default=["epub"], min_length=1)
+
+    @field_validator('url')
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("URL cannot be empty")
+        if not v.startswith("https://www.literotica.com/"):
+            raise ValueError("Only Literotica URLs are allowed")
+        return v
+
+    @field_validator('title')
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Title cannot be empty")
+        return v
+
+    @field_validator('author')
+    @classmethod
+    def validate_author(cls, v: str) -> str:
+        return v.strip() if v else "Unknown Author"
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, v: str | None) -> str | None:
+        return v.strip() if v else None
+
+    @field_validator('tags')
+    @classmethod
+    def validate_tags(cls, v: list[str]) -> list[str]:
+        return [tag.strip() for tag in v if tag.strip()]
+
 class LibraryFilterRequest(BaseModel):
     """Validation schema for library filter requests."""
     search: str = ""

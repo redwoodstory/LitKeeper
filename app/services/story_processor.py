@@ -9,6 +9,8 @@ from .file_operations import copy_to_secondary_output
 from .logger import log_action, log_error
 from .notifier import send_notification
 
+_story_cache: dict[str, tuple] = {}
+
 
 class StoryProcessingResult:
     def __init__(
@@ -44,6 +46,98 @@ class StoryProcessingResult:
             result["files"] = self.files
         return result
 
+
+def save_story_with_metadata(
+    url: str,
+    formats: list[str],
+    title: str,
+    author: str,
+    category: Optional[str] = None,
+    tags: Optional[list[str]] = None,
+    send_notifications: bool = True
+) -> StoryProcessingResult:
+    global _story_cache
+
+    try:
+        log_action(f"Saving story with custom metadata: '{title}' by {author}")
+
+        if url in _story_cache:
+            story_content, _, _, _, _, story_author_url = _story_cache[url]
+            del _story_cache[url]
+        else:
+            story_content, _, _, _, _, story_author_url = download_story(url)
+
+        if not story_content:
+            error_msg = f"Failed to retrieve story content from: {url}"
+            log_error(error_msg, url)
+            if send_notifications:
+                send_notification(f"Story save failed: {url}", is_error=True)
+            return StoryProcessingResult(
+                success=False,
+                message=error_msg,
+                error=error_msg
+            )
+
+        created_files = []
+
+        if "epub" in formats:
+            epub_file_name = create_epub_file(
+                title,
+                author,
+                story_content,
+                get_epub_directory(),
+                story_category=category,
+                story_tags=tags
+            )
+            created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
+            log_action(f"Created EPUB: {epub_file_name}")
+
+            secondary_epub = copy_to_secondary_output(epub_file_name, 'epub')
+            if secondary_epub:
+                log_action(f"Copied EPUB to secondary output: {secondary_epub}")
+
+        if "html" in formats:
+            chapter_titles = extract_chapter_titles(story_content)
+
+            html_file_name = create_html_file(
+                title,
+                author,
+                story_content,
+                get_html_directory(),
+                story_category=category,
+                story_tags=tags,
+                chapter_titles=chapter_titles if chapter_titles else None,
+                source_url=url,
+                author_url=story_author_url
+            )
+            created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
+            log_action(f"Created HTML: {html_file_name}")
+
+        formats_str = " and ".join(created_files)
+        success_msg = f"Successfully saved '{title}' by {author}"
+
+        if send_notifications:
+            send_notification(f"Story saved: '{title}' ({formats_str})")
+
+        return StoryProcessingResult(
+            success=True,
+            message=success_msg,
+            title=title,
+            author=author,
+            formats=formats,
+            files=created_files
+        )
+
+    except Exception as e:
+        error_msg = f"{str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg, url)
+        if send_notifications:
+            send_notification(f"Error saving story: {str(e)}", is_error=True)
+        return StoryProcessingResult(
+            success=False,
+            message=str(e),
+            error=error_msg
+        )
 
 def download_story_and_create_files(
     url: str,

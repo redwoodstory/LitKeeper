@@ -3,7 +3,8 @@ from flask import Blueprint, request, jsonify, send_from_directory, current_app,
 from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, log_url, generate_cover_image, extract_cover_from_epub, get_library_data
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
-from app.validators import StoryDownloadRequest
+from app.validators import StoryDownloadRequest, StoryMetadataUpdate
+from app.services.story_downloader import download_story
 from pydantic import ValidationError
 import os
 from datetime import datetime
@@ -17,6 +18,97 @@ api = Blueprint('api', __name__, url_prefix='/api')
 def background_process_wrapper(app: Flask, url: str, formats: list[str]) -> None:
     with app.app_context():
         download_story_and_create_files(url, formats, send_notifications=True)
+
+@api.route("/preview", methods=['POST'])
+def preview_story() -> ResponseReturnValue:
+    try:
+        data = request.get_json()
+        url = data.get('url', '')
+        formats = data.get('format', ['epub'])
+
+        validated = StoryDownloadRequest(url=url, format=formats)
+
+    except ValidationError as e:
+        error_details = e.errors()[0]
+        error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
+        log_error(f"Validation error: {error_msg}\nData: {request.get_data(as_text=True)}")
+        return jsonify({
+            "success": False,
+            "message": error_msg
+        }), 400
+
+    log_url(validated.url)
+
+    try:
+        from app.services import story_processor
+        story_data = download_story(validated.url)
+        story_content, title, author, category, tags, author_url = story_data
+
+        if not story_content or not title:
+            return jsonify({
+                "success": False,
+                "message": "Failed to extract story metadata"
+            }), 500
+
+        story_processor._story_cache[validated.url] = story_data
+
+        return jsonify({
+            "success": True,
+            "metadata": {
+                "url": validated.url,
+                "title": title or "Unknown Title",
+                "author": author or "Unknown Author",
+                "category": category,
+                "tags": tags or [],
+                "author_url": author_url,
+                "formats": validated.format
+            }
+        })
+
+    except Exception as e:
+        error_msg = f"Error previewing story: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while fetching story metadata"
+        }), 500
+
+@api.route("/save", methods=['POST'])
+def save_story() -> ResponseReturnValue:
+    try:
+        data = request.get_json()
+        validated = StoryMetadataUpdate(**data)
+
+    except ValidationError as e:
+        error_details = e.errors()[0]
+        error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
+        log_error(f"Validation error: {error_msg}\nData: {request.get_data(as_text=True)}")
+        return jsonify({
+            "success": False,
+            "message": error_msg
+        }), 400
+
+    log_url(validated.url)
+
+    try:
+        from app.services.story_processor import save_story_with_metadata
+        result = save_story_with_metadata(
+            url=validated.url,
+            formats=validated.formats,
+            title=validated.title,
+            author=validated.author,
+            category=validated.category,
+            tags=validated.tags
+        )
+        return jsonify(result.to_dict())
+
+    except Exception as e:
+        error_msg = f"Error saving story: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while saving the story"
+        }), 500
 
 @api.route("/download", methods=['GET', 'POST'])
 def download() -> ResponseReturnValue:
