@@ -34,12 +34,8 @@ window.showStoryModal = function(story) {
   const modalHtml = `
     <div id="storyModal" class="fixed inset-0 z-50 flex items-center md:items-center items-end justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200" onclick="closeStoryModal(event)">
       <div class="w-full md:w-auto md:max-w-4xl md:mx-4 h-full md:h-auto md:max-h-[90vh] bg-white dark:bg-gray-800 md:rounded-xl rounded-t-2xl shadow-2xl overflow-y-auto transform transition-all relative" onclick="event.stopPropagation()">
-        <div class="sticky top-0 bg-white dark:bg-gray-800 z-10 pt-3 pb-2 px-6 md:hidden border-b border-slate-200 dark:border-slate-700">
-          <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto"></div>
-        </div>
-
         <button onclick="closeStoryModal()"
-                class="hidden md:flex absolute top-4 right-4 w-8 h-8 items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-200"
+                class="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-200"
                 aria-label="Close modal">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -95,23 +91,39 @@ window.showStoryModal = function(story) {
                 ${size ? ` • ${size}` : ''}
               </p>
 
-              <div class="flex flex-wrap gap-3 mt-6">
+              <div class="flex flex-col gap-6 mt-6">
+                <div class="flex flex-wrap gap-2">
+                  ${hasHtml ? `
+                    <a href="/read/${story.html_file}"
+                       class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg border border-slate-900 dark:border-white shadow-sm transition-all duration-200">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                      </svg>
+                      <span>Read</span>
+                      ${hasHtml && hasEpub ? '<span class="ml-0.5 text-xs opacity-60">HTML</span>' : ''}
+                    </a>
+                  ` : ''}
+                  ${hasEpub ? `
+                    <a href="/download/${story.epub_file}"
+                       class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all duration-200">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                      </svg>
+                      <span>Download</span>
+                      ${hasHtml && hasEpub ? '<span class="ml-0.5 text-xs opacity-60">EPUB</span>' : ''}
+                    </a>
+                  ` : ''}
+                </div>
+
                 ${hasHtml ? `
                   <button onclick="syncStoryFromModal('${story.html_file}', this)"
-                     class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
-                     title="Cache for offline reading">
-                    📥 Sync Offline
+                          class="self-start px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 inline-flex items-center gap-1.5"
+                          title="Cache for offline reading">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Sync for Offline
                   </button>
-                  <a href="/read/${story.html_file}"
-                     class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap">
-                    📖 Read
-                  </a>
-                ` : ''}
-                ${hasEpub ? `
-                  <a href="/download/${story.epub_file}"
-                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap">
-                    ⬇️ Download EPUB
-                  </a>
                 ` : ''}
               </div>
             </div>

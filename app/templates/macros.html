@@ -17,23 +17,49 @@
 {% endmacro %}
 
 {% macro story_actions(story) %}
-  {% if 'html' in story.formats %}
-    <button onclick="syncStory('{{ story.html_file }}', this)"
-            class="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded transition-all duration-200 whitespace-nowrap"
-            title="Cache for offline reading">
-      📥 Sync Offline
-    </button>
-    <a href="/read/{{ story.html_file }}"
-       class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded transition-all duration-200 whitespace-nowrap inline-block text-center">
-      📖 Read
-    </a>
-  {% endif %}
-  {% if 'epub' in story.formats %}
-    <a href="/download/{{ story.epub_file }}"
-       class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded transition-all duration-200 whitespace-nowrap inline-block text-center">
-      ⬇️ Download
-    </a>
-  {% endif %}
+  {% set has_html = 'html' in story.formats %}
+  {% set has_epub = 'epub' in story.formats %}
+  {% set has_both = has_html and has_epub %}
+
+  <div class="flex flex-col gap-6">
+    <div class="flex flex-wrap gap-2">
+      {% if has_html %}
+        <a href="/read/{{ story.html_file }}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg border border-slate-900 dark:border-white shadow-sm transition-all duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+          </svg>
+          <span>Read</span>
+          {% if has_both %}
+            <span class="ml-0.5 text-xs opacity-60">HTML</span>
+          {% endif %}
+        </a>
+      {% endif %}
+      {% if has_epub %}
+        <a href="/download/{{ story.epub_file }}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          <span>Download</span>
+          {% if has_both %}
+            <span class="ml-0.5 text-xs opacity-60">EPUB</span>
+          {% endif %}
+        </a>
+      {% endif %}
+    </div>
+
+    {% if has_html %}
+      <button onclick="syncStory('{{ story.html_file }}', this)"
+              class="self-start px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 inline-flex items-center gap-1.5"
+              title="Cache for offline reading">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        Sync for Offline
+      </button>
+    {% endif %}
+  </div>
 {% endmacro %}
 
 {% macro story_card_cover_grid(story) %}
