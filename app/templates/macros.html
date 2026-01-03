@@ -36,68 +36,6 @@
   {% endif %}
 {% endmacro %}
 
-{% macro story_card_detailed(story) %}
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-slate-200/60 dark:border-gray-700">
-    <div class="p-4">
-      <div class="flex gap-4 mb-3">
-        <div class="flex-shrink-0 relative">
-          {% set cover_filename = story.cover if story.cover else story.filename_base + '.jpg' %}
-          <img src="/api/cover/{{ cover_filename }}"
-               alt="{{ story.title }} cover"
-               class="w-16 h-24 sm:w-24 sm:h-32 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
-               style="box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);"
-               loading="lazy"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-          <div class="w-16 h-24 sm:w-24 sm:h-32 bg-gradient-to-br from-slate-700 to-slate-900 hidden items-center justify-center p-2 text-center rounded-lg">
-            <span class="text-white text-2xl">📚</span>
-          </div>
-        </div>
-
-        <div class="flex-1 min-w-0">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 line-clamp-2">
-            {% if 'html' in story.formats %}
-              <a href="/read/{{ story.html_file }}" class="hover:text-primary dark:hover:text-primary transition-colors">
-                {{ story.title }}
-              </a>
-            {% else %}
-              {{ story.title }}
-            {% endif %}
-          </h3>
-
-          {% if story.author %}
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">by {{ story.author }}</p>
-          {% endif %}
-
-          <div class="flex flex-wrap gap-2 mb-2">
-            {% for format in story.formats %}
-              {{ format_badge(format) }}
-            {% endfor %}
-          </div>
-
-          {% if story.category %}
-          <div class="mb-2">
-            {{ category_tag(story.category) }}
-          </div>
-          {% endif %}
-
-          {% if story.created_at %}
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ story.created_at | format_date }}
-              {% if story.size %}
-                • {{ story.size | format_size }}
-              {% endif %}
-            </p>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="flex flex-wrap gap-2 pt-3 border-t border-slate-200/60 dark:border-gray-700 justify-end">
-        {{ story_actions(story) }}
-      </div>
-    </div>
-  </div>
-{% endmacro %}
-
 {% macro story_card_cover_grid(story) %}
   <div class="story-card-cover cursor-pointer" data-story='{{ story | tojson }}'>
     <div class="aspect-[3/4] overflow-hidden rounded-lg border-2 border-white/80 dark:border-white/10 transition-all duration-200"

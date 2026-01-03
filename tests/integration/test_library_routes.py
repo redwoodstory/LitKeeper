@@ -194,18 +194,6 @@ class TestLibraryFilter:
             assert b'Uncategorized Story' in response.data
             assert b'Categorized Story' not in response.data
 
-    def test_filter_view_mode(self, client: FlaskClient, app: Flask) -> None:
-        """Filter respects view mode parameter."""
-        with app.app_context():
-            from app.utils import get_html_directory
-
-            story = Path(get_html_directory()) / "story.json"
-            story.write_text(json.dumps({'title': 'Test Story'}))
-
-            response = client.get('/library/filter?view=grid')
-
-            assert response.status_code == 200
-
     def test_filter_combined(self, client: FlaskClient, app: Flask) -> None:
         """Filter with multiple parameters."""
         with app.app_context():

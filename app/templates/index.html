@@ -1,5 +1,5 @@
 {% extends "layouts/dashboard.html" %}
-{% from 'macros.html' import story_card_detailed, story_card_cover_grid %}
+{% from 'macros.html' import story_card_cover_grid %}
 
 {% block main_content %}
 <div class="card mb-8">
@@ -60,7 +60,7 @@
 </div>
 
 {% if enable_library %}
-<div class="card" x-data="{ view: localStorage.getItem('libraryView') || 'detailed' }" x-init="$watch('view', val => localStorage.setItem('libraryView', val))">
+<div class="card">
   <div class="flex flex-col gap-4 mb-6">
     <div class="flex items-center justify-between">
       <div>
@@ -82,8 +82,6 @@
       </button>
     </div>
 
-    <input type="hidden" name="view" :value="view">
-
     <div class="flex flex-col sm:flex-row gap-3">
       <div class="relative flex-1">
         <input type="text"
@@ -93,7 +91,7 @@
                hx-get="/library/filter"
                hx-trigger="keyup changed delay:300ms"
                hx-target="#library"
-               hx-include="[name='category'],[name='view']"
+               hx-include="[name='category']"
                class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
                       focus:ring-2 focus:ring-primary focus:border-transparent
@@ -108,7 +106,7 @@
               hx-get="/library/filter"
               hx-trigger="change"
               hx-target="#library"
-              hx-include="[name='search'],[name='view']"
+              hx-include="[name='search']"
               class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
                      bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
                      focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
@@ -119,35 +117,6 @@
         <option value="{{ category }}">{{ category }}</option>
         {% endfor %}
       </select>
-
-      <div class="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 h-10">
-        <button @click="view = 'detailed'"
-                hx-get="/library/filter"
-                hx-trigger="click"
-                hx-target="#library"
-                hx-include="[name='search'],[name='category']"
-                hx-vals='js:{view: "detailed"}'
-                :class="view === 'detailed' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
-                class="px-3 py-1.5 text-sm font-medium rounded transition-all duration-200"
-                aria-label="Detailed view">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-          </svg>
-        </button>
-        <button @click="view = 'grid'"
-                hx-get="/library/filter"
-                hx-trigger="click"
-                hx-target="#library"
-                hx-include="[name='search'],[name='category']"
-                hx-vals='js:{view: "grid"}'
-                :class="view === 'grid' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
-                class="px-3 py-1.5 text-sm font-medium rounded transition-all duration-200"
-                aria-label="Grid view">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
-          </svg>
-        </button>
-      </div>
     </div>
   </div>
 
@@ -161,12 +130,7 @@
   </div>
   {% else %}
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
-    <div x-show="view === 'detailed'" class="space-y-3">
-      {% for story in stories %}
-        {{ story_card_detailed(story) }}
-      {% endfor %}
-    </div>
-    <div x-show="view === 'grid'" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
       {% for story in stories %}
         {{ story_card_cover_grid(story) }}
       {% endfor %}

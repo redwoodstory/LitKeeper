@@ -34,7 +34,7 @@ def index() -> ResponseReturnValue:
             categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
             mount_warning = check_mount_warning()
             secret_key_warning = check_secret_key_warning()
-            return render_template("index.html", stories=stories, categories=categories, view='detailed', error=error_msg, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library)
+            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library)
 
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
@@ -53,8 +53,7 @@ def filter_library() -> ResponseReturnValue:
     try:
         validated = LibraryFilterRequest(
             search=request.args.get('search', ''),
-            category=request.args.get('category', 'all'),
-            view=request.args.get('view', 'detailed')
+            category=request.args.get('category', 'all')
         )
 
         stories = get_library_data()
@@ -70,13 +69,13 @@ def filter_library() -> ResponseReturnValue:
             else:
                 stories = [s for s in stories if s.get('category') == validated.category]
 
-        return render_template("_library_content.html", stories=stories, view=validated.view)
+        return render_template("_library_content.html", stories=stories)
     except ValidationError as e:
         log_error(f"Validation error in library filter: {str(e)}")
-        return render_template("_library_content.html", stories=[], view='detailed')
+        return render_template("_library_content.html", stories=[])
     except Exception as e:
         log_error(f"Error filtering library: {str(e)}")
-        return render_template("_library_content.html", stories=[], view='detailed')
+        return render_template("_library_content.html", stories=[])
 
 @library.route("/read/<filename>")
 def read_story(filename: str) -> ResponseReturnValue:

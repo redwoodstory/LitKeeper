@@ -42,11 +42,10 @@ form.addEventListener('submit', async (e) => {
         const searchInput = document.querySelector('input[name="search"]');
 
         if (libraryElement && window.htmx) {
-          const view = localStorage.getItem('libraryView') || 'detailed';
           const category = categoryFilter ? categoryFilter.value : 'all';
           const search = searchInput ? searchInput.value : '';
 
-          htmx.ajax('GET', `/library/filter?view=${view}&category=${category}&search=${encodeURIComponent(search)}`, {
+          htmx.ajax('GET', `/library/filter?category=${category}&search=${encodeURIComponent(search)}`, {
             target: '#library',
             swap: 'innerHTML'
           }).then(() => {

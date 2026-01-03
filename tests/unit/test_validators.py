@@ -139,7 +139,6 @@ class TestLibraryFilterRequest:
         request = LibraryFilterRequest()
         assert request.search == ""
         assert request.category == "all"
-        assert request.view == "detailed"
 
     def test_search_normalization_lowercase(self) -> None:
         """Test that search is converted to lowercase."""
@@ -181,32 +180,14 @@ class TestLibraryFilterRequest:
         request = LibraryFilterRequest(category="uncategorized")
         assert request.category == "uncategorized"
 
-    def test_view_detailed(self) -> None:
-        """Test that view mode 'detailed' is valid."""
-        request = LibraryFilterRequest(view="detailed")
-        assert request.view == "detailed"
-
-    def test_view_grid(self) -> None:
-        """Test that view mode 'grid' is valid."""
-        request = LibraryFilterRequest(view="grid")
-        assert request.view == "grid"
-
-    def test_view_invalid_raises_error(self) -> None:
-        """Test that invalid view mode raises error."""
-        with pytest.raises(ValidationError) as exc_info:
-            LibraryFilterRequest(view="list")
-        assert "Input should be 'detailed' or 'grid'" in str(exc_info.value)
-
     def test_combined_filters(self) -> None:
         """Test that all filters can be combined."""
         request = LibraryFilterRequest(
             search="Love Story",
-            category="Romance",
-            view="grid"
+            category="Romance"
         )
         assert request.search == "love story"
         assert request.category == "Romance"
-        assert request.view == "grid"
 
     def test_special_characters_in_search(self) -> None:
         """Test that special characters in search are preserved."""

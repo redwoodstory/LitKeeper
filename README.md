@@ -18,11 +18,7 @@ This started as a tool to download stories as EPUBs to use on an e-reader. It ha
 - Sends notifications when stories are downloaded
 
 ### Progressive Web App (PWA) Features
-Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection.
-
-**⚠️ HTTPS Required for PWA Features**
-
-PWA features (offline reading, app installation, OPFS storage) require HTTPS. This is a browser security requirement, not a LitKeeper limitation. Without HTTPS, the app still works as a web app, but you won't be able to read HTML stories offline.
+Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection. PWA features (offline reading, app installation, OPFS storage) require HTTPS.
 
 
 ## Installation
@@ -90,7 +86,6 @@ services:
 
 4. Navigate to `http://<server-ip>:5000`
 
-**Note:** For PWA features to work, you'll need HTTPS. See [HTTPS Setup](#https-setup) below.
 
 ## Configuration
 
@@ -107,7 +102,7 @@ services:
 
 ### Volume Mounts
 
-**Important:** All volume mounts are required for data persistence:
+Volume mounts are required for data persistence between container restarts:
 
 | Mount | Purpose | Required |
 |-------|---------|----------|
@@ -116,7 +111,7 @@ services:
 | `./logs:/litkeeper/app/data/logs` | Application logs | ✅ Yes |
 | `./covers:/litkeeper/app/data/covers` | Generated cover images | ✅ Yes |
 
-**⚠️ Warning:** Without these bind mounts, your converted books and covers will be lost when the container is updated or recreated. The app will display a warning if bind mounts are not properly configured. You can also set the environment variable ENABLE_LIBRARY=false to hide the /html and /covers warning messages.
+Without these bind mounts, your converted books and covers will be lost when the container is updated or recreated. The app will display a warning if bind mounts are not properly configured. You can also set the environment variable ENABLE_LIBRARY=false to hide the /html and /covers warning messages.
 
 
 ## API Configuration

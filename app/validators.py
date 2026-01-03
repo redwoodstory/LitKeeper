@@ -39,13 +39,12 @@ class LibraryFilterRequest(BaseModel):
     """Validation schema for library filter requests."""
     search: str = ""
     category: str = "all"
-    view: Literal["detailed", "grid"] = "detailed"
-    
+
     @field_validator('search')
     @classmethod
     def validate_search(cls, v: str) -> str:
         return v.strip().lower()
-    
+
     @field_validator('category')
     @classmethod
     def validate_category(cls, v: str) -> str:
