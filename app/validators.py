@@ -81,6 +81,8 @@ class LibraryFilterRequest(BaseModel):
     """Validation schema for library filter requests."""
     search: str = ""
     category: str = "all"
+    sort_by: Literal["name", "date", "author", "category", "length"] = "date"
+    sort_order: Literal["asc", "desc"] = "desc"
 
     @field_validator('search')
     @classmethod

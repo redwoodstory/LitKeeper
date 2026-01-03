@@ -6,16 +6,36 @@ const formatError = document.getElementById('formatError');
 
 const metadataModal = new MetadataModal();
 
+const sortOrderToggle = document.getElementById('sortOrderToggle');
+if (sortOrderToggle) {
+  sortOrderToggle.addEventListener('click', function() {
+    const currentOrder = this.value;
+    const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+    this.value = newOrder;
+
+    const svg = this.querySelector('svg path');
+    if (newOrder === 'asc') {
+      svg.setAttribute('d', 'M5 15l7-7 7 7');
+    } else {
+      svg.setAttribute('d', 'M19 9l-7 7-7-7');
+    }
+  });
+}
+
 function refreshLibrary() {
   const libraryElement = document.getElementById('library');
   const categoryFilter = document.getElementById('categoryFilter');
   const searchInput = document.querySelector('input[name="search"]');
+  const sortBySelect = document.getElementById('sortBy');
+  const sortOrderToggle = document.getElementById('sortOrderToggle');
 
   if (libraryElement && window.htmx) {
     const category = categoryFilter ? categoryFilter.value : 'all';
     const search = searchInput ? searchInput.value : '';
+    const sortBy = sortBySelect ? sortBySelect.value : 'date';
+    const sortOrder = sortOrderToggle ? sortOrderToggle.value : 'desc';
 
-    htmx.ajax('GET', `/library/filter?category=${category}&search=${encodeURIComponent(search)}`, {
+    htmx.ajax('GET', `/library/filter?category=${category}&search=${encodeURIComponent(search)}&sort_by=${sortBy}&sort_order=${sortOrder}`, {
       target: '#library',
       swap: 'innerHTML'
     }).then(() => {

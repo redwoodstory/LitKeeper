@@ -82,8 +82,8 @@
       </button>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3">
-      <div class="relative flex-1">
+    <div class="flex flex-col gap-3">
+      <div class="relative w-full">
         <input type="text"
                id="searchInput"
                name="search"
@@ -91,7 +91,7 @@
                hx-get="/library/filter"
                hx-trigger="keyup changed delay:300ms"
                hx-target="#library"
-               hx-include="[name='category']"
+               hx-include="[name='category'], [name='sort_by'], [name='sort_order']"
                class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
                       focus:ring-2 focus:ring-primary focus:border-transparent
@@ -101,22 +101,58 @@
         </svg>
       </div>
 
-      <select id="categoryFilter"
-              name="category"
-              hx-get="/library/filter"
-              hx-trigger="change"
-              hx-target="#library"
-              hx-include="[name='search']"
-              class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
-                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
-                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                     sm:w-48">
-        <option value="all">All Categories</option>
-        <option value="uncategorized">Uncategorized</option>
-        {% for category in categories %}
-        <option value="{{ category }}">{{ category }}</option>
-        {% endfor %}
-      </select>
+      <div class="flex flex-wrap gap-2">
+        <select id="categoryFilter"
+                name="category"
+                hx-get="/library/filter"
+                hx-trigger="change"
+                hx-target="#library"
+                hx-include="[name='search'], [name='sort_by'], [name='sort_order']"
+                class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
+                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
+                       focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                       flex-1 min-w-[140px]">
+          <option value="all">All Categories</option>
+          <option value="uncategorized">Uncategorized</option>
+          {% for category in categories %}
+          <option value="{{ category }}">{{ category }}</option>
+          {% endfor %}
+        </select>
+
+        <select id="sortBy"
+                name="sort_by"
+                hx-get="/library/filter"
+                hx-trigger="change"
+                hx-target="#library"
+                hx-include="[name='search'], [name='category'], [name='sort_order']"
+                class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
+                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
+                       focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                       flex-1 min-w-[140px]">
+          <option value="date">Date Added</option>
+          <option value="name">Title</option>
+          <option value="author">Author</option>
+          <option value="category">Category</option>
+          <option value="length">Story Length</option>
+        </select>
+
+        <button id="sortOrderToggle"
+                name="sort_order"
+                value="desc"
+                hx-get="/library/filter"
+                hx-trigger="click"
+                hx-target="#library"
+                hx-include="[name='search'], [name='category'], [name='sort_by']"
+                class="h-10 w-10 rounded-lg border border-slate-200 dark:border-gray-700
+                       bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
+                       hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200
+                       flex items-center justify-center"
+                aria-label="Toggle sort order">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 

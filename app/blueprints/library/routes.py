@@ -53,7 +53,9 @@ def filter_library() -> ResponseReturnValue:
     try:
         validated = LibraryFilterRequest(
             search=request.args.get('search', ''),
-            category=request.args.get('category', 'all')
+            category=request.args.get('category', 'all'),
+            sort_by=request.args.get('sort_by', 'date'),
+            sort_order=request.args.get('sort_order', 'desc')
         )
 
         stories = get_library_data()
@@ -89,6 +91,20 @@ def filter_library() -> ResponseReturnValue:
                 stories = [s for s in stories if not s.get('category')]
             else:
                 stories = [s for s in stories if s.get('category') == validated.category]
+
+        def get_sort_key(story: dict) -> tuple:
+            if validated.sort_by == 'name':
+                return (story.get('title', '').lower(),)
+            elif validated.sort_by == 'author':
+                return (story.get('author', '').lower(),)
+            elif validated.sort_by == 'category':
+                return (story.get('category', '').lower(),)
+            elif validated.sort_by == 'length':
+                return (story.get('word_count', 0),)
+            else:
+                return (story.get('created_at', ''),)
+
+        stories.sort(key=get_sort_key, reverse=(validated.sort_order == 'desc'))
 
         return render_template("_library_content.html", stories=stories)
     except ValidationError as e:
