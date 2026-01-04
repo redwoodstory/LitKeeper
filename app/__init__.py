@@ -112,7 +112,7 @@ def create_app() -> Flask:
         return os.path.basename(path)
 
     # Register Blueprints
-    from .blueprints import api, library, downloads, errors
+    from .blueprints import api, library, downloads, errors, settings
     from .blueprints.admin import admin
 
     app.register_blueprint(api)
@@ -120,5 +120,6 @@ def create_app() -> Flask:
     app.register_blueprint(downloads)
     app.register_blueprint(errors)
     app.register_blueprint(admin)
+    app.register_blueprint(settings)
 
     return app

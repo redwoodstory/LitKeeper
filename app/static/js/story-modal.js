@@ -185,6 +185,14 @@ window.showStoryModal = function(story) {
                       Refresh Metadata
                     </button>
                   ` : ''}
+                  <button onclick="confirmDeleteStory(${story.id}, '${escapeHtml(story.title).replace(/'/g, "\\'")}')"
+                          class="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md border border-red-200/60 dark:border-red-700 transition-all duration-200 inline-flex items-center gap-1.5"
+                          title="Delete this story">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Delete Story
+                  </button>
                 </div>
               </div>
             </div>
@@ -740,4 +748,162 @@ function showToast(message, type = 'info') {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+window.confirmDeleteStory = function(storyId, storyTitle) {
+  const confirmationHtml = `
+    <div id="deleteConfirmationModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-200" onclick="closeDeleteConfirmation(event)">
+      <div class="w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-2xl transform transition-all" onclick="event.stopPropagation()">
+        <div class="p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Story</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">
+            Are you sure you want to delete <strong class="font-semibold">"${escapeHtml(storyTitle)}"</strong>? This will permanently remove the story and all its files from your library.
+          </p>
+          
+          <div class="flex gap-3">
+            <button onclick="closeDeleteConfirmation()"
+                    class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-200">
+              Cancel
+            </button>
+            <button onclick="deleteStory(${storyId}, '${escapeHtml(storyTitle).replace(/'/g, "\\'")}')"
+                    class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 rounded-lg transition-all duration-200">
+              Delete Story
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', confirmationHtml);
+  
+  setTimeout(() => {
+    const modal = document.getElementById('deleteConfirmationModal');
+    if (modal) {
+      modal.classList.add('active');
+    }
+  }, 10);
+};
+
+window.closeDeleteConfirmation = function(event) {
+  if (event && event.target !== event.currentTarget) {
+    return;
+  }
+  
+  const modal = document.getElementById('deleteConfirmationModal');
+  if (modal) {
+    modal.classList.add('opacity-0');
+    setTimeout(() => {
+      modal.remove();
+    }, 200);
+  }
+};
+
+window.deleteStory = async function(storyId, storyTitle) {
+  closeDeleteConfirmation();
+  
+  const modal = document.getElementById('storyModal');
+  if (modal) {
+    const modalContent = modal.querySelector('.p-6.md\\:p-8');
+    if (modalContent) {
+      const loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'deleteLoadingOverlay';
+      loadingOverlay.className = 'absolute inset-0 bg-white/90 dark:bg-gray-800/90 flex items-center justify-center z-10 rounded-xl';
+      loadingOverlay.innerHTML = `
+        <div class="text-center">
+          <svg class="w-12 h-12 mx-auto mb-3 text-red-600 dark:text-red-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          <p class="text-gray-900 dark:text-white font-medium">Deleting story...</p>
+        </div>
+      `;
+      modal.querySelector('div > div').appendChild(loadingOverlay);
+    }
+  }
+  
+  try {
+    const response = await fetch(`/api/story/delete/${storyId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showToast(`"${storyTitle}" deleted successfully`, 'success');
+      closeStoryModal();
+      
+      removeStoryFromDOM(storyId);
+      
+      checkIfLibraryEmpty();
+    } else {
+      throw new Error(result.message || 'Failed to delete story');
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+    showToast('Failed to delete story', 'error');
+    
+    const loadingOverlay = document.getElementById('deleteLoadingOverlay');
+    if (loadingOverlay) {
+      loadingOverlay.remove();
+    }
+  }
+};
+
+function removeStoryFromDOM(storyId) {
+  const storyCards = document.querySelectorAll('.story-card-cover');
+  
+  storyCards.forEach(card => {
+    try {
+      const storyData = card.getAttribute('data-story');
+      const story = JSON.parse(storyData);
+      
+      if (story.id === storyId) {
+        card.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+        
+        setTimeout(() => {
+          card.remove();
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Error parsing story data:', error);
+    }
+  });
+}
+
+function checkIfLibraryEmpty() {
+  setTimeout(() => {
+    const remainingCards = document.querySelectorAll('.story-card-cover');
+    
+    if (remainingCards.length === 0) {
+      const libraryContainer = document.querySelector('#library-grid, .grid');
+      
+      if (libraryContainer) {
+        libraryContainer.innerHTML = `
+          <div class="col-span-full text-center text-gray-500 dark:text-gray-400 py-12">
+            <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+            </svg>
+            <p class="text-lg font-medium">No stories in your library</p>
+            <p class="text-sm mt-1">Download a story to get started</p>
+          </div>
+        `;
+      }
+    }
+  }, 400);
 }

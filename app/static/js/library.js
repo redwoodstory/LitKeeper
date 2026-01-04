@@ -16,8 +16,10 @@ if (sortOrderToggle) {
     const svg = this.querySelector('svg path');
     if (newOrder === 'asc') {
       svg.setAttribute('d', 'M5 15l7-7 7 7');
+      this.setAttribute('title', 'Ascending order');
     } else {
       svg.setAttribute('d', 'M19 9l-7 7-7-7');
+      this.setAttribute('title', 'Descending order');
     }
   });
 }

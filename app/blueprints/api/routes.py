@@ -367,3 +367,24 @@ def generate_html_with_metadata(story_id: int) -> ResponseReturnValue:
             "success": False,
             "message": "An error occurred while generating HTML format"
         }), 500
+
+@api.route("/story/delete/<int:story_id>", methods=['DELETE'])
+def delete_story(story_id: int) -> ResponseReturnValue:
+    try:
+        from app.services.story_deletion import StoryDeletionService
+        
+        service = StoryDeletionService()
+        result = service.delete_story(story_id)
+        
+        if result.get('success'):
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404 if 'not found' in result.get('message', '').lower() else 500
+            
+    except Exception as e:
+        error_msg = f"Error deleting story: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while deleting the story"
+        }), 500

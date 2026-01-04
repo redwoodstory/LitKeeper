@@ -1,6 +1,4 @@
 const themeToggle = document.getElementById('themeToggle');
-const settingsToggle = document.getElementById('settingsToggle');
-const settingsMenu = document.getElementById('settingsMenu');
 const html = document.documentElement;
 
 function getInitialTheme() {
@@ -21,19 +19,6 @@ function setTheme(theme) {
 themeToggle.addEventListener('click', () => {
   const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
   setTheme(currentTheme === 'dark' ? 'light' : 'dark');
-});
-
-settingsToggle.addEventListener('click', (e) => {
-  e.stopPropagation();
-  settingsMenu.classList.toggle('hidden');
-});
-
-document.addEventListener('click', (e) => {
-  if (!settingsMenu.classList.contains('hidden') &&
-      !settingsMenu.contains(e.target) &&
-      !settingsToggle.contains(e.target)) {
-    settingsMenu.classList.add('hidden');
-  }
 });
 
 function showHiddenWarnings() {
@@ -60,8 +45,6 @@ function showHiddenWarnings() {
   if (syncBanner) {
     syncBanner.classList.remove('hidden');
   }
-
-  settingsMenu.classList.add('hidden');
 }
 
 setTheme(getInitialTheme());
