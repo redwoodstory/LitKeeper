@@ -16,6 +16,11 @@ class Tag(BaseModel, TimestampMixin):
 
     stories = db.relationship('Story', secondary=story_tags, back_populates='tags', lazy='dynamic')
 
+    def __init__(self, **kwargs):
+        if 'slug' not in kwargs and 'name' in kwargs:
+            kwargs['slug'] = self.create_slug(kwargs['name'])
+        super().__init__(**kwargs)
+
     def __repr__(self):
         return f'<Tag {self.name}>'
 

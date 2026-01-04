@@ -12,7 +12,7 @@ class MetadataRefreshService:
         self.matcher = StoryMatcher()
     
     def search_for_story(self, story_id: int) -> dict:
-        story = Story.query.get(story_id)
+        story = db.session.get(Story, story_id)
         if not story:
             return {"success": False, "message": "Story not found"}
         
@@ -58,7 +58,7 @@ class MetadataRefreshService:
         }
     
     def refresh_metadata_from_url(self, story_id: int, url: str, method: str = "manual") -> dict:
-        story = Story.query.get(story_id)
+        story = db.session.get(Story, story_id)
         if not story:
             return {"success": False, "message": "Story not found"}
         
@@ -84,9 +84,12 @@ class MetadataRefreshService:
         if metadata.get('category'):
             category = Category.query.filter_by(name=metadata['category']).first()
             if not category:
-                category = Category(name=metadata['category'])
-                db.session.add(category)
-                db.session.flush()
+                slug = Category.create_slug(metadata['category'])
+                category = Category.query.filter_by(slug=slug).first()
+                if not category:
+                    category = Category(name=metadata['category'])
+                    db.session.add(category)
+                    db.session.flush()
             
             if story.category_id != category.id:
                 previous_data['category'] = story.category.name if story.category else None
@@ -100,15 +103,19 @@ class MetadataRefreshService:
             if existing_tag_names != new_tag_names:
                 previous_data['tags'] = list(existing_tag_names)
                 
-                story.tags.clear()
-                
+                tags_to_add = []
                 for tag_name in new_tag_names:
                     tag = Tag.query.filter_by(name=tag_name).first()
                     if not tag:
-                        tag = Tag(name=tag_name)
-                        db.session.add(tag)
-                        db.session.flush()
-                    story.tags.append(tag)
+                        slug = Tag.create_slug(tag_name)
+                        tag = Tag.query.filter_by(slug=slug).first()
+                        if not tag:
+                            tag = Tag(name=tag_name)
+                            db.session.add(tag)
+                            db.session.flush()
+                    tags_to_add.append(tag)
+                
+                story.tags = tags_to_add
                 
                 fields_changed.append('tags')
         
@@ -159,7 +166,7 @@ class MetadataRefreshService:
         fields_changed: Optional[list] = None,
         previous_data: Optional[dict] = None
     ) -> None:
-        story = Story.query.get(story_id)
+        story = db.session.get(Story, story_id)
         search_query = f"{story.title} {story.author.name}" if story else None
         
         log_entry = MetadataRefreshLog(

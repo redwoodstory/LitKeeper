@@ -260,9 +260,9 @@ def refresh_metadata(story_id: int) -> ResponseReturnValue:
 def get_missing_metadata() -> ResponseReturnValue:
     try:
         from app.models import Story
-        
+
         stories = Story.query.filter(Story.literotica_url.is_(None)).all()
-        
+
         return jsonify({
             "success": True,
             "count": len(stories),
@@ -274,4 +274,96 @@ def get_missing_metadata() -> ResponseReturnValue:
         return jsonify({
             "success": False,
             "message": "An error occurred while fetching stories"
+        }), 500
+
+@api.route("/format/generate-epub/<int:story_id>", methods=['POST'])
+def generate_epub_format(story_id: int) -> ResponseReturnValue:
+    try:
+        from app.services.format_generator import FormatGeneratorService
+        from app.models import Story
+
+        service = FormatGeneratorService()
+        result = service.generate_epub_from_json(story_id)
+
+        if result.get('success') and request.headers.get('HX-Request'):
+            story = Story.query.get(story_id)
+            if story:
+                return jsonify({
+                    "success": True,
+                    "message": result.get('message'),
+                    "story": story.to_library_dict()
+                })
+
+        return jsonify(result)
+    except Exception as e:
+        error_msg = f"Error generating EPUB format: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while generating EPUB format"
+        }), 500
+
+@api.route("/format/generate-html/<int:story_id>", methods=['POST'])
+def generate_html_format(story_id: int) -> ResponseReturnValue:
+    try:
+        from app.services.format_generator import FormatGeneratorService
+        from app.models import Story
+
+        service = FormatGeneratorService()
+        result = service.generate_html_from_url(story_id)
+
+        if result.get('success') and request.headers.get('HX-Request'):
+            story = Story.query.get(story_id)
+            if story:
+                return jsonify({
+                    "success": True,
+                    "message": result.get('message'),
+                    "story": story.to_library_dict()
+                })
+
+        return jsonify(result)
+    except Exception as e:
+        error_msg = f"Error generating HTML format: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while generating HTML format"
+        }), 500
+
+@api.route("/format/generate-html-with-metadata/<int:story_id>", methods=['POST'])
+def generate_html_with_metadata(story_id: int) -> ResponseReturnValue:
+    try:
+        from app.services.format_generator import FormatGeneratorService
+        from app.models import Story
+        
+        data = request.get_json()
+        url = data.get('url')
+        method = data.get('method', 'manual')
+        
+        if not url:
+            return jsonify({
+                "success": False,
+                "message": "URL is required"
+            }), 400
+
+        service = FormatGeneratorService()
+        result = service.generate_html_with_metadata(story_id, url, method)
+
+        if result.get('success') and request.headers.get('HX-Request'):
+            story = Story.query.get(story_id)
+            if story:
+                return jsonify({
+                    "success": True,
+                    "message": result.get('message'),
+                    "fields_changed": result.get('fields_changed', []),
+                    "story": story.to_library_dict()
+                })
+
+        return jsonify(result)
+    except Exception as e:
+        error_msg = f"Error generating HTML format with metadata: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while generating HTML format"
         }), 500

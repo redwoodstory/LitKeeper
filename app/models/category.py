@@ -10,6 +10,11 @@ class Category(BaseModel, TimestampMixin):
 
     stories = db.relationship('Story', back_populates='category', lazy='dynamic')
 
+    def __init__(self, **kwargs):
+        if 'slug' not in kwargs and 'name' in kwargs:
+            kwargs['slug'] = self.create_slug(kwargs['name'])
+        super().__init__(**kwargs)
+
     def __repr__(self):
         return f'<Category {self.name}>'
 

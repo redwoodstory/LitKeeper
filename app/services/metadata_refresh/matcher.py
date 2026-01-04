@@ -5,17 +5,16 @@ from .literotica_search import LiteroticaSearchResult
 
 
 class StoryMatcher:
-    TITLE_WEIGHT = 0.6
-    AUTHOR_WEIGHT = 0.4
-    AUTO_MATCH_THRESHOLD = 0.75
-    
+    AUTO_MATCH_THRESHOLD = 0.85
+    MIN_DISPLAY_THRESHOLD = 0.60
+
     @staticmethod
     def _calculate_similarity(str1: str, str2: str) -> float:
         str1_normalized = str1.lower().strip()
         str2_normalized = str2.lower().strip()
-        
+
         return SequenceMatcher(None, str1_normalized, str2_normalized).ratio()
-    
+
     @classmethod
     def calculate_match_confidence(
         cls,
@@ -24,11 +23,8 @@ class StoryMatcher:
         result: LiteroticaSearchResult
     ) -> float:
         title_similarity = cls._calculate_similarity(expected_title, result.title)
-        author_similarity = cls._calculate_similarity(expected_author, result.author)
-        
-        confidence = (title_similarity * cls.TITLE_WEIGHT) + (author_similarity * cls.AUTHOR_WEIGHT)
-        
-        return confidence
+
+        return title_similarity
     
     @classmethod
     def find_best_match(
@@ -63,11 +59,12 @@ class StoryMatcher:
         results: list[LiteroticaSearchResult]
     ) -> list[tuple[LiteroticaSearchResult, float]]:
         ranked = []
-        
+
         for result in results:
             confidence = cls.calculate_match_confidence(title, author, result)
-            ranked.append((result, confidence))
-        
+            if confidence >= cls.MIN_DISPLAY_THRESHOLD:
+                ranked.append((result, confidence))
+
         ranked.sort(key=lambda x: x[1], reverse=True)
-        
+
         return ranked

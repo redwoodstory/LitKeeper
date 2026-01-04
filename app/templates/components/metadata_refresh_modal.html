@@ -1,7 +1,7 @@
 <div id="metadataRefreshModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
     <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Refresh Metadata</h3>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Link Story</h3>
       <button onclick="closeRefreshModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -29,17 +29,19 @@
 
 <script>
 let currentStoryId = null;
+let refreshSuccessCallback = null;
 
-function openRefreshModal(storyId, title, author) {
+function openRefreshModal(storyId, title, author, onSuccessCallback = null) {
   currentStoryId = storyId;
-  
+  refreshSuccessCallback = onSuccessCallback;
+
   if (typeof closeStoryModal === 'function') {
     closeStoryModal();
   }
-  
+
   const modal = document.getElementById('metadataRefreshModal');
   modal.classList.remove('hidden');
-  
+
   searchForMetadata(storyId, title, author);
 }
 
@@ -75,31 +77,14 @@ async function searchForMetadata(storyId, title, author) {
       return;
     }
     
-    if (data.auto_match) {
-      contentDiv.innerHTML = `
-        <div class="mb-6">
-          <div class="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <svg class="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <div class="flex-1">
-              <p class="font-medium text-green-900 dark:text-green-100">High Confidence Match Found</p>
-              <p class="text-sm text-green-700 dark:text-green-300 mt-1">Confidence: ${(data.best_match.confidence * 100).toFixed(0)}%</p>
-            </div>
-          </div>
-        </div>
-        ${renderSearchResults(data.results, data.best_match.url)}
-        ${renderManualUrlInput()}
-      `;
-    } else {
-      contentDiv.innerHTML = `
-        <div class="mb-6">
-          <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">Select the best match or enter a URL manually:</p>
-        </div>
-        ${renderSearchResults(data.results)}
-        ${renderManualUrlInput()}
-      `;
-    }
+    contentDiv.innerHTML = `
+      <div class="mb-6">
+        <p class="text-base font-medium text-slate-900 dark:text-white mb-4">Choose the matching story on Literotica</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Select the best match or enter a URL manually below</p>
+      </div>
+      ${renderSearchResults(data.results, data.auto_match ? data.best_match.url : null)}
+      ${renderManualUrlInput()}
+    `;
   } catch (error) {
     contentDiv.innerHTML = `
       <div class="text-center py-8">
@@ -181,11 +166,22 @@ async function refreshWithUrl(url, method) {
     });
     
     const data = await response.json();
-    
+
     if (data.success) {
       showToast(`Metadata updated: ${data.fields_changed.join(', ')}`, 'success');
+
+      if (refreshSuccessCallback && typeof refreshSuccessCallback === 'function') {
+        try {
+          await refreshSuccessCallback(storyId);
+        } catch (callbackError) {
+          console.error('Error in refresh success callback:', callbackError);
+        }
+        refreshSuccessCallback = null;
+      } else {
+        setTimeout(() => window.location.reload(), 2000);
+      }
+
       currentStoryId = null;
-      setTimeout(() => window.location.reload(), 2000);
     } else {
       showToast(`Failed: ${data.message}`, 'error');
     }
