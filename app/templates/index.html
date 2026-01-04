@@ -29,6 +29,11 @@
         <span id="btnFixSyncText">Fix Now</span>
       </button>
     </div>
+    <button onclick="dismissSyncBanner()" class="text-amber-600 dark:text-amber-500 hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -38,17 +43,17 @@ async function fixLibrarySync() {
   const btnText = document.getElementById('btnFixSyncText');
   const message = document.getElementById('syncMessage');
   const banner = document.getElementById('syncBanner');
-  
+
   btn.disabled = true;
   btnText.textContent = 'Syncing...';
-  
+
   try {
     const response = await fetch('/admin/sync/full', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
     const data = await response.json();
-    
+
     if (data.success) {
       banner.className = 'mb-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-600 rounded-lg p-6';
       banner.querySelector('svg').className = 'w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5';
@@ -57,7 +62,7 @@ async function fixLibrarySync() {
       message.className = 'text-sm text-green-800 dark:text-green-300 mb-4';
       message.innerHTML = data.message;
       btn.style.display = 'none';
-      
+
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -69,6 +74,19 @@ async function fixLibrarySync() {
     btnText.textContent = 'Retry';
     btn.disabled = false;
   }
+}
+
+function dismissSyncBanner() {
+  sessionStorage.setItem('syncBannerDismissed', 'true');
+  const banner = document.getElementById('syncBanner');
+  if (banner) {
+    banner.classList.add('hidden');
+  }
+}
+
+if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
+  const banner = document.getElementById('syncBanner');
+  if (banner) banner.classList.add('hidden');
 }
 </script>
 {% endif %}

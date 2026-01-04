@@ -5,6 +5,7 @@ from app.services import download_story_and_create_files, log_error, log_url, ge
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
 from app.validators import StoryDownloadRequest, StoryMetadataUpdate
 from app.services.story_downloader import download_story
+from app.services.metadata_refresh_service import MetadataRefreshService
 from pydantic import ValidationError
 import os
 from datetime import datetime
@@ -216,3 +217,61 @@ def get_cover(filename: str) -> ResponseReturnValue:
     except Exception as e:
         log_error(f"Error generating cover: {str(e)}\n{traceback.format_exc()}")
         abort(500)
+
+@api.route("/metadata/search/<int:story_id>", methods=['POST'])
+def search_metadata(story_id: int) -> ResponseReturnValue:
+    try:
+        service = MetadataRefreshService()
+        result = service.search_for_story(story_id)
+        return jsonify(result)
+    except Exception as e:
+        error_msg = f"Error searching for story metadata: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while searching for metadata"
+        }), 500
+
+@api.route("/metadata/refresh/<int:story_id>", methods=['POST'])
+def refresh_metadata(story_id: int) -> ResponseReturnValue:
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        method = data.get('method', 'manual')
+        
+        if not url:
+            return jsonify({
+                "success": False,
+                "message": "URL is required"
+            }), 400
+        
+        service = MetadataRefreshService()
+        result = service.refresh_metadata_from_url(story_id, url, method)
+        return jsonify(result)
+    except Exception as e:
+        error_msg = f"Error refreshing metadata: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while refreshing metadata"
+        }), 500
+
+@api.route("/metadata/missing", methods=['GET'])
+def get_missing_metadata() -> ResponseReturnValue:
+    try:
+        from app.models import Story
+        
+        stories = Story.query.filter(Story.literotica_url.is_(None)).all()
+        
+        return jsonify({
+            "success": True,
+            "count": len(stories),
+            "stories": [story.to_library_dict() for story in stories]
+        })
+    except Exception as e:
+        error_msg = f"Error fetching missing metadata: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while fetching stories"
+        }), 500

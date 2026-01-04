@@ -1,0 +1,93 @@
+<div id="missingMetadataBanner" class="hidden mb-6 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-600 rounded-lg p-6">
+  <div class="flex items-start gap-4">
+    <svg class="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div class="flex-1">
+      <h3 class="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+        Stories Missing Metadata
+      </h3>
+      <p id="missingMetadataMessage" class="text-sm text-amber-800 dark:text-amber-300 mb-4">
+        <span id="missingMetadataCount">0</span> stories are missing Literotica metadata. Click on a story below to find and link it.
+      </p>
+      
+      <details class="text-sm">
+        <summary class="cursor-pointer font-medium text-amber-900 dark:text-amber-200 hover:text-amber-700 dark:hover:text-amber-100 mb-3">
+          View stories (<span id="missingMetadataCountDetail">0</span>)
+        </summary>
+        <div id="missingMetadataList" class="mt-3 space-y-2 max-h-96 overflow-y-auto">
+        </div>
+      </details>
+    </div>
+    <button onclick="dismissMissingMetadataBanner()" class="text-amber-600 dark:text-amber-500 hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+async function loadMissingMetadata() {
+  if (sessionStorage.getItem('missingMetadataBannerDismissed') === 'true') {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/metadata/missing');
+    const data = await response.json();
+
+    if (data.success && data.count > 0) {
+      const banner = document.getElementById('missingMetadataBanner');
+      const countSpan = document.getElementById('missingMetadataCount');
+      const countDetailSpan = document.getElementById('missingMetadataCountDetail');
+      const listDiv = document.getElementById('missingMetadataList');
+
+      countSpan.textContent = data.count;
+      countDetailSpan.textContent = data.count;
+
+      listDiv.innerHTML = data.stories.map(story => `
+        <button onclick="openRefreshModalFromBanner(${story.id}, '${escapeHtml(story.title).replace(/'/g, "\\'")}', '${escapeHtml(story.author).replace(/'/g, "\\'")}')"
+                class="w-full text-left p-3 bg-white dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/40 transition-all duration-200">
+          <div class="font-medium text-amber-900 dark:text-amber-100">${escapeHtml(story.title)}</div>
+          <div class="text-sm text-amber-700 dark:text-amber-300 mt-1">by ${escapeHtml(story.author)}</div>
+        </button>
+      `).join('');
+
+      banner.classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('Error loading missing metadata:', error);
+  }
+}
+
+function openRefreshModalFromBanner(storyId, title, author) {
+  console.log('openRefreshModalFromBanner called with:', storyId, title, author);
+  if (typeof openRefreshModal === 'function') {
+    openRefreshModal(storyId, title, author);
+    dismissMissingMetadataBanner();
+  } else {
+    console.error('openRefreshModal function not found');
+  }
+}
+
+function dismissMissingMetadataBanner() {
+  sessionStorage.setItem('missingMetadataBannerDismissed', 'true');
+  const banner = document.getElementById('missingMetadataBanner');
+  if (banner) {
+    banner.classList.add('hidden');
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadMissingMetadata);
+} else {
+  loadMissingMetadata();
+}
+</script>

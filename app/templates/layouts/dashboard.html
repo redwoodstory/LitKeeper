@@ -94,11 +94,12 @@
   <script>
     function dismissMountWarning() {
       sessionStorage.setItem('mountWarningDismissed', 'true');
-      document.getElementById('mountWarning').remove();
+      const warning = document.getElementById('mountWarning');
+      if (warning) warning.classList.add('hidden');
     }
     if (sessionStorage.getItem('mountWarningDismissed') === 'true') {
       const warning = document.getElementById('mountWarning');
-      if (warning) warning.remove();
+      if (warning) warning.classList.add('hidden');
     }
   </script>
   {% endif %}
@@ -140,15 +141,20 @@
   <script>
     function dismissSecretKeyWarning() {
       sessionStorage.setItem('secretKeyWarningDismissed', 'true');
-      document.getElementById('secretKeyWarning').remove();
+      const warning = document.getElementById('secretKeyWarning');
+      if (warning) warning.classList.add('hidden');
     }
     if (sessionStorage.getItem('secretKeyWarningDismissed') === 'true') {
       const warning = document.getElementById('secretKeyWarning');
-      if (warning) warning.remove();
+      if (warning) warning.classList.add('hidden');
     }
   </script>
   {% endif %}
 
+  {% include 'components/missing_metadata_banner.html' %}
+
   {% block main_content %}{% endblock %}
 </div>
+
+{% include 'components/metadata_refresh_modal.html' %}
 {% endblock %}

@@ -1,0 +1,245 @@
+<div id="metadataRefreshModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Refresh Metadata</h3>
+      <button onclick="closeRefreshModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+      <div id="refreshModalContent">
+        <div class="text-center py-8">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 dark:border-white mx-auto"></div>
+          <p class="mt-4 text-slate-600 dark:text-slate-400">Searching Literotica...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-700">
+      <button onclick="closeRefreshModal()" 
+              class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 transition-all duration-200">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStoryId = null;
+
+function openRefreshModal(storyId, title, author) {
+  currentStoryId = storyId;
+  
+  if (typeof closeStoryModal === 'function') {
+    closeStoryModal();
+  }
+  
+  const modal = document.getElementById('metadataRefreshModal');
+  modal.classList.remove('hidden');
+  
+  searchForMetadata(storyId, title, author);
+}
+
+function closeRefreshModal() {
+  const modal = document.getElementById('metadataRefreshModal');
+  modal.classList.add('hidden');
+}
+
+async function searchForMetadata(storyId, title, author) {
+  const contentDiv = document.getElementById('refreshModalContent');
+  
+  try {
+    const response = await fetch(`/api/metadata/search/${storyId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      contentDiv.innerHTML = `
+        <div class="text-center py-8">
+          <svg class="w-16 h-16 mx-auto text-slate-400 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p class="text-slate-900 dark:text-white font-medium mb-2">${data.message}</p>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-6">You can manually enter a Literotica URL below</p>
+          ${renderManualUrlInput()}
+        </div>
+      `;
+      return;
+    }
+    
+    if (data.auto_match) {
+      contentDiv.innerHTML = `
+        <div class="mb-6">
+          <div class="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="flex-1">
+              <p class="font-medium text-green-900 dark:text-green-100">High Confidence Match Found</p>
+              <p class="text-sm text-green-700 dark:text-green-300 mt-1">Confidence: ${(data.best_match.confidence * 100).toFixed(0)}%</p>
+            </div>
+          </div>
+        </div>
+        ${renderSearchResults(data.results, data.best_match.url)}
+        ${renderManualUrlInput()}
+      `;
+    } else {
+      contentDiv.innerHTML = `
+        <div class="mb-6">
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">Select the best match or enter a URL manually:</p>
+        </div>
+        ${renderSearchResults(data.results)}
+        ${renderManualUrlInput()}
+      `;
+    }
+  } catch (error) {
+    contentDiv.innerHTML = `
+      <div class="text-center py-8">
+        <svg class="w-16 h-16 mx-auto text-red-400 dark:text-red-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-slate-900 dark:text-white font-medium mb-2">Error searching for metadata</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Please try again or enter a URL manually</p>
+      </div>
+    `;
+  }
+}
+
+function renderSearchResults(results, autoMatchUrl = null) {
+  if (!results || results.length === 0) return '';
+  
+  return `
+    <div class="space-y-3 mb-6">
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Search Results:</p>
+      ${results.map(result => `
+        <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all duration-200 ${result.url === autoMatchUrl ? 'ring-2 ring-green-500 dark:ring-green-600' : ''}">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1">
+              <h4 class="font-medium text-slate-900 dark:text-white">${escapeHtml(result.title)}</h4>
+              <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">by ${escapeHtml(result.author)}</p>
+              ${result.category ? `<span class="inline-block mt-2 px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 rounded">${escapeHtml(result.category)}</span>` : ''}
+              <p class="text-xs text-slate-500 dark:text-slate-500 mt-2">Confidence: ${(result.confidence * 100).toFixed(0)}%</p>
+            </div>
+            <button onclick="refreshWithUrl('${escapeHtml(result.url)}', '${result.url === autoMatchUrl ? 'auto' : 'manual'}')"
+                    class="px-4 py-2 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg transition-all duration-200">
+              Use This
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderManualUrlInput() {
+  return `
+    <div class="border-t border-slate-200 dark:border-slate-700 pt-6">
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Or enter URL manually:</label>
+      <div class="flex gap-2">
+        <input type="url" 
+               id="manualUrlInput" 
+               placeholder="https://www.literotica.com/s/story-title"
+               class="flex-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white">
+        <button onclick="refreshWithManualUrl()"
+                class="px-4 py-2 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg transition-all duration-200">
+          Refresh
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function refreshWithUrl(url, method) {
+  console.log('refreshWithUrl called with currentStoryId:', currentStoryId);
+  
+  if (!currentStoryId) {
+    console.error('No currentStoryId set!');
+    showToast('Error: Story ID not found', 'error');
+    return;
+  }
+  
+  const storyId = currentStoryId;
+  closeRefreshModal();
+  showToast('Updating metadata...', 'info');
+  
+  try {
+    console.log('Making API call to /api/metadata/refresh/' + storyId);
+    const response = await fetch(`/api/metadata/refresh/${storyId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url, method })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast(`Metadata updated: ${data.fields_changed.join(', ')}`, 'success');
+      currentStoryId = null;
+      setTimeout(() => window.location.reload(), 2000);
+    } else {
+      showToast(`Failed: ${data.message}`, 'error');
+    }
+  } catch (error) {
+    console.error('Error in refreshWithUrl:', error);
+    showToast('Error updating metadata', 'error');
+  }
+}
+
+function showToast(message, type = 'info') {
+  const existingToast = document.getElementById('metadataToast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+  
+  const colors = {
+    info: 'bg-blue-500',
+    success: 'bg-green-500',
+    error: 'bg-red-500'
+  };
+  
+  const toast = document.createElement('div');
+  toast.id = 'metadataToast';
+  toast.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-[70] transition-opacity duration-300`;
+  toast.textContent = message;
+  
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function refreshWithManualUrl() {
+  const input = document.getElementById('manualUrlInput');
+  const url = input.value.trim();
+  
+  if (!url) {
+    alert('Please enter a URL');
+    return;
+  }
+  
+  if (!url.includes('literotica.com')) {
+    alert('Please enter a valid Literotica URL');
+    return;
+  }
+  
+  refreshWithUrl(url, 'manual');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
