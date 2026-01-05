@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 
@@ -7,7 +7,27 @@ const STATIC_ASSETS = [
   '/',
   '/static/reader/reader.css',
   '/static/reader/reader.js',
-  '/static/manifest.json'
+  '/static/manifest.json',
+  '/static/vendor/htmx.min.js',
+  '/static/vendor/alpine.min.js',
+  '/static/vendor/tailwind.js',
+  '/static/vendor/jszip.min.js',
+  '/static/vendor/epub.min.js',
+  '/static/epub/epub_reader.css',
+  '/static/epub/epub_reader.js',
+  '/static/fonts/fonts.css',
+  '/static/fonts/inter-200.ttf',
+  '/static/fonts/inter-300.ttf',
+  '/static/fonts/inter-400.ttf',
+  '/static/fonts/lora-300.ttf',
+  '/static/fonts/lora-400.ttf',
+  '/static/fonts/ibmplexsans-200.ttf',
+  '/static/fonts/ibmplexsans-300.ttf',
+  '/static/fonts/ibmplexsans-400.ttf',
+  '/static/fonts/opensans-300.ttf',
+  '/static/fonts/opensans-400.ttf',
+  '/static/fonts/roboto-300.ttf',
+  '/static/fonts/roboto-400.ttf'
 ];
 
 // OPFS helper functions
