@@ -174,7 +174,111 @@
     }
   });
 
+  class ProgressDB {
+    constructor() {
+      this.dbName = 'LitKeeperProgress';
+      this.version = 1;
+      this.storeName = 'reading_progress';
+      this.db = null;
+    }
+
+    async init() {
+      if (this.db) return this.db;
+
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, this.version);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          this.db = request.result;
+          resolve(this.db);
+        };
+
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            db.createObjectStore(this.storeName, { keyPath: 'story_id' });
+          }
+        };
+      });
+    }
+
+    async saveProgress(storyId, progressData) {
+      const db = await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const data = { story_id: storyId, ...progressData };
+        const request = store.put(data);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async getProgress(storyId) {
+      const db = await this.init();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.get(storyId);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async markSynced(storyId, synced) {
+      const progress = await this.getProgress(storyId);
+      if (progress) {
+        progress.synced = synced;
+        await this.saveProgress(storyId, progress);
+      }
+    }
+  }
+
+  const progressDB = new ProgressDB();
+
+  async function syncProgressToServer() {
+    try {
+      const localProgress = await progressDB.getProgress(storyId);
+
+      if (!localProgress || localProgress.synced) {
+        return;
+      }
+
+      const response = await fetch(`/epub/api/progress/${storyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_chapter: localProgress.current_chapter,
+          scroll_position: localProgress.scroll_position,
+          cfi: localProgress.cfi
+        })
+      });
+
+      if (response.ok) {
+        await progressDB.markSynced(storyId, true);
+        console.log('[Sync] Progress synced to server');
+      }
+    } catch (error) {
+      console.log('[Sync] Failed to sync progress, will retry later');
+    }
+  }
+
   async function saveProgress(location) {
+    const progressData = {
+      current_chapter: location.start.index,
+      scroll_position: 0,
+      cfi: location.start.cfi,
+      timestamp: new Date().toISOString(),
+      synced: false
+    };
+
+    await progressDB.saveProgress(storyId, progressData);
+
     try {
       const response = await fetch(`/epub/api/progress/${storyId}`, {
         method: 'POST',
@@ -188,11 +292,11 @@
         })
       });
 
-      if (!response.ok) {
-        console.error('Failed to save progress');
+      if (response.ok) {
+        await progressDB.markSynced(storyId, true);
       }
     } catch (error) {
-      console.error('Error saving progress:', error);
+      console.log('[Offline] Progress saved to IndexedDB, will sync when online');
     }
   }
 
@@ -355,16 +459,31 @@
     rendition.themes.fontSize(savedFontSize + 'px');
     rendition.themes.select(getInitialTheme());
 
-    const initialProgress = window.INITIAL_PROGRESS;
-    let startLocation;
+    progressDB.getProgress(storyId).then(localProgress => {
+      let progressToUse = window.INITIAL_PROGRESS;
 
-    if (initialProgress && initialProgress.cfi) {
-      startLocation = initialProgress.cfi;
-    } else if (initialProgress && initialProgress.current_chapter !== null && initialProgress.current_chapter !== undefined) {
-      startLocation = book.spine.get(initialProgress.current_chapter)?.href;
-    }
+      if (localProgress) {
+        const localTime = new Date(localProgress.timestamp || 0).getTime();
+        const serverTime = progressToUse?.last_read_at ? new Date(progressToUse.last_read_at).getTime() : 0;
 
-    rendition.display(startLocation);
+        if (localTime > serverTime) {
+          console.log('[IndexedDB] Using local progress (newer than server)');
+          progressToUse = localProgress;
+        }
+      }
+
+      let startLocation;
+      if (progressToUse && progressToUse.cfi) {
+        startLocation = progressToUse.cfi;
+      } else if (progressToUse && progressToUse.current_chapter !== null && progressToUse.current_chapter !== undefined) {
+        startLocation = book.spine.get(progressToUse.current_chapter)?.href;
+      }
+
+      rendition.display(startLocation);
+    }).catch(error => {
+      console.error('[IndexedDB] Failed to load progress:', error);
+      rendition.display();
+    });
 
     book.ready.then(() => {
       return book.locations.generate(1024);
@@ -488,5 +607,12 @@
     });
 
     loadBookmarks();
+
+    syncProgressToServer();
+
+    window.addEventListener('online', () => {
+      console.log('[Sync] Connection restored, syncing progress...');
+      syncProgressToServer();
+    });
   }
 })();

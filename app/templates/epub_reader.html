@@ -138,7 +138,6 @@
     window.INITIAL_BOOKMARKS = {{ bookmarks | tojson | safe }};
     window.INITIAL_HIGHLIGHTS = {{ highlights | tojson | safe }};
     
-    // Debug: Check if EPUB.js loaded
     window.addEventListener('load', function() {
       console.log('EPUB.js loaded:', typeof ePub !== 'undefined');
       console.log('EPUB URL:', window.EPUB_URL);
