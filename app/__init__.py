@@ -114,6 +114,7 @@ def create_app() -> Flask:
     # Register Blueprints
     from .blueprints import api, library, downloads, errors, settings
     from .blueprints.admin import admin
+    from .blueprints.epub import epub
 
     app.register_blueprint(api)
     app.register_blueprint(library)
@@ -121,5 +122,6 @@ def create_app() -> Flask:
     app.register_blueprint(errors)
     app.register_blueprint(admin)
     app.register_blueprint(settings)
+    app.register_blueprint(epub)
 
     return app

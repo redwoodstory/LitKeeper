@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ story.title }} - {{ story.author.name if story.author else 'Unknown' }}</title>
+  
+  <link rel="stylesheet" href="/static/epub/epub_reader.css">
+</head>
+<body>
+  <div id="reader-container">
+    <div class="reader-header">
+      <div class="header-left">
+        <a href="/" class="control-btn" aria-label="Home">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+          </svg>
+        </a>
+        <button id="tocToggle" class="control-btn" aria-label="Table of Contents">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="header-center">
+        <h1 class="reader-title">{{ story.title }}</h1>
+      </div>
+      
+      <div class="header-right">
+        <button id="bookmarksToggle" class="control-btn" aria-label="Bookmarks">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+          </svg>
+        </button>
+        <button id="settingsToggle" class="control-btn" aria-label="Settings">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+        </button>
+        <button id="themeToggle" class="control-btn" aria-label="Toggle theme">
+          <svg class="sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+          <svg class="moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="tocPanel" class="side-panel">
+      <div class="panel-header">
+        <h2>Table of Contents</h2>
+        <button class="close-panel" aria-label="Close">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="tocContent" class="panel-content"></div>
+    </div>
+
+    <div id="bookmarksPanel" class="side-panel">
+      <div class="panel-header">
+        <h2>Bookmarks</h2>
+        <button class="close-panel" aria-label="Close">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="bookmarksContent" class="panel-content"></div>
+    </div>
+
+    <div id="settingsPanel" class="settings-panel">
+      <div class="settings-group">
+        <label class="settings-label">Font Family</label>
+        <select id="fontSelect" class="settings-select">
+          <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif">System Default</option>
+          <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+          <option value="'Palatino Linotype', 'Book Antiqua', Palatino, serif">Palatino</option>
+          <option value="'Times New Roman', Times, serif">Times New Roman</option>
+          <option value="Arial, Helvetica, sans-serif">Arial</option>
+          <option value="'Courier New', Courier, monospace">Courier New</option>
+          <option value="Verdana, Geneva, sans-serif">Verdana</option>
+          <option value="'Trebuchet MS', Helvetica, sans-serif">Trebuchet</option>
+          <option value="'Comic Sans MS', cursive, sans-serif">Comic Sans</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">Font Size <span id="fontSizeValue" class="range-value">18px</span></label>
+        <input type="range" id="fontSizeRange" class="settings-range" min="14" max="28" value="18" step="1">
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">Line Spacing <span id="lineHeightValue" class="range-value">1.6</span></label>
+        <input type="range" id="lineHeightRange" class="settings-range" min="1.2" max="2.4" value="1.6" step="0.1">
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">Reading Width <span id="widthValue" class="range-value">800px</span></label>
+        <input type="range" id="widthRange" class="settings-range" min="600" max="1200" value="800" step="50">
+      </div>
+    </div>
+
+    <div id="reader-main">
+      <div id="prev" class="arrow arrow-left">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </div>
+      
+      <div id="viewer"></div>
+      
+      <div id="next" class="arrow arrow-right">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </div>
+    </div>
+
+    <div class="reader-footer">
+      <div id="progressBar" class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <div class="footer-info">
+        <span id="locationInfo"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+  <script>
+    window.STORY_ID = {{ story_id }};
+    window.EPUB_URL = '/epub/file/{{ story_id }}/';
+    window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position} | tojson | safe }}{% else %}{}{% endif %};
+    window.INITIAL_BOOKMARKS = {{ bookmarks | tojson | safe }};
+    window.INITIAL_HIGHLIGHTS = {{ highlights | tojson | safe }};
+    
+    // Debug: Check if EPUB.js loaded
+    window.addEventListener('load', function() {
+      console.log('EPUB.js loaded:', typeof ePub !== 'undefined');
+      console.log('EPUB URL:', window.EPUB_URL);
+    });
+  </script>
+  <script src="/static/epub/epub_reader.js"></script>
+</body>
+</html>
