@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from typing import Optional, Dict, List, Any
 from ebooklib import epub
 from flask import current_app
-from app.models import Story, ReadingProgress, Bookmark, Highlight
+from app.models import Story, ReadingProgress
 from app.models.base import db
 from datetime import datetime
 
@@ -113,90 +113,3 @@ class EpubService:
 
         db.session.commit()
         return progress
-    
-    @staticmethod
-    def get_bookmarks(story_id: int) -> List[Bookmark]:
-        """Get all bookmarks for a story."""
-        return Bookmark.query.filter_by(story_id=story_id).order_by(Bookmark.chapter_number, Bookmark.paragraph_number).all()
-    
-    @staticmethod
-    def create_bookmark(
-        story_id: int,
-        chapter_number: int,
-        paragraph_number: int = None,
-        note: str = None
-    ) -> Bookmark:
-        """Create a new bookmark."""
-        bookmark = Bookmark(
-            story_id=story_id,
-            chapter_number=chapter_number,
-            paragraph_number=paragraph_number,
-            note=note
-        )
-        db.session.add(bookmark)
-        db.session.commit()
-        return bookmark
-    
-    @staticmethod
-    def delete_bookmark(bookmark_id: int) -> bool:
-        """Delete a bookmark."""
-        bookmark = Bookmark.query.get(bookmark_id)
-        if bookmark:
-            db.session.delete(bookmark)
-            db.session.commit()
-            return True
-        return False
-    
-    @staticmethod
-    def get_highlights(story_id: int) -> List[Highlight]:
-        """Get all highlights for a story."""
-        return Highlight.query.filter_by(story_id=story_id).order_by(Highlight.chapter_number, Highlight.paragraph_number).all()
-    
-    @staticmethod
-    def create_highlight(
-        story_id: int,
-        chapter_number: int,
-        paragraph_number: int,
-        highlighted_text: str,
-        start_offset: int = None,
-        end_offset: int = None,
-        note: str = None,
-        color: str = '#FFFF00'
-    ) -> Highlight:
-        """Create a new highlight."""
-        highlight = Highlight(
-            story_id=story_id,
-            chapter_number=chapter_number,
-            paragraph_number=paragraph_number,
-            highlighted_text=highlighted_text,
-            start_offset=start_offset,
-            end_offset=end_offset,
-            note=note,
-            color=color
-        )
-        db.session.add(highlight)
-        db.session.commit()
-        return highlight
-    
-    @staticmethod
-    def delete_highlight(highlight_id: int) -> bool:
-        """Delete a highlight."""
-        highlight = Highlight.query.get(highlight_id)
-        if highlight:
-            db.session.delete(highlight)
-            db.session.commit()
-            return True
-        return False
-    
-    @staticmethod
-    def update_highlight(highlight_id: int, note: str = None, color: str = None) -> Optional[Highlight]:
-        """Update a highlight's note or color."""
-        highlight = Highlight.query.get(highlight_id)
-        if highlight:
-            if note is not None:
-                highlight.note = note
-            if color is not None:
-                highlight.color = color
-            db.session.commit()
-            return highlight
-        return None

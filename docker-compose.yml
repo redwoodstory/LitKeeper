@@ -5,45 +5,22 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Set /epubs mount to enable downloading epubs to the file system
-      # If the app library is enabled, these files will be shown on the app UI too
-      - ./epubs:/litkeeper/app/data/epubs
+      # Set /stories mount for all story-related files (epubs, html, covers)
+      - ./stories:/litkeeper/app/data/stories
 
-      # Optional: Set a secondary bind mount to save epubs to a different location
-      # This could be useful for a tool like Calibre-Web to ingest (and subsequently delete) saved files
-      # There files are only for external consumption and are not shown on the app library
-      - ./secondary-epubs:/litkeeper/app/data/secondary-epubs
-
-      # Set /html and /covers mounts to use the interactive library in the app
-      # Ensure that ENABLE_LIBRARY is also set to true to use the library
-      - ./html:/litkeeper/app/data/html
-      - ./covers:/litkeeper/app/data/covers
-
-      # Set /logs mount to persist logs between container restarts
-      - ./logs:/litkeeper/app/data/logs
-
+      # Set /data mount to persist database, secret key, and other app data
+      - ./data:/litkeeper/app/data
       
     environment:
-      # Flask Secret Key (required for session persistence)
-      # Generate with: openssl rand -hex 32
-      - SECRET_KEY=your-secret-key-here
-
       # Set to false to hide library UI (download-only mode)
       - ENABLE_LIBRARY=true
 
-      # Optional logging toggles
-      - ENABLE_ACTION_LOG=true
-      - ENABLE_ERROR_LOG=true
-      - ENABLE_URL_LOG=true
-
-      # Notification configuration based on Apprise (supports multiple services)
-      # See Apprise docs for full list: https://github.com/caronc/apprise#supported-notifications
-      # - NOTIFICATION_URLS=tgram://BOT_TOKEN/CHAT_ID
-
-      # Examples for a few services:
-      # - Telegram: tgram://BOT_TOKEN/CHAT_ID
-      # - Discord: discord://webhook_id/webhook_token
-      # - Slack: slack://tokenA/tokenB/tokenC
-      # - Email: mailto://user:pass@gmail.com
-      # - Pushover: pover://user_key/app_token
+      # Configure notification services based on Apprise: https://github.com/caronc/apprise#supported-notifications
       - NOTIFICATION_URLS=
+
+      # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
+      # Example: /path/to/calibre-web/auto-import
+      - EXTERNAL_EPUB_PATH=
+
+      # Set a cron schedule to check for new chapters of stories you have downloaded
+      - AUTO_UPDATE_SCHEDULE=

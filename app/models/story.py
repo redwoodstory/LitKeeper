@@ -23,13 +23,15 @@ class Story(BaseModel, TimestampMixin):
     last_metadata_refresh = db.Column(db.DateTime)
     metadata_refresh_status = db.Column(db.String(50), default='never')
 
+    auto_update_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    last_update_check_at = db.Column(db.DateTime)
+    content_hash = db.Column(db.String(64))
+
     author = db.relationship('Author', back_populates='stories', lazy='joined')
     category = db.relationship('Category', back_populates='stories', lazy='joined')
     tags = db.relationship('Tag', secondary='story_tags', back_populates='stories', lazy='subquery')
     formats = db.relationship('StoryFormat', back_populates='story', cascade='all, delete-orphan', lazy='subquery')
     reading_progress = db.relationship('ReadingProgress', back_populates='story', uselist=False, cascade='all, delete-orphan')
-    bookmarks = db.relationship('Bookmark', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
-    highlights = db.relationship('Highlight', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
 
     def __repr__(self):
         return f'<Story {self.title}>'

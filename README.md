@@ -16,6 +16,7 @@ This started as a tool to download stories as EPUBs to use on an e-reader. It ha
 - Table of contents for easy navigation in multi-chapter stories
 - Provides an API to download stories directly from iOS shortcuts (see example below)
 - Sends notifications when stories are downloaded
+- Checks for new chapters or updates to stories in your library and automatically downloads them on a schedule
 
 ### Progressive Web App (PWA) Features
 Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection. PWA features (offline reading, app installation, OPFS storage) require HTTPS.
@@ -23,12 +24,7 @@ Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you c
 
 ## Installation
 
-1. Generate a secure SECRET_KEY:
-```bash
-openssl rand -hex 32
-```
-
-2. Create a docker-compose.yml file:
+1. Create a docker-compose.yml file:
 ```yaml
 services:
   litkeeper:
@@ -37,36 +33,15 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Set /epubs mount to enable downloading epubs to the file system
-      # If the app library is enabled, these files will be shown on the app UI too
-      - ./epubs:/litkeeper/app/data/epubs
+      # Set /stories mount for all story-related files (epubs, html, covers)
+      - ./stories:/litkeeper/app/data/stories
 
-      # Optional: Set a secondary bind mount to save epubs to a different location
-      # This could be useful for a tool like Calibre-Web to ingest (and subsequently delete) saved files
-      # There files are only for external consumption and are not shown on the app library
-      - ./secondary-epubs:/litkeeper/app/data/secondary-epubs
-
-      # Set /html and /covers mounts to use the interactive library in the app
-      # Ensure that ENABLE_LIBRARY is also set to true to use the library
-      - ./html:/litkeeper/app/data/html
-      - ./covers:/litkeeper/app/data/covers
-
-      # Set /logs mount to persist logs between container restarts
-      - ./logs:/litkeeper/app/data/logs
-
+      # Set /data mount to persist database, secret key, and other app data
+      - ./data:/litkeeper/app/data
 
     environment:
-      # Flask Secret Key (required for session persistence)
-      # Generate with: openssl rand -hex 32
-      - SECRET_KEY=your-secret-key-here
-
       # Set to false to hide library UI (download-only mode)
       - ENABLE_LIBRARY=true
-
-      # Optional logging toggles
-      - ENABLE_ACTION_LOG=true
-      - ENABLE_ERROR_LOG=true
-      - ENABLE_URL_LOG=true
 
       # Notification configuration based on Apprise (supports multiple services)
       # See Apprise docs for full list: https://github.com/caronc/apprise#supported-notifications
@@ -79,12 +54,27 @@ services:
       # - Email: mailto://user:pass@gmail.com
       # - Pushover: pover://user_key/app_token
       - NOTIFICATION_URLS=
+
+      # External EPUB path (optional)
+      # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
+      # Example: /path/to/calibre-web/auto-import
+      - EXTERNAL_EPUB_PATH=/external/path
+
+      # Automatic story update checking (optional)
+      # Set a cron schedule to enable automatic checks for story updates
+      # Leave commented out to disable auto-updates
+      # Format: minute hour day month day_of_week
+      # Examples:
+      # - Daily at 2 AM: 0 2 * * *
+      # - Every 6 hours: 0 */6 * * *
+      # - Weekly on Sunday at 3 AM: 0 3 * * 0
+      - AUTO_UPDATE_SCHEDULE=0 2 * * *
 ```
 
-3. Run the following command
+2. Run the following command
 `docker compose up -d`
 
-4. Navigate to `http://<server-ip>:5000`
+3. Navigate to `http://<server-ip>:5000`
 
 
 ## Configuration
@@ -93,12 +83,10 @@ services:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SECRET_KEY` | *Required* | Flask secret key for session security. Generate with: `openssl rand -hex 32` |
 | `ENABLE_LIBRARY` | `true` | Show library UI with story management. Set to `false` for download-only mode (hides library, search, and reader features) |
-| `ENABLE_ACTION_LOG` | `true` | Log application actions to `logs/action.log` |
-| `ENABLE_ERROR_LOG` | `true` | Log errors to `logs/error.log` |
-| `ENABLE_URL_LOG` | `true` | Log processed URLs to `logs/url.log` |
 | `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Telegram, Discord, Slack, Email, Pushover, etc.) |
+| `EXTERNAL_EPUB_PATH` | - | Optional path to copy EPUBs for external app integration (e.g., Calibre-Web auto-import) |
+| `AUTO_UPDATE_SCHEDULE` | - | Cron schedule for automatic story update checks. Setting this enables auto-updates. Format: `minute hour day month day_of_week`. Example: `0 2 * * *` (daily at 2 AM) |
 
 ### Volume Mounts
 
@@ -106,12 +94,22 @@ Volume mounts are required for data persistence between container restarts:
 
 | Mount | Purpose | Required |
 |-------|---------|----------|
-| `./epubs:/litkeeper/app/data/epubs` | EPUB file storage | ✅ Yes |
-| `./html:/litkeeper/app/data/html` | HTML file storage | ✅ Yes |
-| `./logs:/litkeeper/app/data/logs` | Application logs | ✅ Yes |
-| `./covers:/litkeeper/app/data/covers` | Generated cover images | ✅ Yes |
+| `./stories:/litkeeper/app/data/stories` | All story files (epubs, html, covers) | ✅ Yes |
+| `./data:/litkeeper/app/data` | Database, secret key, and app data | ✅ Yes |
 
-Without these bind mounts, your converted books and covers will be lost when the container is updated or recreated. The app will display a warning if bind mounts are not properly configured. You can also set the environment variable ENABLE_LIBRARY=false to hide the /html and /covers warning messages.
+**Directory structure:**
+```
+./stories/
+  ├── epubs/     # EPUB files
+  ├── html/      # HTML files for in-app reading
+  └── covers/    # Generated cover images
+
+./data/
+  ├── litkeeper.db  # SQLite database
+  └── secret.key    # Auto-generated session key
+```
+
+Without these bind mounts, your stories and database will be lost when the container is updated or recreated.
 
 
 ## API Configuration

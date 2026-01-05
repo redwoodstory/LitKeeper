@@ -7,7 +7,7 @@ from app.utils import get_epub_directory, get_html_directory
 from .story_downloader import download_story, extract_chapter_titles
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
-from .file_operations import copy_to_secondary_output
+from .file_operations import copy_to_external_path
 from .logger import log_action, log_error
 from .notifier import send_notification
 
@@ -221,9 +221,9 @@ def save_story_with_metadata(
             created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
             log_action(f"Created EPUB: {epub_file_name}")
 
-            secondary_epub = copy_to_secondary_output(epub_file_name, 'epub')
-            if secondary_epub:
-                log_action(f"Copied EPUB to secondary output: {secondary_epub}")
+            external_epub = copy_to_external_path(epub_file_name, 'epub')
+            if external_epub:
+                log_action(f"Copied EPUB to external path: {external_epub}")
 
         if "html" in formats:
             chapter_titles = extract_chapter_titles(story_content)
@@ -318,9 +318,9 @@ def download_story_and_create_files(
             created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
             log_action(f"Created EPUB: {epub_file_name}")
 
-            secondary_epub = copy_to_secondary_output(epub_file_name, 'epub')
-            if secondary_epub:
-                log_action(f"Copied EPUB to secondary output: {secondary_epub}")
+            external_epub = copy_to_external_path(epub_file_name, 'epub')
+            if external_epub:
+                log_action(f"Copied EPUB to external path: {external_epub}")
 
         if "html" in formats:
             chapter_titles = extract_chapter_titles(story_content)

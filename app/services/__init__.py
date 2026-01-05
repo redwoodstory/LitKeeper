@@ -6,7 +6,7 @@ from .story_downloader import download_story, extract_chapter_titles, get_sessio
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
 from .cover_generator import generate_cover_image, extract_cover_from_epub
-from .file_operations import copy_to_secondary_output
+from .file_operations import copy_to_external_path
 from .story_processor import download_story_and_create_files, StoryProcessingResult
 from .library import get_library_data
 
@@ -26,7 +26,7 @@ __all__ = [
     'create_html_file',
     'generate_cover_image',
     'extract_cover_from_epub',
-    'copy_to_secondary_output',
+    'copy_to_external_path',
     'download_story_and_create_files',
     'StoryProcessingResult',
     'get_library_data',

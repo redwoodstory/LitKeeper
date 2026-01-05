@@ -1,37 +1,24 @@
 from __future__ import annotations
-import os
 import logging
-from logging.handlers import RotatingFileHandler
+import sys
 from typing import Optional
-from app.utils import get_logs_directory
 
-ENABLE_ACTION_LOG = os.getenv('ENABLE_ACTION_LOG', 'true').lower() == 'true'
-ENABLE_ERROR_LOG = os.getenv('ENABLE_ERROR_LOG', 'true').lower() == 'true'
-ENABLE_URL_LOG = os.getenv('ENABLE_URL_LOG', 'true').lower() == 'true'
-
-log_directory = get_logs_directory()
-os.makedirs(log_directory, exist_ok=True)
-
-def _setup_logger(name: str, log_file: str, level: int = logging.INFO) -> logging.Logger:
-    """Configure a logger with rotating file handler (10MB max, 5 backups)."""
+def _setup_console_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Configure a logger with console/stdout handler for Docker logs."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
     if not logger.handlers:
-        handler = RotatingFileHandler(
-            os.path.join(log_directory, log_file),
-            maxBytes=10 * 1024 * 1024,
-            backupCount=5
-        )
-        formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
     return logger
 
-action_logger = _setup_logger('litkeeper.action', 'log.txt') if ENABLE_ACTION_LOG else None
-error_logger = _setup_logger('litkeeper.error', 'error_log.txt', logging.ERROR) if ENABLE_ERROR_LOG else None
-url_logger = _setup_logger('litkeeper.url', 'url_log.txt') if ENABLE_URL_LOG else None
+action_logger = _setup_console_logger('litkeeper.action')
+error_logger = _setup_console_logger('litkeeper.error', logging.ERROR)
+url_logger = _setup_console_logger('litkeeper.url')
 
 def _log_startup_info() -> None:
     """Log startup notification configuration information."""

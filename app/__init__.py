@@ -1,6 +1,7 @@
 from __future__ import annotations
 from flask import Flask
 import os
+import atexit
 from datetime import datetime
 from dotenv import load_dotenv
 from typing import Any
@@ -12,11 +13,28 @@ def create_app() -> Flask:
 
     secret_key = os.getenv('SECRET_KEY')
     if not secret_key:
-        import secrets
-        secret_key = secrets.token_hex(32)
-        print("WARNING: No SECRET_KEY found in environment. Using temporary key.")
-        print("Generate a permanent key with: python -c \"import secrets; print(secrets.token_hex(32))\"")
-        print("Add it to your .env file or environment variables.")
+        secret_key_file = os.path.join('app', 'data', 'secret.key')
+        os.makedirs(os.path.dirname(secret_key_file), exist_ok=True)
+        
+        if os.path.exists(secret_key_file):
+            try:
+                with open(secret_key_file, 'r') as f:
+                    secret_key = f.read().strip()
+                print(f"Loaded SECRET_KEY from {secret_key_file}")
+            except Exception as e:
+                print(f"Error reading secret key file: {e}")
+                secret_key = None
+        
+        if not secret_key:
+            import secrets
+            secret_key = secrets.token_hex(32)
+            try:
+                with open(secret_key_file, 'w') as f:
+                    f.write(secret_key)
+                print(f"Generated and saved new SECRET_KEY to {secret_key_file}")
+            except Exception as e:
+                print(f"Warning: Could not save secret key to file: {e}")
+                print("Using temporary key. Sessions will not persist across restarts.")
 
     app.config['SECRET_KEY'] = secret_key
 
@@ -26,9 +44,9 @@ def create_app() -> Flask:
     from flask_migrate import Migrate
     from app.models.base import db
 
-    instance_path = app.instance_path
-    os.makedirs(instance_path, exist_ok=True)
-    database_path = os.path.join(instance_path, 'litkeeper.db')
+    data_directory = os.path.join(os.path.dirname(__file__), 'data')
+    os.makedirs(data_directory, exist_ok=True)
+    database_path = os.path.join(data_directory, 'litkeeper.db')
 
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -123,5 +141,9 @@ def create_app() -> Flask:
     app.register_blueprint(admin)
     app.register_blueprint(settings)
     app.register_blueprint(epub)
+
+    from app.scheduler import init_scheduler, shutdown_scheduler
+    init_scheduler(app)
+    atexit.register(shutdown_scheduler)
 
     return app

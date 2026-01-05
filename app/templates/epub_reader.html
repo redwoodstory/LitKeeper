@@ -28,11 +28,6 @@
       </div>
       
       <div class="header-right">
-        <button id="bookmarksToggle" class="control-btn" aria-label="Bookmarks">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-          </svg>
-        </button>
         <button id="settingsToggle" class="control-btn" aria-label="Settings">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
@@ -60,18 +55,6 @@
         </button>
       </div>
       <div id="tocContent" class="panel-content"></div>
-    </div>
-
-    <div id="bookmarksPanel" class="side-panel">
-      <div class="panel-header">
-        <h2>Bookmarks</h2>
-        <button class="close-panel" aria-label="Close">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
-      </div>
-      <div id="bookmarksContent" class="panel-content"></div>
     </div>
 
     <div id="settingsPanel" class="settings-panel">
@@ -135,8 +118,6 @@
     window.STORY_ID = {{ story_id }};
     window.EPUB_URL = '/epub/file/{{ story_id }}/';
     window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position, 'cfi': progress.cfi} | tojson | safe }}{% else %}{}{% endif %};
-    window.INITIAL_BOOKMARKS = {{ bookmarks | tojson | safe }};
-    window.INITIAL_HIGHLIGHTS = {{ highlights | tojson | safe }};
     
     window.addEventListener('load', function() {
       console.log('EPUB.js loaded:', typeof ePub !== 'undefined');

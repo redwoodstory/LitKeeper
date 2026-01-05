@@ -15,32 +15,12 @@ def reader(story_id: int):
         abort(404, description="EPUB file not found for this story")
     
     progress = EpubService.get_reading_progress(story_id)
-    bookmarks = EpubService.get_bookmarks(story_id)
-    highlights = EpubService.get_highlights(story_id)
-    
+
     return render_template(
         'epub_reader.html',
         story=story,
         story_id=story_id,
-        progress=progress,
-        bookmarks=[{
-            'id': b.id,
-            'chapter_number': b.chapter_number,
-            'paragraph_number': b.paragraph_number,
-            'note': b.note,
-            'created_at': b.created_at.isoformat() if b.created_at else None
-        } for b in bookmarks],
-        highlights=[{
-            'id': h.id,
-            'chapter_number': h.chapter_number,
-            'paragraph_number': h.paragraph_number,
-            'highlighted_text': h.highlighted_text,
-            'start_offset': h.start_offset,
-            'end_offset': h.end_offset,
-            'note': h.note,
-            'color': h.color,
-            'created_at': h.created_at.isoformat() if h.created_at else None
-        } for h in highlights]
+        progress=progress
     )
 
 @epub.route('/file/<int:story_id>')
@@ -158,120 +138,3 @@ def update_progress(story_id: int):
         'is_completed': progress.is_completed,
         'cfi': progress.cfi
     })
-
-@epub.route('/api/bookmarks/<int:story_id>', methods=['GET'])
-def get_bookmarks(story_id: int):
-    """Get all bookmarks for a story."""
-    story = Story.query.get_or_404(story_id)
-    bookmarks = EpubService.get_bookmarks(story_id)
-    
-    return jsonify([{
-        'id': b.id,
-        'chapter_number': b.chapter_number,
-        'paragraph_number': b.paragraph_number,
-        'note': b.note,
-        'created_at': b.created_at.isoformat() if b.created_at else None
-    } for b in bookmarks])
-
-@epub.route('/api/bookmarks/<int:story_id>', methods=['POST'])
-def create_bookmark(story_id: int):
-    """Create a new bookmark."""
-    story = Story.query.get_or_404(story_id)
-    data = request.get_json()
-    
-    bookmark = EpubService.create_bookmark(
-        story_id=story_id,
-        chapter_number=data.get('chapter_number'),
-        paragraph_number=data.get('paragraph_number'),
-        note=data.get('note')
-    )
-    
-    return jsonify({
-        'success': True,
-        'id': bookmark.id,
-        'chapter_number': bookmark.chapter_number,
-        'paragraph_number': bookmark.paragraph_number,
-        'note': bookmark.note,
-        'created_at': bookmark.created_at.isoformat() if bookmark.created_at else None
-    })
-
-@epub.route('/api/bookmarks/<int:bookmark_id>', methods=['DELETE'])
-def delete_bookmark(bookmark_id: int):
-    """Delete a bookmark."""
-    success = EpubService.delete_bookmark(bookmark_id)
-    return jsonify({'success': success})
-
-@epub.route('/api/highlights/<int:story_id>', methods=['GET'])
-def get_highlights(story_id: int):
-    """Get all highlights for a story."""
-    story = Story.query.get_or_404(story_id)
-    highlights = EpubService.get_highlights(story_id)
-    
-    return jsonify([{
-        'id': h.id,
-        'chapter_number': h.chapter_number,
-        'paragraph_number': h.paragraph_number,
-        'highlighted_text': h.highlighted_text,
-        'start_offset': h.start_offset,
-        'end_offset': h.end_offset,
-        'note': h.note,
-        'color': h.color,
-        'created_at': h.created_at.isoformat() if h.created_at else None
-    } for h in highlights])
-
-@epub.route('/api/highlights/<int:story_id>', methods=['POST'])
-def create_highlight(story_id: int):
-    """Create a new highlight."""
-    story = Story.query.get_or_404(story_id)
-    data = request.get_json()
-    
-    highlight = EpubService.create_highlight(
-        story_id=story_id,
-        chapter_number=data.get('chapter_number'),
-        paragraph_number=data.get('paragraph_number'),
-        highlighted_text=data.get('highlighted_text'),
-        start_offset=data.get('start_offset'),
-        end_offset=data.get('end_offset'),
-        note=data.get('note'),
-        color=data.get('color', '#FFFF00')
-    )
-    
-    return jsonify({
-        'success': True,
-        'id': highlight.id,
-        'chapter_number': highlight.chapter_number,
-        'paragraph_number': highlight.paragraph_number,
-        'highlighted_text': highlight.highlighted_text,
-        'start_offset': highlight.start_offset,
-        'end_offset': highlight.end_offset,
-        'note': highlight.note,
-        'color': highlight.color,
-        'created_at': highlight.created_at.isoformat() if highlight.created_at else None
-    })
-
-@epub.route('/api/highlights/<int:highlight_id>', methods=['PUT'])
-def update_highlight(highlight_id: int):
-    """Update a highlight."""
-    data = request.get_json()
-    
-    highlight = EpubService.update_highlight(
-        highlight_id=highlight_id,
-        note=data.get('note'),
-        color=data.get('color')
-    )
-    
-    if not highlight:
-        return jsonify({'success': False, 'error': 'Highlight not found'}), 404
-    
-    return jsonify({
-        'success': True,
-        'id': highlight.id,
-        'note': highlight.note,
-        'color': highlight.color
-    })
-
-@epub.route('/api/highlights/<int:highlight_id>', methods=['DELETE'])
-def delete_highlight(highlight_id: int):
-    """Delete a highlight."""
-    success = EpubService.delete_highlight(highlight_id)
-    return jsonify({'success': success})

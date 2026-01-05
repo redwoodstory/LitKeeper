@@ -4,7 +4,7 @@ from .category import Category
 from .tag import Tag, story_tags
 from .story import Story
 from .story_format import StoryFormat
-from .reader import ReadingProgress, Bookmark, Highlight
+from .reader import ReadingProgress
 from .migration import MigrationLog, MetadataRefreshLog
 from .config import AppConfig
 
@@ -19,8 +19,6 @@ __all__ = [
     'Story',
     'StoryFormat',
     'ReadingProgress',
-    'Bookmark',
-    'Highlight',
     'MigrationLog',
     'MetadataRefreshLog',
     'AppConfig',

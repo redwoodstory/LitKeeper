@@ -4,9 +4,10 @@ from app.services.migration.migrator import DatabaseMigrator
 from app.services.migration.file_scanner import FileScanner
 from app.services.migration.sync_checker import SyncChecker
 from app.services.mode_detector import ModeDetector
-from app.models import AppConfig, Story, Author, Category, Tag, MigrationLog
+from app.models import AppConfig, Story, Author, Category, Tag, MigrationLog, StoryFormat
 from app.models.base import db
 import uuid
+import threading
 
 active_migrations = {}
 
@@ -320,7 +321,7 @@ def fix_missing_formats():
                 fixed_count += 1
         
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'Added {fixed_count} missing format records',
@@ -331,4 +332,27 @@ def fix_missing_formats():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+@admin.route('/trigger-update-check', methods=['POST'])
+def trigger_update_check():
+    """Manually trigger story update check (for testing)."""
+    try:
+        from app.services.story_update_checker import check_all_stories_for_updates
+        from flask import current_app
+
+        thread = threading.Thread(
+            target=check_all_stories_for_updates,
+            args=(current_app._get_current_object(),)
+        )
+        thread.start()
+
+        return jsonify({
+            "success": True,
+            "message": "Update check triggered in background"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
         }), 500
