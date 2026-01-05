@@ -88,15 +88,16 @@ class EpubService:
         current_chapter: int = None,
         current_paragraph: int = None,
         scroll_position: int = None,
-        is_completed: bool = None
+        is_completed: bool = None,
+        cfi: str = None
     ) -> ReadingProgress:
         """Update or create reading progress for a story."""
         progress = ReadingProgress.query.filter_by(story_id=story_id).first()
-        
+
         if not progress:
             progress = ReadingProgress(story_id=story_id)
             db.session.add(progress)
-        
+
         if current_chapter is not None:
             progress.current_chapter = current_chapter
         if current_paragraph is not None:
@@ -105,9 +106,11 @@ class EpubService:
             progress.scroll_position = scroll_position
         if is_completed is not None:
             progress.is_completed = is_completed
-        
+        if cfi is not None:
+            progress.cfi = cfi
+
         progress.last_read_at = datetime.utcnow()
-        
+
         db.session.commit()
         return progress
     

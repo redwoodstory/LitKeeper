@@ -115,22 +115,24 @@ def get_progress(story_id: int):
     """Get reading progress for a story."""
     story = Story.query.get_or_404(story_id)
     progress = EpubService.get_reading_progress(story_id)
-    
+
     if not progress:
         return jsonify({
             'current_chapter': 1,
             'current_paragraph': 0,
             'scroll_position': 0,
             'is_completed': False,
-            'last_read_at': None
+            'last_read_at': None,
+            'cfi': None
         })
-    
+
     return jsonify({
         'current_chapter': progress.current_chapter,
         'current_paragraph': progress.current_paragraph,
         'scroll_position': progress.scroll_position,
         'is_completed': progress.is_completed,
-        'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else None
+        'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else None,
+        'cfi': progress.cfi
     })
 
 @epub.route('/api/progress/<int:story_id>', methods=['POST'])
@@ -138,21 +140,23 @@ def update_progress(story_id: int):
     """Update reading progress for a story."""
     story = Story.query.get_or_404(story_id)
     data = request.get_json()
-    
+
     progress = EpubService.update_reading_progress(
         story_id=story_id,
         current_chapter=data.get('current_chapter'),
         current_paragraph=data.get('current_paragraph'),
         scroll_position=data.get('scroll_position'),
-        is_completed=data.get('is_completed')
+        is_completed=data.get('is_completed'),
+        cfi=data.get('cfi')
     )
-    
+
     return jsonify({
         'success': True,
         'current_chapter': progress.current_chapter,
         'current_paragraph': progress.current_paragraph,
         'scroll_position': progress.scroll_position,
-        'is_completed': progress.is_completed
+        'is_completed': progress.is_completed,
+        'cfi': progress.cfi
     })
 
 @epub.route('/api/bookmarks/<int:story_id>', methods=['GET'])

@@ -183,10 +183,11 @@
         },
         body: JSON.stringify({
           current_chapter: location.start.index,
-          scroll_position: 0
+          scroll_position: 0,
+          cfi: location.start.cfi
         })
       });
-      
+
       if (!response.ok) {
         console.error('Failed to save progress');
       }
@@ -355,9 +356,13 @@
     rendition.themes.select(getInitialTheme());
 
     const initialProgress = window.INITIAL_PROGRESS;
-    const startLocation = initialProgress && initialProgress.current_chapter 
-      ? book.spine.get(initialProgress.current_chapter)?.href 
-      : undefined;
+    let startLocation;
+
+    if (initialProgress && initialProgress.cfi) {
+      startLocation = initialProgress.cfi;
+    } else if (initialProgress && initialProgress.current_chapter !== null && initialProgress.current_chapter !== undefined) {
+      startLocation = book.spine.get(initialProgress.current_chapter)?.href;
+    }
 
     rendition.display(startLocation);
 

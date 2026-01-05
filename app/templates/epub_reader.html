@@ -134,7 +134,7 @@
   <script>
     window.STORY_ID = {{ story_id }};
     window.EPUB_URL = '/epub/file/{{ story_id }}/';
-    window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position} | tojson | safe }}{% else %}{}{% endif %};
+    window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position, 'cfi': progress.cfi} | tojson | safe }}{% else %}{}{% endif %};
     window.INITIAL_BOOKMARKS = {{ bookmarks | tojson | safe }};
     window.INITIAL_HIGHLIGHTS = {{ highlights | tojson | safe }};
     
