@@ -3,7 +3,7 @@ from typing import Optional
 import traceback
 import os
 from datetime import datetime
-from app.utils import get_epub_directory, get_html_directory
+from app.utils import get_epub_directory, get_html_directory, sanitize_filename
 from .story_downloader import download_story, extract_chapter_titles
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
@@ -39,7 +39,7 @@ def _save_to_database(
 
         deduplicator = Deduplicator()
 
-        filename_base = story_title.replace('/', '_').replace('\\', '_')
+        filename_base = sanitize_filename(story_title)
 
         duplicate = deduplicator.check_duplicate(
             {'title': story_title, 'author': story_author, 'source_url': source_url},
@@ -47,65 +47,66 @@ def _save_to_database(
         )
 
         if duplicate:
-            log_action(f"Story already exists in database (ID: {duplicate.id}), skipping database save")
-            return
-
-        author_obj = Author.query.filter_by(name=story_author).first()
-        if not author_obj:
-            author_obj = Author(
-                name=story_author,
-                literotica_url=author_url
-            )
-            db.session.add(author_obj)
-            db.session.flush()
-
-        category_obj = None
-        if story_category:
-            category_obj = Category.query.filter_by(name=story_category).first()
-            if not category_obj:
-                category_obj = Category(
-                    name=story_category,
-                    slug=Category.create_slug(story_category)
+            log_action(f"Story already exists in database (ID: {duplicate.id}), checking for missing formats")
+            story = duplicate
+        else:
+            author_obj = Author.query.filter_by(name=story_author).first()
+            if not author_obj:
+                author_obj = Author(
+                    name=story_author,
+                    literotica_url=author_url
                 )
-                db.session.add(category_obj)
+                db.session.add(author_obj)
                 db.session.flush()
 
-        story = Story(
-            title=story_title,
-            author_id=author_obj.id,
-            category_id=category_obj.id if category_obj else None,
-            literotica_url=source_url,
-            literotica_page_count=page_count,
-            chapter_count=1,
-            filename_base=filename_base,
-            imported_at=datetime.utcnow(),
-            metadata_refresh_status='complete' if source_url else 'never'
-        )
-        db.session.add(story)
-        db.session.flush()
-
-        if story_tags:
-            tag_objects = []
-            seen_slugs = set()
-            for tag_name in story_tags:
-                tag_slug = Tag.create_slug(tag_name)
-                if tag_slug in seen_slugs:
-                    continue
-                seen_slugs.add(tag_slug)
-
-                tag = Tag.query.filter_by(slug=tag_slug).first()
-                if not tag:
-                    tag = Tag(name=tag_name, slug=tag_slug)
-                    db.session.add(tag)
+            category_obj = None
+            if story_category:
+                category_obj = Category.query.filter_by(name=story_category).first()
+                if not category_obj:
+                    category_obj = Category(
+                        name=story_category,
+                        slug=Category.create_slug(story_category)
+                    )
+                    db.session.add(category_obj)
                     db.session.flush()
-                tag_objects.append(tag)
-            story.tags = tag_objects
+
+            story = Story(
+                title=story_title,
+                author_id=author_obj.id,
+                category_id=category_obj.id if category_obj else None,
+                literotica_url=source_url,
+                literotica_page_count=page_count,
+                chapter_count=1,
+                filename_base=filename_base,
+                imported_at=datetime.utcnow(),
+                metadata_refresh_status='complete' if source_url else 'never'
+            )
+            db.session.add(story)
+            db.session.flush()
+
+            if story_tags:
+                tag_objects = []
+                seen_slugs = set()
+                for tag_name in story_tags:
+                    tag_slug = Tag.create_slug(tag_name)
+                    if tag_slug in seen_slugs:
+                        continue
+                    seen_slugs.add(tag_slug)
+
+                    tag = Tag.query.filter_by(slug=tag_slug).first()
+                    if not tag:
+                        tag = Tag(name=tag_name, slug=tag_slug)
+                        db.session.add(tag)
+                        db.session.flush()
+                    tag_objects.append(tag)
+                story.tags = tag_objects
 
         epub_directory = get_epub_directory()
         html_directory = get_html_directory()
 
-        epub_path = os.path.join(epub_directory, f"{filename_base}.epub")
-        if os.path.exists(epub_path):
+        epub_path = os.path.join(epub_directory, f"{story.filename_base}.epub")
+        existing_epub = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
+        if os.path.exists(epub_path) and not existing_epub:
             story_format = StoryFormat(
                 story_id=story.id,
                 format_type='epub',
@@ -113,9 +114,11 @@ def _save_to_database(
                 file_size=os.path.getsize(epub_path)
             )
             db.session.add(story_format)
+            log_action(f"Added EPUB format record for story ID {story.id}")
 
-        json_path = os.path.join(html_directory, f"{filename_base}.json")
-        if os.path.exists(json_path):
+        json_path = os.path.join(html_directory, f"{story.filename_base}.json")
+        existing_json = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+        if os.path.exists(json_path) and not existing_json:
             import json
             with open(json_path, 'r', encoding='utf-8') as f:
                 json_data = json.load(f)
@@ -128,6 +131,7 @@ def _save_to_database(
                 json_data=json.dumps(json_data)
             )
             db.session.add(story_format)
+            log_action(f"Added JSON format record for story ID {story.id}")
 
         db.session.commit()
         log_action(f"Saved story metadata to database: '{story_title}' (ID: {story.id})")

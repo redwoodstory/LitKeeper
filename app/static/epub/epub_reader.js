@@ -11,8 +11,6 @@
   const settingsPanel = document.getElementById('settingsPanel');
   const tocToggle = document.getElementById('tocToggle');
   const tocPanel = document.getElementById('tocPanel');
-  const bookmarksToggle = document.getElementById('bookmarksToggle');
-  const bookmarksPanel = document.getElementById('bookmarksPanel');
   const prevBtn = document.getElementById('prev');
   const nextBtn = document.getElementById('next');
   const progressFill = document.getElementById('progressFill');
@@ -69,28 +67,18 @@
     e.stopPropagation();
     settingsPanel.classList.toggle('active');
     tocPanel.classList.remove('active');
-    bookmarksPanel.classList.remove('active');
   });
 
   tocToggle.addEventListener('click', (e) => {
     e.stopPropagation();
     tocPanel.classList.toggle('active');
     settingsPanel.classList.remove('active');
-    bookmarksPanel.classList.remove('active');
-  });
-
-  bookmarksToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    bookmarksPanel.classList.toggle('active');
-    settingsPanel.classList.remove('active');
-    tocPanel.classList.remove('active');
   });
 
   document.querySelectorAll('.close-panel').forEach(btn => {
     btn.addEventListener('click', () => {
       tocPanel.classList.remove('active');
-      bookmarksPanel.classList.remove('active');
-    });
+      });
   });
 
   document.addEventListener('click', (e) => {
@@ -300,108 +288,47 @@
     }
   }
 
-  async function loadBookmarks() {
-    try {
-      const response = await fetch(`/epub/api/bookmarks/${storyId}`);
-      const bookmarks = await response.json();
-      
-      const container = document.getElementById('bookmarksContent');
-      if (bookmarks.length === 0) {
-        container.innerHTML = '<p style="color: var(--secondary-text); text-align: center; padding: 2rem;">No bookmarks yet</p>';
-        return;
-      }
-      
-      container.innerHTML = bookmarks.map(b => `
-        <div class="bookmark-item" data-chapter="${b.chapter_number}">
-          <div style="font-weight: 500;">Chapter ${b.chapter_number}</div>
-          ${b.note ? `<div class="bookmark-note">${b.note}</div>` : ''}
-          <button onclick="deleteBookmark(${b.id})" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer;">Delete</button>
-        </div>
-      `).join('');
-      
-      container.querySelectorAll('.bookmark-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          if (e.target.tagName !== 'BUTTON') {
-            const chapter = parseInt(item.dataset.chapter);
-            if (rendition && book.spine.get(chapter)) {
-              rendition.display(book.spine.get(chapter).href);
-              bookmarksPanel.classList.remove('active');
-            }
-          }
-        });
-      });
-    } catch (error) {
-      console.error('Error loading bookmarks:', error);
-    }
-  }
-
-  window.deleteBookmark = async function(bookmarkId) {
-    try {
-      const response = await fetch(`/epub/api/bookmarks/${bookmarkId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        loadBookmarks();
-      }
-    } catch (error) {
-      console.error('Error deleting bookmark:', error);
-    }
-  };
-
-  async function addBookmark() {
-    if (!currentLocation) return;
-    
-    const note = prompt('Add a note (optional):');
-    
-    try {
-      const response = await fetch(`/epub/api/bookmarks/${storyId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chapter_number: currentLocation.start.index,
-          note: note || null
-        })
-      });
-      
-      if (response.ok) {
-        loadBookmarks();
-        alert('Bookmark added!');
-      }
-    } catch (error) {
-      console.error('Error adding bookmark:', error);
-    }
-  }
-
   // Check if ePub is available (try both ePub and window.ePub)
-  const ePubConstructor = window.ePub || window.Epub || ePub;
+  console.log('[EPUB] Starting initialization...');
+  console.log('[EPUB] window.ePub:', typeof window.ePub);
+  console.log('[EPUB] window.Epub:', typeof window.Epub);
+  console.log('[EPUB] typeof ePub:', typeof ePub);
+  
+  const ePubConstructor = window.ePub || window.Epub || (typeof ePub !== 'undefined' ? ePub : undefined);
   
   if (typeof ePubConstructor === 'undefined') {
-    console.error('EPUB.js library not loaded');
-    console.log('Available globals:', Object.keys(window).filter(k => k.toLowerCase().includes('epub')));
+    console.error('[EPUB] EPUB.js library not loaded');
+    console.log('[EPUB] Available globals:', Object.keys(window).filter(k => k.toLowerCase().includes('epub')));
     document.getElementById('viewer').innerHTML = '<div style="padding: 2rem; text-align: center;"><p>Error: EPUB.js library failed to load. Please refresh the page.</p></div>';
     return;
   }
 
-  console.log('Initializing EPUB with URL:', epubUrl);
+  console.log('[EPUB] ePubConstructor found:', typeof ePubConstructor);
+  console.log('[EPUB] Initializing EPUB with URL:', epubUrl);
+  
+  const cleanUrl = epubUrl.replace(/\/$/, '');
+  console.log('[EPUB] Clean URL:', cleanUrl);
+  console.log('[EPUB] Starting fetch...');
 
   // Load EPUB as ArrayBuffer to avoid path resolution issues
-  fetch(epubUrl.replace(/\/$/, ''))
+  fetch(cleanUrl)
     .then(response => {
+      console.log('[EPUB] Fetch response received:', response.status, response.statusText);
       if (!response.ok) {
-        throw new Error('Failed to fetch EPUB file');
+        throw new Error('Failed to fetch EPUB file: ' + response.status + ' ' + response.statusText);
       }
+      console.log('[EPUB] Converting to ArrayBuffer...');
       return response.arrayBuffer();
     })
     .then(arrayBuffer => {
-      console.log('EPUB file loaded, size:', arrayBuffer.byteLength);
+      console.log('[EPUB] EPUB file loaded, size:', arrayBuffer.byteLength);
+      console.log('[EPUB] Creating book object...');
       
       // Initialize EPUB book with ArrayBuffer
       book = ePubConstructor(arrayBuffer);
       
-      console.log('Book object created:', book);
+      console.log('[EPUB] Book object created:', book);
+      console.log('[EPUB] Creating rendition...');
       
       rendition = book.renderTo('viewer', {
         width: '100%',
@@ -410,12 +337,14 @@
         allowScriptedContent: true
       });
       
-      console.log('Rendition created:', rendition);
+      console.log('[EPUB] Rendition created:', rendition);
+      console.log('[EPUB] Initializing reader...');
       
       initializeReader();
     })
     .catch(error => {
-      console.error('Error loading EPUB:', error);
+      console.error('[EPUB] Error loading EPUB:', error);
+      console.error('[EPUB] Error stack:', error.stack);
       document.getElementById('viewer').innerHTML = '<div style="padding: 2rem; text-align: center;"><p>Error loading EPUB file: ' + error.message + '</p></div>';
     });
 
@@ -588,25 +517,8 @@
         rendition.prev();
       } else if (e.key === 'ArrowRight') {
         rendition.next();
-      } else if (e.key === 'b' && e.ctrlKey) {
-        e.preventDefault();
-        addBookmark();
       }
     });
-
-    rendition.on('selected', (cfiRange, contents) => {
-      const selection = contents.window.getSelection();
-      const text = selection.toString();
-      
-      if (text.length > 0) {
-        const shouldBookmark = confirm('Add bookmark at this location?');
-        if (shouldBookmark) {
-          addBookmark();
-        }
-      }
-    });
-
-    loadBookmarks();
 
     syncProgressToServer();
 

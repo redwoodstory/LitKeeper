@@ -33,11 +33,11 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Set /stories mount for all story-related files (epubs, html, covers)
-      - ./stories:/litkeeper/app/data/stories
-
-      # Set /data mount to persist database, secret key, and other app data
+      # Set /data mount to persist database and secret key
       - ./data:/litkeeper/app/data
+      
+      # Set /stories mount for all story-related files (epubs, html, covers)
+      - ./stories:/litkeeper/app/stories
 
     environment:
       # Set to false to hide library UI (download-only mode)
@@ -94,19 +94,19 @@ Volume mounts are required for data persistence between container restarts:
 
 | Mount | Purpose | Required |
 |-------|---------|----------|
-| `./stories:/litkeeper/app/data/stories` | All story files (epubs, html, covers) | ✅ Yes |
-| `./data:/litkeeper/app/data` | Database, secret key, and app data | ✅ Yes |
+| `./data:/litkeeper/app/data` | Database and secret key | ✅ Yes |
+| `./stories:/litkeeper/app/stories` | All story files (epubs, html, covers) | ✅ Yes |
 
 **Directory structure:**
 ```
-./stories/
-  ├── epubs/     # EPUB files
-  ├── html/      # HTML files for in-app reading
-  └── covers/    # Generated cover images
-
 ./data/
   ├── litkeeper.db  # SQLite database
   └── secret.key    # Auto-generated session key
+
+./stories/
+  ├── epubs/        # EPUB files
+  ├── html/         # HTML files for in-app reading
+  └── covers/       # Generated cover images
 ```
 
 Without these bind mounts, your stories and database will be lost when the container is updated or recreated.

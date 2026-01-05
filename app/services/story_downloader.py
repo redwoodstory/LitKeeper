@@ -58,6 +58,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                 try:
                     response = session.get(current_url, timeout=10)
                     response.raise_for_status()
+                    response.encoding = response.apparent_encoding or 'utf-8'
 
                     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -68,16 +69,11 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
 
                         import html
                         current_title = html.unescape(current_title)
-                        current_title = current_title.encode('latin1').decode('utf-8', errors='ignore') if current_title else current_title
 
                         if current_chapter == 1:
                             story_title = current_title
                             story_author = author_tag.text.strip() if author_tag else story_author
                             story_author = html.unescape(story_author)
-                            try:
-                                story_author = story_author.encode('latin1').decode('utf-8', errors='ignore')
-                            except:
-                                pass
 
                             if author_tag and author_tag.get('href'):
                                 author_href = author_tag.get('href')

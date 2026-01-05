@@ -142,15 +142,6 @@ def clear_database():
         except:
             pass
 
-        try:
-            db.session.execute(db.text('DELETE FROM bookmarks'))
-        except:
-            pass
-
-        try:
-            db.session.execute(db.text('DELETE FROM highlights'))
-        except:
-            pass
 
         Story.query.delete()
         Author.query.delete()

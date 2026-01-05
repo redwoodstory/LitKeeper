@@ -1,25 +1,17 @@
 #!/bin/bash
 set -e
 
-DATA_DIR="/litkeeper/app/data"
-DIRS_TO_CHECK=("epubs" "html" "covers")
+STORIES_DIR="/litkeeper/app/stories"
+MARKER_FILE="$STORIES_DIR/.mount_marker"
 
-echo "Checking for bind mounts..."
+echo "Checking for stories bind mount..."
 
-for dir_name in "${DIRS_TO_CHECK[@]}"; do
-    dir_path="$DATA_DIR/$dir_name"
-    marker_file="$dir_path/.mount_marker"
+mkdir -p "$STORIES_DIR/epubs" "$STORIES_DIR/html" "$STORIES_DIR/covers"
 
-    mkdir -p "$dir_path"
+# Create marker file to indicate mount is configured
+touch "$MARKER_FILE" 2>/dev/null || echo "Note: Could not create marker file (read-only mount?)"
 
-    if [ ! -f "$marker_file" ]; then
-        echo "No bind mount detected for $dir_name - clearing directory..."
-        rm -rf "$dir_path"/*
-        echo "Cleared $dir_path"
-    else
-        echo "Bind mount detected for $dir_name (marker file exists)"
-    fi
-done
+echo "Stories directory ready at $STORIES_DIR"
 
 echo "Starting application..."
 exec "$@"

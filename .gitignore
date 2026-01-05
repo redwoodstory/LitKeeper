@@ -191,3 +191,4 @@ docker-compose.local.yml
 
 routes.py.backup
 
+instance/

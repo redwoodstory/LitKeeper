@@ -46,6 +46,12 @@ def create_app() -> Flask:
 
     data_directory = os.path.join(os.path.dirname(__file__), 'data')
     os.makedirs(data_directory, exist_ok=True)
+
+    stories_directory = os.path.join(os.path.dirname(__file__), 'stories')
+    os.makedirs(os.path.join(stories_directory, 'epubs'), exist_ok=True)
+    os.makedirs(os.path.join(stories_directory, 'html'), exist_ok=True)
+    os.makedirs(os.path.join(stories_directory, 'covers'), exist_ok=True)
+
     database_path = os.path.join(data_directory, 'litkeeper.db')
 
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'

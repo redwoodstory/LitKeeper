@@ -45,7 +45,8 @@ def create_html_file(
         cover_filename = f"{sanitize_filename(story_title)}.jpg"
         cover_path = os.path.join(cover_directory, cover_filename)
 
-        generate_cover_image(story_title, story_author, cover_path)
+        if not os.path.exists(cover_path):
+            generate_cover_image(story_title, story_author, cover_path)
 
         chapter_texts = story_content.split("\n\nChapter ")
         chapters = []

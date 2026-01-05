@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import zipfile
 import xml.etree.ElementTree as ET
+import warnings
 from typing import Optional, Dict, List, Any
 from ebooklib import epub
 from flask import current_app
@@ -9,16 +10,20 @@ from app.models import Story, ReadingProgress
 from app.models.base import db
 from datetime import datetime
 
+warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
+
 class EpubService:
     
     @staticmethod
     def get_epub_path(story: Story) -> Optional[str]:
         """Get the full path to the EPUB file for a story."""
+        from app.utils import get_epub_directory
+        
         epub_format = next((f for f in story.formats if f.format_type == 'epub'), None)
         if not epub_format:
             return None
         
-        epub_dir = os.path.join(current_app.root_path, 'data', 'epubs')
+        epub_dir = get_epub_directory()
         epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
         
         if os.path.exists(epub_path):
@@ -33,7 +38,7 @@ class EpubService:
             return None
         
         try:
-            book = epub.read_epub(epub_path)
+            book = epub.read_epub(epub_path, options={'ignore_ncx': True})
             
             metadata = {
                 'title': story.title,

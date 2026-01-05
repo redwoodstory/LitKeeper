@@ -5,11 +5,11 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Set /stories mount for all story-related files (epubs, html, covers)
-      - ./stories:/litkeeper/app/data/stories
-
-      # Set /data mount to persist database, secret key, and other app data
+      # Set /data mount to persist database and secret key
       - ./data:/litkeeper/app/data
+      
+      # Set /stories mount for all story-related files (epubs, html, covers)
+      - ./stories:/litkeeper/app/stories
       
     environment:
       # Set to false to hide library UI (download-only mode)

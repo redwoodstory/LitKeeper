@@ -3,11 +3,14 @@ import os
 import hashlib
 import traceback
 import logging
+import warnings
 from PIL import Image, ImageDraw, ImageFont
 from typing import Optional
 import ebooklib
 import ebooklib.epub as epub
 from .logger import log_error
+
+warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
 
 def generate_cover_image(title: str, author: str, cover_path: str) -> None:
     """
@@ -121,7 +124,7 @@ def extract_cover_from_epub(epub_path: str, cover_path: str) -> bool:
         True if cover was extracted successfully, False otherwise.
     """
     try:
-        book = epub.read_epub(epub_path)
+        book = epub.read_epub(epub_path, options={'ignore_ncx': True})
 
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_COVER:

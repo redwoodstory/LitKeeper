@@ -2,7 +2,7 @@ from __future__ import annotations
 from flask import Blueprint, render_template, request, send_from_directory, jsonify, abort, make_response
 from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, get_library_data
-from app.services.system_checks import check_mount_warning, check_secret_key_warning
+from app.services.system_checks import check_mount_warning
 from app.utils import get_html_directory, get_epub_directory
 from app.validators import StoryDownloadRequest, LibraryFilterRequest
 from pydantic import ValidationError
@@ -33,8 +33,7 @@ def index() -> ResponseReturnValue:
             stories = get_library_data() if enable_library else []
             categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
             mount_warning = check_mount_warning()
-            secret_key_warning = check_secret_key_warning()
-            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library)
+            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, enable_library=enable_library)
 
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
@@ -44,7 +43,6 @@ def index() -> ResponseReturnValue:
         from app.models import Story
 
         mount_warning = check_mount_warning()
-        secret_key_warning = check_secret_key_warning()
 
         sync_status = None
 
@@ -55,10 +53,10 @@ def index() -> ResponseReturnValue:
         stories = get_library_data() if enable_library else []
         categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
 
-        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, secret_key_warning=secret_key_warning, enable_library=enable_library, sync_status=sync_status)
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, enable_library=enable_library, sync_status=sync_status)
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
-        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, secret_key_warning=False, enable_library=enable_library)
+        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, enable_library=enable_library)
 
 @library.route("/library/filter", methods=["GET"])
 def filter_library() -> ResponseReturnValue:
@@ -171,14 +169,14 @@ def download_story(format_type: str, filename: str) -> ResponseReturnValue:
 
     html_directory = get_html_directory()
 
-    if filename.endswith('.html'):
-        json_filename = filename.replace('.html', '.json')
-    elif filename.endswith('.json'):
-        json_filename = filename
-    else:
-        abort(404)
-
     if format_type == 'html':
+        if filename.endswith('.html'):
+            json_filename = filename.replace('.html', '.json')
+        elif filename.endswith('.json'):
+            json_filename = filename
+        else:
+            abort(404)
+
         json_path = os.path.join(html_directory, json_filename)
 
         if not os.path.exists(json_path):
@@ -205,14 +203,23 @@ def download_story(format_type: str, filename: str) -> ResponseReturnValue:
 
     elif format_type == 'epub':
         epub_directory = get_epub_directory()
-        epub_filename = json_filename.replace('.json', '.epub')
+
+        if filename.endswith('.epub'):
+            epub_filename = filename
+        elif filename.endswith('.html'):
+            epub_filename = filename.replace('.html', '.epub')
+        elif filename.endswith('.json'):
+            epub_filename = filename.replace('.json', '.epub')
+        else:
+            abort(404)
+
         epub_path = os.path.join(epub_directory, epub_filename)
 
         if not os.path.exists(epub_path):
             abort(404)
 
         try:
-            return send_from_directory(epub_directory, epub_filename, as_attachment=True)
+            return send_from_directory(epub_directory, epub_filename, as_attachment=True, mimetype='application/epub+zip')
         except Exception as e:
             log_error(f"Error sending EPUB download for {epub_filename}: {str(e)}\n{traceback.format_exc()}")
             abort(500)

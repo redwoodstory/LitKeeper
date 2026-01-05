@@ -7,7 +7,7 @@ def get_data_directory() -> str:
 
 
 def get_stories_directory() -> str:
-    return os.path.join(get_data_directory(), "stories")
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "stories")
 
 
 def get_cover_directory() -> str:

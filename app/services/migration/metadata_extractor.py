@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import Dict, Optional
+import warnings
 import ebooklib
 from ebooklib import epub
+
+warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
 
 class MetadataExtractor:
     """Extracts metadata from JSON and EPUB files"""
@@ -42,7 +45,7 @@ class MetadataExtractor:
     def _extract_from_epub(self, epub_path: str) -> Dict:
         """Extract metadata from EPUB file using ebooklib"""
         try:
-            book = epub.read_epub(epub_path)
+            book = epub.read_epub(epub_path, options={'ignore_ncx': True})
 
             title = book.get_metadata('DC', 'title')
             title = title[0][0] if title else 'Unknown'

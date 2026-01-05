@@ -2,12 +2,16 @@ from __future__ import annotations
 import os
 import uuid
 import traceback
+import warnings
 import ebooklib.epub as epub
 from typing import Optional
 from app.utils import sanitize_filename, get_cover_directory
 from .logger import log_error
 from .notifier import send_notification
 from .cover_generator import generate_cover_image
+
+warnings.filterwarnings('ignore', category=UserWarning, module='ebooklib')
+warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
 
 def format_story_content(content: str) -> str:
     """Format story content into properly formatted paragraphs for EPUB."""
@@ -88,7 +92,8 @@ def create_epub_file(
             cover_filename = f"{sanitize_filename(story_title)}.jpg"
             cover_image_path = os.path.join(cover_directory, cover_filename)
 
-            generate_cover_image(story_title, story_author, cover_image_path)
+            if not os.path.exists(cover_image_path):
+                generate_cover_image(story_title, story_author, cover_image_path)
 
         book = epub.EpubBook()
 
@@ -177,7 +182,10 @@ def create_epub_file(
         book.spine = ['nav'] + chapters
 
         epub_path = os.path.join(output_directory, f"{sanitize_filename(story_title)}.epub")
-        epub.write_epub(epub_path, book, {})
+        epub.write_epub(epub_path, book, {
+            'epub3_pages': False,
+            'ignore_ncx': True
+        })
         
         send_notification(f"EPUB created: {story_title} by {story_author}")
         

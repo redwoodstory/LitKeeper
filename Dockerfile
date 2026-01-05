@@ -1,10 +1,14 @@
 # Build stage
-FROM python:3.9-slim as builder
+FROM python:3.13-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     build-essential \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate virtual environment
@@ -17,7 +21,7 @@ RUN pip install --no-cache-dir wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # Final stage
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
@@ -42,9 +46,9 @@ COPY run.py .
 COPY gunicorn.docker.conf.py .
 COPY startup.sh .
 
-# Create data directories with correct permissions
-RUN mkdir -p app/data/epubs app/data/logs app/data/html app/data/covers app/data/secondary-epubs && \
-    chmod -R 777 app/data && \
+# Create data and stories directories with correct permissions
+RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
+    chmod -R 777 app/data app/stories && \
     chmod +x startup.sh
 
 # Set environment variables

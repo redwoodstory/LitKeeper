@@ -39,6 +39,7 @@ class Story(BaseModel, TimestampMixin):
     def to_library_dict(self) -> dict:
         """Convert to library display format (backward compatible with current UI)"""
         epub_format = next((f for f in self.formats if f.format_type == 'epub'), None)
+        html_format = next((f for f in self.formats if f.format_type in ('html', 'json')), None)
 
         return {
             'id': self.id,
@@ -51,7 +52,7 @@ class Story(BaseModel, TimestampMixin):
             'filename_base': self.filename_base,
             'formats': [fmt.format_type for fmt in self.formats],
             'epub_file': f"{self.filename_base}.epub" if epub_format else None,
-            'html_file': f"{self.filename_base}.html",
+            'html_file': f"{self.filename_base}.html" if html_format else None,
             'source_url': self.literotica_url,
             'page_count': self.literotica_page_count,
             'word_count': self.word_count,
