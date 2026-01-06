@@ -25,26 +25,28 @@ class SeriesPageChecker:
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
-            items = soup.find_all("div", class_=lambda c: c and "_item_" in str(c))
+            series_works_list = soup.find("ul", class_=lambda c: c and "series__works" in str(c))
 
             parts = []
-            for idx, item in enumerate(items, 1):
-                link = item.find("a", href=lambda h: h and "/s/" in h)
-                if link:
-                    title_elem = link.find(class_=lambda c: c and "_title_" in str(c))
-                    title = title_elem.get_text(strip=True) if title_elem else f"Part {idx}"
+            if series_works_list:
+                list_items = series_works_list.find_all("li")
 
-                    url = link.get('href', '')
-                    if not url.startswith('http'):
-                        url = 'https://www.literotica.com' + url
+                for idx, item in enumerate(list_items, 1):
+                    link = item.find("a", href=lambda h: h and "/s/" in h)
+                    if link:
+                        title = link.get_text(strip=True) or f"Part {idx}"
 
-                    parts.append({
-                        'part_number': idx,
-                        'title': title,
-                        'url': url
-                    })
+                        url = link.get('href', '')
+                        if not url.startswith('http'):
+                            url = 'https://www.literotica.com' + url
 
-            series_title_elem = soup.find("h1", class_=lambda c: c and "_title_" in str(c))
+                        parts.append({
+                            'part_number': idx,
+                            'title': title,
+                            'url': url
+                        })
+
+            series_title_elem = soup.find("h1")
             series_title = series_title_elem.get_text(strip=True) if series_title_elem else None
 
             log_action(f"Series page check: found {len(parts)} parts")

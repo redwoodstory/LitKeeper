@@ -13,13 +13,16 @@ class StoryDownloadRequest(BaseModel):
     def validate_url(cls, v: str) -> str:
         v = v.strip()
         v = v.split()[0] if v else ""
-        
+
         if not v:
             raise ValueError("URL cannot be empty")
-        
+
         if not v.startswith("https://www.literotica.com/"):
             raise ValueError("Only Literotica URLs are allowed")
-        
+
+        if '/s/' not in v and '/series/se/' not in v:
+            raise ValueError("URL must be a story chapter (/s/) or series page (/series/se/)")
+
         return v
     
     @field_validator('format')
@@ -52,6 +55,8 @@ class StoryMetadataUpdate(BaseModel):
             raise ValueError("URL cannot be empty")
         if not v.startswith("https://www.literotica.com/"):
             raise ValueError("Only Literotica URLs are allowed")
+        if '/s/' not in v and '/series/se/' not in v:
+            raise ValueError("URL must be a story chapter (/s/) or series page (/series/se/)")
         return v
 
     @field_validator('title')

@@ -26,10 +26,275 @@ def get_session() -> requests.Session:
     })
     return session
 
+def detect_url_type(url: str) -> tuple[str, Optional[str]]:
+    """
+    Detect URL type and extract base URL.
+
+    Returns:
+        tuple[url_type, series_url]
+        url_type: 'series', 'chapter', or 'unknown'
+        series_url: The series URL if type is 'series', None otherwise
+    """
+    if '/series/se/' in url:
+        return 'series', url
+    elif '/s/' in url:
+        return 'chapter', None
+    else:
+        return 'unknown', None
+
+def _clean_series_title(title: str) -> str:
+    """
+    Clean series title by removing chapter number suffixes.
+
+    Examples:
+        "My Story Ch. 01" -> "My Story"
+        "My Story: Ch 02" -> "My Story"
+        "My Story Pt. 1" -> "My Story"
+    """
+    import re
+
+    patterns = [
+        r'\s*:\s*Ch\.?\s*\d+$',
+        r'\s+Ch\.?\s*\d+$',
+        r'\s*:\s*Pt\.?\s*\d+$',
+        r'\s+Pt\.?\s*\d+$',
+        r'\s*:\s*Part\s+\d+$',
+        r'\s+Part\s+\d+$',
+    ]
+
+    cleaned = title
+    for pattern in patterns:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+
+    return cleaned.strip()
+
+def extract_series_url_from_chapter(chapter_url: str, session: requests.Session) -> Optional[str]:
+    """
+    Extract series URL from a chapter page's 'READ MORE OF THIS SERIES' section.
+
+    Returns:
+        Series URL if found, None otherwise
+    """
+    try:
+        from .logger import log_action
+        log_action(f"Attempting to extract series URL from chapter: {chapter_url}")
+        response = session.get(chapter_url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        series_link = soup.find("a", href=lambda h: h and "/series/se/" in h)
+        if series_link:
+            series_url = series_link.get("href", "")
+            if not series_url.startswith("http"):
+                series_url = "https://www.literotica.com" + series_url
+            log_action(f"Found series URL: {series_url}")
+            return series_url
+
+        log_action("No series URL found in chapter page")
+        return None
+
+    except Exception as e:
+        log_error(f"Error extracting series URL from chapter: {str(e)}", chapter_url)
+        return None
+
+def _download_single_chapter(
+    chapter_url: str,
+    session: requests.Session,
+    is_first_chapter: bool = False
+) -> tuple[str, dict]:
+    """
+    Download all pages of a single chapter.
+
+    Returns:
+        tuple[chapter_content, metadata_dict]
+        metadata_dict contains: author, author_url, category, tags, page_count
+    """
+    import html as html_module
+    chapter_content = ""
+    current_page = 1
+    page_count = 0
+    current_url = chapter_url
+
+    metadata = {
+        'author': 'Unknown Author',
+        'author_url': None,
+        'category': None,
+        'tags': [],
+        'page_count': 0
+    }
+
+    while current_url:
+        try:
+            response = session.get(current_url, timeout=10)
+            response.raise_for_status()
+            response.encoding = response.apparent_encoding or 'utf-8'
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            if current_page == 1 and is_first_chapter:
+                author_tag = soup.find("a", class_=lambda c: c and "_author__title_" in str(c))
+                if author_tag:
+                    metadata['author'] = html_module.unescape(author_tag.text.strip())
+                    if author_tag.get('href'):
+                        author_href = author_tag.get('href')
+                        if not author_href.startswith('http'):
+                            metadata['author_url'] = 'https://www.literotica.com' + author_href
+                        else:
+                            metadata['author_url'] = author_href
+
+                breadcrumb = soup.find("nav", class_=lambda c: c and "_breadcrumbs_" in str(c))
+                if breadcrumb:
+                    breadcrumb_items = breadcrumb.find_all("span", itemprop="name")
+                    if len(breadcrumb_items) >= 2:
+                        metadata['category'] = breadcrumb_items[1].text.strip()
+                        if "taboo" in metadata['category'].lower():
+                            metadata['category'] = "I/T"
+
+                tag_elements = soup.find_all("a", class_=lambda c: c and "_tags__link_" in str(c))
+                metadata['tags'] = [tag.text.strip() for tag in tag_elements
+                                   if not tag.text.strip().lower().startswith("inc")]
+                if metadata['category'] and metadata['category'] not in metadata['tags']:
+                    metadata['tags'] = [metadata['category']] + metadata['tags']
+
+            content_div = soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
+            if content_div:
+                for paragraph in content_div.find_all("p"):
+                    chapter_content += paragraph.get_text(strip=True) + "\n\n"
+
+            page_count += 1
+
+            next_page_link = None
+            pagination_links = soup.find_all("a", class_=lambda c: c and "_pagination__item_" in str(c))
+            for link in pagination_links:
+                href = link.get("href", "")
+                if f"?page={current_page + 1}" in href or f"&page={current_page + 1}" in href:
+                    next_page_link = link
+                    break
+
+            if next_page_link:
+                next_url = next_page_link["href"]
+                if not next_url.startswith("http"):
+                    next_url = "https://www.literotica.com" + next_url
+                current_url = next_url
+                current_page += 1
+                time.sleep(3)
+            else:
+                current_url = None
+
+        except Exception as e:
+            log_error(f"Error downloading chapter page {current_page}: {str(e)}", current_url)
+            return "", metadata
+
+    metadata['page_count'] = page_count
+    return chapter_content, metadata
+
+def _download_from_series_page(
+    series_url: str,
+    session: requests.Session
+) -> Optional[tuple[str, str, str, Optional[str], Optional[list[str]], Optional[str], int, str]]:
+    """
+    Download complete story using series page as source of truth.
+
+    Returns:
+        Same tuple as download_story() or None if failed
+    """
+    from .series_page_checker import SeriesPageChecker
+    from .logger import log_action
+
+    try:
+        checker = SeriesPageChecker()
+        series_info = checker.check_series_parts(series_url)
+
+        if not series_info or not series_info.get('parts'):
+            log_action("Series page parser returned no parts")
+            return None
+
+        series_title = series_info.get('series_title', 'Unknown Series')
+        parts = series_info['parts']
+        total_parts = len(parts)
+
+        log_action(f"Series '{series_title}' has {total_parts} parts")
+
+        story_author = "Unknown Author"
+        story_author_url = None
+        story_category = None
+        story_tags = []
+        total_pages = 0
+        chapter_titles = []
+        chapter_contents = []
+
+        for idx, part in enumerate(parts, 1):
+            part_url = part['url']
+            part_title = part['title']
+            log_action(f"Downloading part {idx}/{total_parts}: {part_title}")
+
+            chapter_content, chapter_metadata = _download_single_chapter(
+                part_url,
+                session,
+                is_first_chapter=(idx == 1)
+            )
+
+            if not chapter_content:
+                log_error(f"Failed to download part {idx}", part_url)
+                return None
+
+            chapter_contents.append(chapter_content)
+            chapter_titles.append(part_title)
+            total_pages += chapter_metadata['page_count']
+
+            if idx == 1:
+                story_author = chapter_metadata['author']
+                story_author_url = chapter_metadata['author_url']
+                story_category = chapter_metadata['category']
+                story_tags = chapter_metadata['tags']
+
+            time.sleep(3)
+
+        story_content = ""
+        for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
+            story_content += f"\n\nChapter {i}: {title}\n\n{content}"
+
+        clean_title = _clean_series_title(series_title)
+
+        return (
+            story_content,
+            clean_title,
+            story_author,
+            story_category,
+            story_tags,
+            story_author_url,
+            total_pages,
+            series_url
+        )
+
+    except Exception as e:
+        log_error(f"Error in series-first download: {str(e)}", series_url)
+        return None
+
 def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str]]:
     """Download and extract the full story content and metadata from the given Literotica URL."""
     try:
         session = get_session()
+
+        url_type, series_url = detect_url_type(url)
+        log_url(f"URL type detected: {url_type}")
+
+        if url_type == 'chapter':
+            series_url = extract_series_url_from_chapter(url, session)
+
+        if series_url:
+            try:
+                result = _download_from_series_page(series_url, session)
+                if result:
+                    log_url(f"Successfully downloaded via series page")
+                    return result
+                else:
+                    log_url("Series download failed, falling back to sequential method")
+            except Exception as e:
+                log_error(f"Error in series-first download: {str(e)}", series_url)
+                log_url("Falling back to sequential chapter download method")
+
+        log_url("Using sequential chapter download method")
+
         story_content = ""
         current_page = 1
         total_pages = 0
