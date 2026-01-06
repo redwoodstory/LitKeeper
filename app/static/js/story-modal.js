@@ -69,7 +69,7 @@ window.showStoryModal = function(story) {
                 </p>
               ` : ''}
               ${story.source_url ? `
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
                   <a href="${escapeHtml(story.source_url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
@@ -78,11 +78,22 @@ window.showStoryModal = function(story) {
                   </a>
                 </p>
               ` : ''}
+              ${story.series_url ? `
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  <a href="${escapeHtml(story.series_url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    View Full Series on Literotica
+                  </a>
+                </p>
+              ` : ''}
 
               <div class="flex flex-wrap gap-2 mb-4">
                 ${hasEpub ? '<span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded">EPUB</span>' : ''}
                 ${hasHtml ? '<span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded">HTML</span>' : ''}
                 ${story.category ? `<span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 rounded">${escapeHtml(story.category)}</span>` : ''}
+                ${story.is_series ? `<span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 rounded">${story.chapter_count} ${story.chapter_count === 1 ? 'Part' : 'Parts'}</span>` : ''}
               </div>
 
               ${story.tags && story.tags.length > 0 ? `
@@ -182,6 +193,16 @@ window.showStoryModal = function(story) {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                       </svg>
                       Refresh Metadata
+                    </button>
+                  ` : ''}
+                  ${story.source_url ? `
+                    <button onclick="toggleAutoUpdate(${story.id}, ${story.auto_update_enabled}, this)"
+                            class="px-3 py-1.5 text-xs font-medium ${story.auto_update_enabled ? 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200/60 dark:border-green-700' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 border-slate-200/60 dark:border-slate-700'} rounded-md border transition-all duration-200 inline-flex items-center gap-1.5"
+                            title="${story.auto_update_enabled ? 'Disable automatic updates' : 'Enable automatic updates'}">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      </svg>
+                      Auto-Update: ${story.auto_update_enabled ? 'ON' : 'OFF'}
                     </button>
                   ` : ''}
                   <button onclick="confirmDeleteStory(${story.id}, '${escapeHtml(story.title).replace(/'/g, "\\'")}')"
@@ -888,10 +909,10 @@ function removeStoryFromDOM(storyId) {
 function checkIfLibraryEmpty() {
   setTimeout(() => {
     const remainingCards = document.querySelectorAll('.story-card-cover');
-    
+
     if (remainingCards.length === 0) {
       const libraryContainer = document.querySelector('#library-grid, .grid');
-      
+
       if (libraryContainer) {
         libraryContainer.innerHTML = `
           <div class="col-span-full text-center text-gray-500 dark:text-gray-400 py-12">
@@ -906,3 +927,52 @@ function checkIfLibraryEmpty() {
     }
   }, 400);
 }
+
+window.toggleAutoUpdate = async function(storyId, _currentState, button) {
+  const originalText = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `
+    <svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+    </svg>
+    Updating...
+  `;
+
+  try {
+    const response = await fetch(`/api/story/toggle-auto-update/${storyId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      const newState = result.auto_update_enabled;
+      const newClass = newState
+        ? 'px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200/60 dark:border-green-700 rounded-md border transition-all duration-200 inline-flex items-center gap-1.5'
+        : 'px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 border-slate-200/60 dark:border-slate-700 rounded-md border transition-all duration-200 inline-flex items-center gap-1.5';
+
+      button.className = newClass;
+      button.title = newState ? 'Disable automatic updates' : 'Enable automatic updates';
+      button.setAttribute('onclick', `toggleAutoUpdate(${storyId}, ${newState}, this)`);
+      button.innerHTML = `
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Auto-Update: ${newState ? 'ON' : 'OFF'}
+      `;
+      button.disabled = false;
+
+      showToast(result.message, 'success');
+    } else {
+      throw new Error(result.message || 'Failed to toggle auto-update');
+    }
+  } catch (error) {
+    console.error('Auto-update toggle error:', error);
+    showToast('Failed to toggle auto-update', 'error');
+    button.innerHTML = originalText;
+    button.disabled = false;
+  }
+};

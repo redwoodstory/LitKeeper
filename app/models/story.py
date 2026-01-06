@@ -11,6 +11,7 @@ class Story(BaseModel, TimestampMixin):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id', ondelete='SET NULL'), index=True)
 
     literotica_url = db.Column(db.String(512), unique=True, index=True)
+    literotica_series_url = db.Column(db.String(512), index=True)
     literotica_page_count = db.Column(db.Integer)
 
     word_count = db.Column(db.Integer)
@@ -58,4 +59,7 @@ class Story(BaseModel, TimestampMixin):
             'word_count': self.word_count,
             'size': epub_format.file_size if epub_format else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'auto_update_enabled': self.auto_update_enabled,
+            'series_url': self.literotica_series_url,
+            'is_series': bool(self.literotica_series_url and self.chapter_count > 1),
         }

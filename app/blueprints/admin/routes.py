@@ -347,3 +347,32 @@ def trigger_update_check():
             "success": False,
             "message": str(e)
         }), 500
+
+@admin.route('/backfill-series-urls', methods=['POST'])
+def backfill_series_urls():
+    """Trigger series URL backfill for existing stories."""
+    try:
+        from app.services.series_backfill_service import SeriesBackfillService
+        from flask import current_app
+        from app.services.logger import log_action
+
+        def run_backfill(app):
+            with app.app_context():
+                service = SeriesBackfillService()
+                results = service.backfill_all_stories()
+                log_action(f"Backfill results: {results}")
+
+        app = current_app._get_current_object()
+        thread = threading.Thread(target=run_backfill, args=(app,))
+        thread.start()
+
+        return jsonify({
+            "success": True,
+            "message": "Series backfill started in background"
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500

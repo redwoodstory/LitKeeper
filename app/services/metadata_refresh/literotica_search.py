@@ -70,10 +70,10 @@ class LiteroticaSearcher:
     
     def fetch_metadata_from_url(self, url: str) -> Optional[dict]:
         self.rate_limiter.wait_if_needed()
-        
+
         try:
-            content, title, author, category, tags, author_url, page_count = download_story(url)
-            
+            content, title, author, category, tags, author_url, page_count, series_url = download_story(url)
+
             if title and author:
                 return {
                     "title": title,
@@ -82,10 +82,11 @@ class LiteroticaSearcher:
                     "tags": tags or [],
                     "author_url": author_url,
                     "page_count": page_count or 0,
+                    "series_url": series_url,
                     "literotica_url": url
                 }
-            
+
             return None
-        
+
         except Exception as e:
             return None

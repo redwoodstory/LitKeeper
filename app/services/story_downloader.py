@@ -26,7 +26,7 @@ def get_session() -> requests.Session:
     })
     return session
 
-def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int]]:
+def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str]]:
     """Download and extract the full story content and metadata from the given Literotica URL."""
     try:
         session = get_session()
@@ -38,6 +38,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
         story_category = None
         story_tags = []
         story_author_url = None
+        series_url = None
         chapter_urls = [url]
         processed_urls = set()
         series_title = None
@@ -130,6 +131,13 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                                 break
 
                         if series_section:
+                            if not series_url:
+                                series_link = series_section.find("a", href=lambda h: h and "/series/se/" in h)
+                                if series_link:
+                                    series_url = series_link.get("href", "")
+                                    if not series_url.startswith("http"):
+                                        series_url = "https://www.literotica.com" + series_url
+
                             data_list = series_section.find("div", class_=lambda c: c and "_data_list_" in str(c))
                             if data_list:
                                 items = data_list.find_all("div", class_=lambda c: c and "_item_" in str(c))
@@ -157,22 +165,22 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                 except requests.RequestException as e:
                     error_msg = f"Network error while downloading chapter {current_chapter}: {str(e)}"
                     log_error(error_msg, current_url)
-                    return None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None
                 except Exception as e:
                     error_msg = f"Error processing chapter {current_chapter}: {str(e)}\n{traceback.format_exc()}"
                     log_error(error_msg, current_url)
-                    return None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
             story_content += f"\n\nChapter {i}: {title}\n\n{content}"
 
-        return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages
+        return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages, series_url
 
     except Exception as e:
         error_msg = f"Unexpected error in download_story: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg, url)
-        return None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None
 
 def extract_chapter_titles(story_content: str) -> list[str]:
     """

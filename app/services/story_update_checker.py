@@ -81,6 +81,41 @@ class StoryUpdateChecker:
             log_error(f"Error checking for updates on '{story.title}': {str(e)}\n{traceback.format_exc()}")
             return None
 
+    def check_for_updates_via_series(self, story: Story) -> Optional[Dict]:
+        """
+        Check for updates using series page (fast path).
+        Falls back to full download if series URL not available.
+        """
+        if not story.literotica_series_url:
+            log_action(f"No series URL for '{story.title}', using full download method")
+            return self.check_for_updates(story)
+
+        try:
+            from app.services.series_page_checker import SeriesPageChecker
+
+            log_action(f"Quick-checking series for '{story.title}'")
+            checker = SeriesPageChecker()
+            series_info = checker.check_series_parts(story.literotica_series_url)
+
+            if not series_info:
+                log_action(f"Series page check failed for '{story.title}', falling back")
+                return self.check_for_updates(story)
+
+            new_part_count = series_info['total_parts']
+
+            if story.chapter_count and new_part_count > story.chapter_count:
+                log_action(f"Update detected: {story.chapter_count} -> {new_part_count} parts")
+                return self.check_for_updates(story)
+
+            story.last_update_check_at = datetime.utcnow()
+            db.session.commit()
+            log_action(f"No updates for '{story.title}'")
+            return None
+
+        except Exception as e:
+            log_error(f"Error in series-based update check: {str(e)}")
+            return self.check_for_updates(story)
+
     def update_story(self, story: Story, update_info: Dict) -> bool:
         """
         Update a story with new content, preserving reading progress.
@@ -216,7 +251,7 @@ def check_all_stories_for_updates(app: Flask) -> None:
                 if i > 0:
                     time.sleep(checker.rate_limit_delay)
 
-                update_info = checker.check_for_updates(story)
+                update_info = checker.check_for_updates_via_series(story)
 
                 if update_info and update_info.get('has_update'):
                     log_action(f"Update found for '{story.title}': {update_info['old_chapter_count']} -> {update_info['new_chapter_count']} chapters")

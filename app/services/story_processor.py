@@ -22,7 +22,9 @@ def _save_to_database(
     source_url: str,
     author_url: Optional[str],
     page_count: Optional[int],
-    formats: list[str]
+    formats: list[str],
+    series_url: Optional[str] = None,
+    chapter_count: int = 1
 ) -> None:
     """
     Save story metadata to database only if ENABLE_LIBRARY is true.
@@ -75,8 +77,9 @@ def _save_to_database(
                 author_id=author_obj.id,
                 category_id=category_obj.id if category_obj else None,
                 literotica_url=source_url,
+                literotica_series_url=series_url,
                 literotica_page_count=page_count,
-                chapter_count=1,
+                chapter_count=chapter_count,
                 filename_base=filename_base,
                 imported_at=datetime.utcnow(),
                 metadata_refresh_status='complete' if source_url else 'never'
@@ -195,10 +198,10 @@ def save_story_with_metadata(
         log_action(f"Saving story with custom metadata: '{title}' by {author}")
 
         if url in _story_cache:
-            story_content, _, _, _, _, story_author_url, story_pages = _story_cache[url]
+            story_content, _, _, _, _, story_author_url, story_pages, series_url = _story_cache[url]
             del _story_cache[url]
         else:
-            story_content, _, _, _, _, story_author_url, story_pages = download_story(url)
+            story_content, _, _, _, _, story_author_url, story_pages, series_url = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to retrieve story content from: {url}"
@@ -250,6 +253,8 @@ def save_story_with_metadata(
         formats_str = " and ".join(created_files)
         success_msg = f"Successfully saved '{title}' by {author}"
 
+        chapter_count = story_content.count("\n\nChapter ") if story_content else 1
+
         _save_to_database(
             story_title=title,
             story_author=author,
@@ -258,7 +263,9 @@ def save_story_with_metadata(
             source_url=url,
             author_url=story_author_url,
             page_count=story_pages,
-            formats=formats
+            formats=formats,
+            series_url=series_url,
+            chapter_count=chapter_count
         )
 
         if send_notifications:
@@ -294,7 +301,7 @@ def download_story_and_create_files(
 
     try:
         log_action(f"Starting download: {url}")
-        story_content, story_title, story_author, story_category, story_tags, story_author_url, story_pages = download_story(url)
+        story_content, story_title, story_author, story_category, story_tags, story_author_url, story_pages, series_url = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to download story from: {url}"
@@ -347,6 +354,8 @@ def download_story_and_create_files(
         formats_str = " and ".join(created_files)
         success_msg = f"Successfully downloaded '{story_title}' by {story_author}"
 
+        chapter_count = story_content.count("\n\nChapter ") if story_content else 1
+
         _save_to_database(
             story_title=story_title,
             story_author=story_author,
@@ -355,7 +364,9 @@ def download_story_and_create_files(
             source_url=url,
             author_url=story_author_url,
             page_count=story_pages,
-            formats=formats
+            formats=formats,
+            series_url=series_url,
+            chapter_count=chapter_count
         )
 
         if send_notifications:

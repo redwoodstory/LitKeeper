@@ -43,7 +43,7 @@ def preview_story() -> ResponseReturnValue:
     try:
         from app.services import story_processor
         story_data = download_story(validated.url)
-        story_content, title, author, category, tags, author_url, page_count = story_data
+        story_content, title, author, category, tags, author_url, page_count, series_url = story_data
 
         if not story_content or not title:
             return jsonify({
@@ -372,19 +372,50 @@ def generate_html_with_metadata(story_id: int) -> ResponseReturnValue:
 def delete_story(story_id: int) -> ResponseReturnValue:
     try:
         from app.services.story_deletion import StoryDeletionService
-        
+
         service = StoryDeletionService()
         result = service.delete_story(story_id)
-        
+
         if result.get('success'):
             return jsonify(result), 200
         else:
             return jsonify(result), 404 if 'not found' in result.get('message', '').lower() else 500
-            
+
     except Exception as e:
         error_msg = f"Error deleting story: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
         return jsonify({
             "success": False,
             "message": "An error occurred while deleting the story"
+        }), 500
+
+@api.route("/story/toggle-auto-update/<int:story_id>", methods=['POST'])
+def toggle_auto_update(story_id: int) -> ResponseReturnValue:
+    try:
+        from app.models import Story
+
+        story = Story.query.get(story_id)
+
+        if not story:
+            return jsonify({
+                "success": False,
+                "message": "Story not found"
+            }), 404
+
+        story.auto_update_enabled = not story.auto_update_enabled
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "auto_update_enabled": story.auto_update_enabled,
+            "message": f"Auto-update {'enabled' if story.auto_update_enabled else 'disabled'}"
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"Error toggling auto-update: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while toggling auto-update"
         }), 500
