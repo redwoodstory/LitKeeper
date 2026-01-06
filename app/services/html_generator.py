@@ -18,7 +18,8 @@ def create_html_file(
     chapter_titles: Optional[list[str]] = None,
     source_url: Optional[str] = None,
     author_url: Optional[str] = None,
-    page_count: Optional[int] = None
+    page_count: Optional[int] = None,
+    filename_base: Optional[str] = None
 ) -> str:
     """
     Save story data as JSON for dynamic rendering via template.
@@ -34,15 +35,19 @@ def create_html_file(
         source_url: Original story URL (optional)
         author_url: Author's stories page URL (optional)
         page_count: Number of pages from source (optional)
+        filename_base: Base filename to use (optional, defaults to sanitized title)
 
     Returns:
         Path to the created JSON file
     """
     try:
+        if filename_base is None:
+            filename_base = sanitize_filename(story_title)
+        
         cover_directory = get_cover_directory()
         os.makedirs(cover_directory, exist_ok=True)
 
-        cover_filename = f"{sanitize_filename(story_title)}.jpg"
+        cover_filename = f"{filename_base}.jpg"
         cover_path = os.path.join(cover_directory, cover_filename)
 
         if not os.path.exists(cover_path):
@@ -83,7 +88,7 @@ def create_html_file(
             'word_count': word_count
         }
 
-        json_path = os.path.join(output_directory, f"{sanitize_filename(story_title)}.json")
+        json_path = os.path.join(output_directory, f"{filename_base}.json")
 
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(story_data, f, ensure_ascii=False, indent=2)

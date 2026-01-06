@@ -152,4 +152,14 @@ def create_app() -> Flask:
     init_scheduler(app)
     atexit.register(shutdown_scheduler)
 
+    from app.services.download_queue_worker import DownloadQueueWorker
+    worker = DownloadQueueWorker(app, poll_interval=5)
+    worker.start()
+    atexit.register(worker.stop)
+
+    from app.services.background_automation import BackgroundAutomation
+    automation = BackgroundAutomation(app)
+    automation.start()
+    atexit.register(automation.stop)
+
     return app

@@ -165,8 +165,8 @@ async function refreshWithUrl(url, method) {
   }
   
   const storyId = currentStoryId;
+  const storyTitle = document.getElementById('metadataUpdateMessage')?.textContent || '';
   closeRefreshModal();
-  showToast('Updating metadata...', 'info');
   
   try {
     console.log('Making API call to /api/metadata/refresh/' + storyId);
@@ -181,16 +181,19 @@ async function refreshWithUrl(url, method) {
     const data = await response.json();
 
     if (data.success) {
-      showToast(`Metadata updated: ${data.fields_changed.join(', ')}`, 'success');
-
       if (refreshSuccessCallback && typeof refreshSuccessCallback === 'function') {
         try {
-          await refreshSuccessCallback(storyId);
+          await refreshSuccessCallback(data.fields_changed);
         } catch (callbackError) {
           console.error('Error in refresh success callback:', callbackError);
         }
         refreshSuccessCallback = null;
       } else {
+        if (typeof showMetadataSuccessBanner === 'function') {
+          const titleMatch = storyTitle.match(/for (.+?)\.\.\./);
+          const title = titleMatch ? titleMatch[1] : 'story';
+          showMetadataSuccessBanner(title, data.fields_changed);
+        }
         setTimeout(() => window.location.reload(), 2000);
       }
 

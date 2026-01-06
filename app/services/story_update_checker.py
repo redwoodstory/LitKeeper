@@ -35,7 +35,7 @@ class StoryUpdateChecker:
         try:
             log_action(f"Checking for updates: '{story.title}'")
 
-            story_content, _, _, _, _, _, new_page_count = download_story(story.literotica_url)
+            story_content, _, _, _, _, _, new_page_count, _ = download_story(story.literotica_url)
 
             if not story_content:
                 log_error(f"Failed to fetch story for update check: '{story.title}'")

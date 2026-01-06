@@ -112,18 +112,11 @@
     </div>
   </div>
 
-  <script src="/static/vendor/jszip.min.js"></script>
-  <script src="/static/vendor/epub.min.js"></script>
   <script>
     window.STORY_ID = {{ story_id }};
-    window.EPUB_URL = '/epub/file/{{ story_id }}/';
-    window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position, 'cfi': progress.cfi} | tojson | safe }}{% else %}{}{% endif %};
-    
-    window.addEventListener('load', function() {
-      console.log('EPUB.js loaded:', typeof ePub !== 'undefined');
-      console.log('EPUB URL:', window.EPUB_URL);
-    });
+    window.EPUB_URL = '/epub/file/{{ story_id }}';
+    window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position, 'cfi': progress.cfi, 'percentage': progress.percentage if progress.percentage is defined else None} | tojson | safe }}{% else %}{}{% endif %};
   </script>
-  <script src="/static/epub/epub_reader.js"></script>
+  <script src="/static/epub/epub_reader.js" type="module"></script>
 </body>
 </html>

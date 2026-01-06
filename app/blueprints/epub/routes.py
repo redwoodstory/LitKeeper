@@ -103,7 +103,8 @@ def get_progress(story_id: int):
             'scroll_position': 0,
             'is_completed': False,
             'last_read_at': None,
-            'cfi': None
+            'cfi': None,
+            'percentage': None
         })
 
     return jsonify({
@@ -112,7 +113,8 @@ def get_progress(story_id: int):
         'scroll_position': progress.scroll_position,
         'is_completed': progress.is_completed,
         'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else None,
-        'cfi': progress.cfi
+        'cfi': progress.cfi,
+        'percentage': progress.percentage
     })
 
 @epub.route('/api/progress/<int:story_id>', methods=['POST'])
@@ -127,7 +129,8 @@ def update_progress(story_id: int):
         current_paragraph=data.get('current_paragraph'),
         scroll_position=data.get('scroll_position'),
         is_completed=data.get('is_completed'),
-        cfi=data.get('cfi')
+        cfi=data.get('cfi'),
+        percentage=data.get('percentage')
     )
 
     return jsonify({
@@ -136,5 +139,6 @@ def update_progress(story_id: int):
         'current_paragraph': progress.current_paragraph,
         'scroll_position': progress.scroll_position,
         'is_completed': progress.is_completed,
-        'cfi': progress.cfi
+        'cfi': progress.cfi,
+        'percentage': progress.percentage
     })

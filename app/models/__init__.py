@@ -7,6 +7,7 @@ from .story_format import StoryFormat
 from .reader import ReadingProgress
 from .migration import MigrationLog, MetadataRefreshLog
 from .config import AppConfig
+from .download_queue import DownloadQueueItem
 
 __all__ = [
     'db',
@@ -22,4 +23,5 @@ __all__ = [
     'MigrationLog',
     'MetadataRefreshLog',
     'AppConfig',
+    'DownloadQueueItem',
 ]

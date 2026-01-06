@@ -56,9 +56,12 @@ body {
   padding: 0.75rem 1rem;
   background: var(--header-bg);
   border-bottom: 1px solid var(--border-color);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
+  transition: transform 0.3s ease;
 }
 
 .header-left, .header-right {
@@ -282,8 +285,11 @@ body {
 }
 
 #reader-main {
-  flex: 1;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -297,7 +303,8 @@ body {
   height: 100%;
   width: 100%;
   max-width: var(--max-width);
-  margin: 0 auto;
+  margin: 0;
+  padding: 0;
   overscroll-behavior: none;
   touch-action: pan-x;
   transition: max-width 0.3s ease;
@@ -346,6 +353,12 @@ body {
   background: var(--header-bg);
   border-top: 1px solid var(--border-color);
   padding: 0.5rem 1rem;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  transition: transform 0.3s ease;
 }
 
 .progress-bar {
@@ -372,6 +385,10 @@ body {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --max-width: 100% !important;
+  }
+  
   .reader-title {
     font-size: 0.875rem;
   }
@@ -382,19 +399,21 @@ body {
   }
   
   .arrow {
-    width: 40px;
-    height: 40px;
+    display: none;
   }
   
-  .arrow-left {
-    left: 0.5rem;
-  }
-  
-  .arrow-right {
-    right: 0.5rem;
+  #viewer {
+    padding: 0;
   }
 }
 
 #viewer iframe {
   border: none;
+}
+
+foliate-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }

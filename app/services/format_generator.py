@@ -53,7 +53,7 @@ class FormatGeneratorService:
 
             log_action(f"Generating HTML/JSON and updating metadata for story: {story.title}")
 
-            story_content, _, _, story_category, story_tags, story_author_url, story_pages = download_story(url)
+            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _ = download_story(url)
 
             if not story_content:
                 return {
@@ -125,7 +125,8 @@ class FormatGeneratorService:
                 chapter_titles=chapter_titles if chapter_titles else None,
                 source_url=url,
                 author_url=story_author_url,
-                page_count=story_pages
+                page_count=story_pages,
+                filename_base=story.filename_base
             )
 
             with open(json_path, 'r', encoding='utf-8') as f:
@@ -291,7 +292,7 @@ class FormatGeneratorService:
 
             log_action(f"Generating HTML/JSON from Literotica for story: {story.title}")
 
-            story_content, _, _, story_category, story_tags, story_author_url, story_pages = download_story(story.literotica_url)
+            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _ = download_story(story.literotica_url)
 
             if not story_content:
                 return {
@@ -311,7 +312,8 @@ class FormatGeneratorService:
                 chapter_titles=chapter_titles if chapter_titles else None,
                 source_url=story.literotica_url,
                 author_url=story_author_url,
-                page_count=story_pages
+                page_count=story_pages,
+                filename_base=story.filename_base
             )
 
             with open(json_path, 'r', encoding='utf-8') as f:

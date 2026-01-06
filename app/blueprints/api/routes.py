@@ -1,7 +1,7 @@
 from __future__ import annotations
 from flask import Blueprint, request, jsonify, send_from_directory, current_app, abort, Flask
 from flask.typing import ResponseReturnValue
-from app.services import download_story_and_create_files, log_error, log_url, generate_cover_image, extract_cover_from_epub, get_library_data
+from app.services import download_story_and_create_files, log_error, log_url, log_action, generate_cover_image, extract_cover_from_epub, get_library_data
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
 from app.validators import StoryDownloadRequest, StoryMetadataUpdate
 from app.services.story_downloader import download_story
@@ -19,6 +19,79 @@ api = Blueprint('api', __name__, url_prefix='/api')
 def background_process_wrapper(app: Flask, url: str, formats: list[str]) -> None:
     with app.app_context():
         download_story_and_create_files(url, formats, send_notifications=True)
+
+@api.route("/queue", methods=['POST'])
+def queue_download() -> ResponseReturnValue:
+    """Queue a story for background download"""
+    try:
+        data = request.get_json()
+        url = data.get('url', '')
+        formats = data.get('format', ['epub', 'html'])
+
+        validated = StoryDownloadRequest(url=url, format=formats)
+
+    except ValidationError as e:
+        error_details = e.errors()[0]
+        error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
+        log_error(f"Validation error: {error_msg}\nData: {request.get_data(as_text=True)}")
+        return jsonify({
+            "success": False,
+            "message": error_msg
+        }), 400
+
+    log_url(validated.url)
+
+    try:
+        from app.models import DownloadQueueItem, db
+
+        existing = DownloadQueueItem.query.filter_by(
+            url=validated.url,
+            status='pending'
+        ).first()
+
+        if existing:
+            return jsonify({
+                "success": True,
+                "message": "Story is already in the download queue",
+                "queue_item": existing.to_dict()
+            })
+
+        existing_processing = DownloadQueueItem.query.filter_by(
+            url=validated.url,
+            status='processing'
+        ).first()
+
+        if existing_processing:
+            return jsonify({
+                "success": True,
+                "message": "Story is currently being downloaded",
+                "queue_item": existing_processing.to_dict()
+            })
+
+        queue_item = DownloadQueueItem(
+            url=validated.url,
+            status='pending'
+        )
+        queue_item.set_formats(validated.format)
+        db.session.add(queue_item)
+        db.session.commit()
+
+        log_action(f"Added story to download queue: {validated.url} (ID: {queue_item.id})")
+
+        return jsonify({
+            "success": True,
+            "message": "Story added to download queue",
+            "queue_item": queue_item.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"Error adding to queue: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while adding story to queue"
+        }), 500
 
 @api.route("/preview", methods=['POST'])
 def preview_story() -> ResponseReturnValue:
@@ -260,13 +333,30 @@ def refresh_metadata(story_id: int) -> ResponseReturnValue:
 def get_missing_metadata() -> ResponseReturnValue:
     try:
         from app.models import Story
+        from app.services.metadata_refresh_service import MetadataRefreshService
 
         stories = Story.query.filter(Story.literotica_url.is_(None)).all()
+        
+        stories_needing_manual_intervention = []
+        service = MetadataRefreshService()
+        
+        for story in stories:
+            try:
+                search_result = service.search_for_story(story.id)
+                
+                if search_result.get('success') and search_result.get('auto_match'):
+                    best_match = search_result.get('best_match')
+                    if best_match and best_match.get('confidence', 0.0) >= 1.0:
+                        continue
+                
+                stories_needing_manual_intervention.append(story)
+            except:
+                stories_needing_manual_intervention.append(story)
 
         return jsonify({
             "success": True,
-            "count": len(stories),
-            "stories": [story.to_library_dict() for story in stories]
+            "count": len(stories_needing_manual_intervention),
+            "stories": [story.to_library_dict() for story in stories_needing_manual_intervention]
         })
     except Exception as e:
         error_msg = f"Error fetching missing metadata: {str(e)}\n{traceback.format_exc()}"
@@ -389,10 +479,59 @@ def delete_story(story_id: int) -> ResponseReturnValue:
             "message": "An error occurred while deleting the story"
         }), 500
 
+@api.route("/story/<int:story_id>/metadata", methods=['PUT'])
+def update_story_metadata(story_id: int) -> ResponseReturnValue:
+    try:
+        from app.models import Story, db
+        
+        story = Story.query.get(story_id)
+        
+        if not story:
+            return jsonify({
+                "success": False,
+                "message": "Story not found"
+            }), 404
+        
+        data = request.get_json()
+        title = data.get('title', '').strip()
+        author = data.get('author', '').strip()
+        category = data.get('category', '').strip()
+        tags = data.get('tags', [])
+        
+        if not title:
+            return jsonify({
+                "success": False,
+                "message": "Title is required"
+            }), 400
+        
+        story.title = title
+        story.author = author if author else None
+        story.category = category if category else None
+        story.set_tags(tags)
+        
+        db.session.commit()
+        
+        log_action(f"Updated metadata for story {story_id}: {title}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Metadata updated successfully",
+            "story": story.to_library_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"Error updating story metadata: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while updating metadata"
+        }), 500
+
 @api.route("/story/toggle-auto-update/<int:story_id>", methods=['POST'])
 def toggle_auto_update(story_id: int) -> ResponseReturnValue:
     try:
-        from app.models import Story
+        from app.models import Story, db
 
         story = Story.query.get(story_id)
 
@@ -418,4 +557,100 @@ def toggle_auto_update(story_id: int) -> ResponseReturnValue:
         return jsonify({
             "success": False,
             "message": "An error occurred while toggling auto-update"
+        }), 500
+
+@api.route("/queue", methods=['GET'])
+def get_queue() -> ResponseReturnValue:
+    """Get all queued/processing downloads"""
+    try:
+        from app.models import DownloadQueueItem
+
+        items = DownloadQueueItem.query.filter(
+            DownloadQueueItem.status.in_(['pending', 'processing'])
+        ).order_by(DownloadQueueItem.created_at.asc()).all()
+
+        return jsonify({
+            "success": True,
+            "queue": [item.to_dict() for item in items],
+            "count": len(items)
+        })
+
+    except Exception as e:
+        error_msg = f"Error fetching queue: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while fetching download queue"
+        }), 500
+
+@api.route("/queue/<int:queue_id>", methods=['GET'])
+def get_queue_item(queue_id: int) -> ResponseReturnValue:
+    """Get status of a specific queue item"""
+    try:
+        from app.models import DownloadQueueItem
+
+        item = DownloadQueueItem.query.get(queue_id)
+
+        if not item:
+            return jsonify({
+                "success": False,
+                "message": "Queue item not found"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "queue_item": item.to_dict()
+        })
+
+    except Exception as e:
+        error_msg = f"Error fetching queue item: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while fetching queue item"
+        }), 500
+
+@api.route("/queue/<int:queue_id>", methods=['DELETE'])
+def cancel_queue_item(queue_id: int) -> ResponseReturnValue:
+    """Cancel a pending queue item"""
+    try:
+        from app.models import DownloadQueueItem, db
+
+        item = DownloadQueueItem.query.get(queue_id)
+
+        if not item:
+            return jsonify({
+                "success": False,
+                "message": "Queue item not found"
+            }), 404
+
+        if item.status == 'processing':
+            return jsonify({
+                "success": False,
+                "message": "Cannot cancel item that is currently processing"
+            }), 400
+
+        if item.status in ['completed', 'failed']:
+            return jsonify({
+                "success": False,
+                "message": f"Cannot cancel item with status: {item.status}"
+            }), 400
+
+        db.session.delete(item)
+        db.session.commit()
+
+        log_action(f"Cancelled queue item {queue_id}")
+
+        return jsonify({
+            "success": True,
+            "message": "Queue item cancelled"
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"Error cancelling queue item: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while cancelling queue item"
         }), 500

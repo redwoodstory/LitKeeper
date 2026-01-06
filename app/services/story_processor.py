@@ -14,6 +14,93 @@ from .notifier import send_notification
 _story_cache: dict[str, tuple] = {}
 
 
+def _create_story_files(
+    story_content: str,
+    story_title: str,
+    story_author: str,
+    story_category: Optional[str],
+    story_tags: Optional[list[str]],
+    source_url: str,
+    author_url: Optional[str],
+    page_count: Optional[int],
+    formats: list[str],
+    series_url: Optional[str] = None
+) -> dict:
+    """
+    Create story files (EPUB and/or HTML) and save to database.
+
+    Returns dict with success, message, and file info.
+    """
+    try:
+        created_files = []
+
+        if "epub" in formats:
+            epub_file_name = create_epub_file(
+                story_title,
+                story_author,
+                story_content,
+                get_epub_directory(),
+                story_category=story_category,
+                story_tags=story_tags
+            )
+            created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
+            log_action(f"Created EPUB: {epub_file_name}")
+
+            external_epub = copy_to_external_path(epub_file_name, 'epub')
+            if external_epub:
+                log_action(f"Copied EPUB to external path: {external_epub}")
+
+        if "html" in formats:
+            chapter_titles = extract_chapter_titles(story_content)
+
+            html_file_name = create_html_file(
+                story_title,
+                story_author,
+                story_content,
+                get_html_directory(),
+                story_category=story_category,
+                story_tags=story_tags,
+                chapter_titles=chapter_titles if chapter_titles else None,
+                source_url=source_url,
+                author_url=author_url,
+                page_count=page_count
+            )
+            created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
+            log_action(f"Created HTML: {html_file_name}")
+
+        chapter_count = story_content.count("\n\nChapter ") if story_content else 1
+
+        _save_to_database(
+            story_title=story_title,
+            story_author=story_author,
+            story_category=story_category,
+            story_tags=story_tags,
+            source_url=source_url,
+            author_url=author_url,
+            page_count=page_count,
+            formats=formats,
+            series_url=series_url,
+            chapter_count=chapter_count
+        )
+
+        formats_str = " and ".join(created_files)
+        return {
+            'success': True,
+            'message': f"Successfully saved '{story_title}' by {story_author}",
+            'files': created_files,
+            'formats_str': formats_str
+        }
+
+    except Exception as e:
+        error_msg = f"Failed to create story files: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg, source_url)
+        return {
+            'success': False,
+            'message': str(e),
+            'error': error_msg
+        }
+
+
 def _save_to_database(
     story_title: str,
     story_author: str,
@@ -214,48 +301,8 @@ def save_story_with_metadata(
                 error=error_msg
             )
 
-        created_files = []
-
-        if "epub" in formats:
-            epub_file_name = create_epub_file(
-                title,
-                author,
-                story_content,
-                get_epub_directory(),
-                story_category=category,
-                story_tags=tags
-            )
-            created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
-            log_action(f"Created EPUB: {epub_file_name}")
-
-            external_epub = copy_to_external_path(epub_file_name, 'epub')
-            if external_epub:
-                log_action(f"Copied EPUB to external path: {external_epub}")
-
-        if "html" in formats:
-            chapter_titles = extract_chapter_titles(story_content)
-
-            html_file_name = create_html_file(
-                title,
-                author,
-                story_content,
-                get_html_directory(),
-                story_category=category,
-                story_tags=tags,
-                chapter_titles=chapter_titles if chapter_titles else None,
-                source_url=url,
-                author_url=story_author_url,
-                page_count=story_pages
-            )
-            created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
-            log_action(f"Created HTML: {html_file_name}")
-
-        formats_str = " and ".join(created_files)
-        success_msg = f"Successfully saved '{title}' by {author}"
-
-        chapter_count = story_content.count("\n\nChapter ") if story_content else 1
-
-        _save_to_database(
+        result = _create_story_files(
+            story_content=story_content,
             story_title=title,
             story_author=author,
             story_category=category,
@@ -264,20 +311,28 @@ def save_story_with_metadata(
             author_url=story_author_url,
             page_count=story_pages,
             formats=formats,
-            series_url=series_url,
-            chapter_count=chapter_count
+            series_url=series_url
         )
 
+        if not result['success']:
+            if send_notifications:
+                send_notification(f"Story save failed: {result['message']}", is_error=True)
+            return StoryProcessingResult(
+                success=False,
+                message=result['message'],
+                error=result.get('error')
+            )
+
         if send_notifications:
-            send_notification(f"Story saved: '{title}' ({formats_str})")
+            send_notification(f"Story saved: '{title}' ({result['formats_str']})")
 
         return StoryProcessingResult(
             success=True,
-            message=success_msg,
+            message=result['message'],
             title=title,
             author=author,
             formats=formats,
-            files=created_files
+            files=result['files']
         )
 
     except Exception as e:
@@ -315,48 +370,9 @@ def download_story_and_create_files(
             )
 
         log_action(f"Downloaded: '{story_title}' by {story_author}")
-        created_files = []
 
-        if "epub" in formats:
-            epub_file_name = create_epub_file(
-                story_title,
-                story_author,
-                story_content,
-                get_epub_directory(),
-                story_category=story_category,
-                story_tags=story_tags
-            )
-            created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
-            log_action(f"Created EPUB: {epub_file_name}")
-
-            external_epub = copy_to_external_path(epub_file_name, 'epub')
-            if external_epub:
-                log_action(f"Copied EPUB to external path: {external_epub}")
-
-        if "html" in formats:
-            chapter_titles = extract_chapter_titles(story_content)
-
-            html_file_name = create_html_file(
-                story_title,
-                story_author,
-                story_content,
-                get_html_directory(),
-                story_category=story_category,
-                story_tags=story_tags,
-                chapter_titles=chapter_titles if chapter_titles else None,
-                source_url=url,
-                author_url=story_author_url,
-                page_count=story_pages
-            )
-            created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
-            log_action(f"Created HTML: {html_file_name}")
-
-        formats_str = " and ".join(created_files)
-        success_msg = f"Successfully downloaded '{story_title}' by {story_author}"
-
-        chapter_count = story_content.count("\n\nChapter ") if story_content else 1
-
-        _save_to_database(
+        result = _create_story_files(
+            story_content=story_content,
             story_title=story_title,
             story_author=story_author,
             story_category=story_category,
@@ -365,20 +381,28 @@ def download_story_and_create_files(
             author_url=story_author_url,
             page_count=story_pages,
             formats=formats,
-            series_url=series_url,
-            chapter_count=chapter_count
+            series_url=series_url
         )
 
+        if not result['success']:
+            if send_notifications:
+                send_notification(f"Story save failed: {result['message']}", is_error=True)
+            return StoryProcessingResult(
+                success=False,
+                message=result['message'],
+                error=result.get('error')
+            )
+
         if send_notifications:
-            send_notification(f"Story downloaded: '{story_title}' ({formats_str})")
+            send_notification(f"Story downloaded: '{story_title}' ({result['formats_str']})")
 
         return StoryProcessingResult(
             success=True,
-            message=success_msg,
+            message=result['message'],
             title=story_title,
             author=story_author,
             formats=formats,
-            files=created_files
+            files=result['files']
         )
 
     except Exception as e:

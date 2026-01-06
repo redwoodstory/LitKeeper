@@ -29,8 +29,33 @@ document.addEventListener('click', function(e) {
     } catch (error) {
       console.error('Failed to parse story data:', error);
     }
+    return;
   }
-});
+  
+  const editMetadataBtn = e.target.closest('.edit-metadata-btn');
+  if (editMetadataBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const storyId = parseInt(editMetadataBtn.dataset.storyId);
+    const title = editMetadataBtn.dataset.storyTitle;
+    const author = editMetadataBtn.dataset.storyAuthor;
+    const category = editMetadataBtn.dataset.storyCategory;
+    
+    let tags = [];
+    try {
+      const tagsData = editMetadataBtn.dataset.storyTags;
+      if (tagsData && tagsData.trim() !== '') {
+        tags = JSON.parse(tagsData);
+      }
+    } catch (e) {
+      console.error('Error parsing tags:', e);
+      tags = [];
+    }
+    
+    openEditMetadataModal(storyId, title, author, category, tags);
+  }
+}, true);
 
 window.showStoryModal = function(story) {
   const hasEpub = story.formats.includes('epub');
@@ -41,7 +66,7 @@ window.showStoryModal = function(story) {
 
   const modalHtml = `
     <div id="storyModal" class="fixed inset-0 z-50 flex items-center md:items-center items-end justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200" onclick="closeStoryModal(event)">
-      <div class="w-full md:w-auto md:max-w-4xl md:mx-4 h-full md:h-auto md:max-h-[90vh] bg-white dark:bg-gray-800 md:rounded-xl rounded-t-2xl shadow-2xl overflow-y-auto transform transition-all relative" onclick="event.stopPropagation()">
+      <div class="w-full md:w-auto md:max-w-4xl md:mx-4 h-full md:h-auto md:max-h-[90vh] bg-white dark:bg-gray-800 rounded-none md:rounded-xl shadow-2xl overflow-y-auto transform transition-all relative" onclick="event.stopPropagation()">
         <button onclick="closeStoryModal()"
                 class="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-200"
                 aria-label="Close modal">
@@ -62,7 +87,7 @@ window.showStoryModal = function(story) {
             ` : ''}
 
             <div class="flex-1 min-w-0">
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">${escapeHtml(story.title)}</h2>
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 pr-12">${escapeHtml(story.title)}</h2>
               ${story.author ? `
                 <p class="text-gray-600 dark:text-gray-400 mb-2">
                   by ${story.author_url ? `<a href="${escapeHtml(story.author_url)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 underline decoration-dotted">${escapeHtml(story.author)}</a>` : escapeHtml(story.author)}
@@ -195,6 +220,18 @@ window.showStoryModal = function(story) {
                       Refresh Metadata
                     </button>
                   ` : ''}
+                  <button class="edit-metadata-btn px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 inline-flex items-center gap-1.5"
+                          data-story-id="${story.id}"
+                          data-story-title="${escapeHtml(story.title)}"
+                          data-story-author="${escapeHtml(story.author)}"
+                          data-story-category="${story.category || ''}"
+                          data-story-tags='${JSON.stringify(story.tags || [])}'
+                          title="Edit story metadata">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Edit Metadata
+                  </button>
                   ${story.source_url ? `
                     <button onclick="toggleAutoUpdate(${story.id}, ${story.auto_update_enabled}, this)"
                             class="px-3 py-1.5 text-xs font-medium ${story.auto_update_enabled ? 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200/60 dark:border-green-700' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 border-slate-200/60 dark:border-slate-700'} rounded-md border transition-all duration-200 inline-flex items-center gap-1.5"
@@ -976,3 +1013,120 @@ window.toggleAutoUpdate = async function(storyId, _currentState, button) {
     button.disabled = false;
   }
 };
+
+window.openEditMetadataModal = function(storyId, currentTitle, currentAuthor, currentCategory, currentTags) {
+  const tagsArray = Array.isArray(currentTags) ? currentTags : [];
+  const tagsString = tagsArray.join(', ');
+
+  const editModalHtml = `
+    <div id="editMetadataModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-200" onclick="closeEditMetadataModal(event)">
+      <div class="w-full max-w-2xl mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-2xl transform transition-all" onclick="event.stopPropagation()">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Story Metadata</h3>
+            <button onclick="closeEditMetadataModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+
+          <form id="editMetadataForm" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+              <input type="text" id="editTitle" value="${escapeHtml(currentTitle)}"
+                     class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Author</label>
+              <input type="text" id="editAuthor" value="${escapeHtml(currentAuthor)}"
+                     class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
+              <input type="text" id="editCategory" value="${escapeHtml(currentCategory)}"
+                     class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags (comma-separated)</label>
+              <input type="text" id="editTags" value="${escapeHtml(tagsString)}"
+                     class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent"
+                     placeholder="tag1, tag2, tag3">
+            </div>
+
+            <div class="flex gap-3 pt-4">
+              <button type="button" onclick="closeEditMetadataModal()"
+                      class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-200">
+                Cancel
+              </button>
+              <button type="submit"
+                      class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg transition-all duration-200">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', editModalHtml);
+
+  document.getElementById('editMetadataForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await saveMetadataChanges(storyId);
+  });
+};
+
+window.closeEditMetadataModal = function(event) {
+  if (event && event.target !== event.currentTarget) {
+    return;
+  }
+
+  const modal = document.getElementById('editMetadataModal');
+  if (modal) {
+    modal.remove();
+  }
+};
+
+async function saveMetadataChanges(storyId) {
+  const title = document.getElementById('editTitle').value.trim();
+  const author = document.getElementById('editAuthor').value.trim();
+  const category = document.getElementById('editCategory').value.trim();
+  const tagsInput = document.getElementById('editTags').value.trim();
+  const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+
+  try {
+    const response = await fetch(`/api/story/${storyId}/metadata`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ title, author, category, tags })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      showToast('Metadata updated successfully', 'success');
+      closeEditMetadataModal();
+      closeStoryModal();
+
+      setTimeout(() => {
+        if (typeof refreshLibrary === 'function') {
+          refreshLibrary();
+        } else {
+          window.location.reload();
+        }
+      }, 500);
+    } else {
+      showToast(result.message || 'Failed to update metadata', 'error');
+    }
+  } catch (error) {
+    console.error('Error updating metadata:', error);
+    showToast('An error occurred while updating metadata', 'error');
+  }
+}
