@@ -112,19 +112,246 @@ Volume mounts are required for data persistence between container restarts:
 Without these bind mounts, your stories and database will be lost when the container is updated or recreated.
 
 
-## API Configuration
+## API Reference
 
-To use the API, send a GET request in the following format:
+LitKeeper provides a REST API for external integrations like iOS Shortcuts, automation tools, or custom scripts. All endpoints return JSON responses unless otherwise noted.
+
+### Authentication
+
+The API currently does not require authentication. If your instance is publicly accessible, consider using a reverse proxy with authentication.
+
+### Download Story
+
+Queue a story for download or download it synchronously.
+
+**Endpoint:** `GET /api/download`
+
+**Parameters:**
+- `url` (required): Full Literotica story URL
+- `wait` (optional): Set to `false` for background processing, `true` to wait for completion. Default: `true`
+- `format` (optional): Comma-separated list of formats (`epub`, `html`). Default: `epub`
+
+**Examples:**
+```bash
+# Background download (returns immediately)
+GET https://your-server.com/api/download?url=https://www.literotica.com/s/story-name&wait=false
+
+# Download EPUB and HTML, wait for completion
+GET https://your-server.com/api/download?url=https://www.literotica.com/s/story-name&wait=true&format=epub,html
+
+# Download only HTML
+GET https://your-server.com/api/download?url=https://www.literotica.com/s/story-name&format=html
 ```
-GET <server-url>/api/download?url=<literotica-story-url>&wait=false
+
+**Response (wait=false):**
+```json
+{
+  "success": "true",
+  "message": "Request accepted, processing in background"
+}
 ```
 
-### iOS Shortcuts
+**Response (wait=true):**
+```json
+{
+  "success": true,
+  "message": "Story downloaded successfully",
+  "title": "Story Title",
+  "author": "Author Name",
+  "formats": ["epub", "html"]
+}
+```
 
-To trigger a download using iOS Shortcuts, using the folowing format:
-1. Receive [URLs and Apps] input from [Share Sheet]
-2. Get URLs from [Shortcut Input]
-3. URL: <server-url>/api/download?url=<literotica-story-url>&wait=false
-4. Get contents of [URL]
+### Queue Story
+
+Add a story to the download queue. This is the recommended method for web integrations as it provides better status tracking.
+
+**Endpoint:** `POST /api/queue`
+
+**Content-Type:** `application/json` or `application/x-www-form-urlencoded`
+
+**Body:**
+```json
+{
+  "url": "https://www.literotica.com/s/story-name",
+  "format": ["epub", "html"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Story added to download queue",
+  "queue_item": {
+    "id": 123,
+    "url": "https://www.literotica.com/s/story-name",
+    "status": "pending",
+    "created_at": "2026-01-08T14:30:00"
+  }
+}
+```
+
+### Check Queue Status
+
+Get the status of a specific queue item.
+
+**Endpoint:** `GET /api/queue/{queue_id}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "queue_item": {
+    "id": 123,
+    "url": "https://www.literotica.com/s/story-name",
+    "status": "completed",
+    "created_at": "2026-01-08T14:30:00",
+    "completed_at": "2026-01-08T14:31:15"
+  }
+}
+```
+
+Status values: `pending`, `processing`, `completed`, `failed`
+
+### Get Library
+
+Retrieve all stories in your library.
+
+**Endpoint:** `GET /api/library`
+
+**Response:**
+```json
+{
+  "stories": [
+    {
+      "id": 1,
+      "title": "Story Title",
+      "author": "Author Name",
+      "category": "Category",
+      "tags": ["tag1", "tag2"],
+      "formats": ["epub", "html"],
+      "created_at": "2026-01-08T14:30:00"
+    }
+  ]
+}
+```
+
+### Delete Story
+
+Remove a story from your library and delete associated files.
+
+**Endpoint:** `DELETE /api/story/delete/{story_id}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Story deleted successfully"
+}
+```
+
+### Toggle Auto-Update
+
+Enable or disable automatic update checking for a story.
+
+**Endpoint:** `POST /api/story/toggle-auto-update/{story_id}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "auto_update_enabled": true,
+  "message": "Auto-update enabled"
+}
+```
+
+## iOS Shortcuts Integration
+
+You can use iOS Shortcuts to download stories directly from the share sheet.
+
+**Setup:**
+1. Create a new Shortcut
+2. Add "Receive URLs and Apps input from Share Sheet"
+3. Add "Get URLs from Shortcut Input"
+4. Add "Get contents of URL" with the following URL format:
+   ```
+   https://your-server.com/api/download?url=[Shortcut Input]&wait=false
+   ```
+5. Save and enable in the share sheet
+
+When you share a Literotica story URL from Safari or any app, the shortcut will send it to your LitKeeper instance for download. You'll receive a notification when the download completes.
 
 [iOS Shortcut Screenshot](images/ios_shortcut_image.jpeg)
+
+**Alternative (with queue tracking):**
+
+For better status tracking, use the queue endpoint:
+1. Add "Get contents of URL" with method POST
+2. URL: `https://your-server.com/api/queue`
+3. Request Body: JSON
+   ```json
+   {
+     "url": "[Shortcut Input]",
+     "format": ["epub", "html"]
+   }
+   ```
+4. Add "Get Dictionary Value" for key `queue_item.id`
+5. Optionally poll `https://your-server.com/api/queue/[queue_id]` to check status
+
+
+## Migrating from V1
+
+LitKeeper V1 was a simple EPUB downloader with basic volume mounts (`/epubs` for downloads, `/logs` for logging). V2 has evolved into a full-featured web application with an interactive reader, story monitoring, multiple file formats, and a SQLite database for advanced filtering and tracking.
+
+### What's Changed
+
+**Volume Structure:**
+- **V1:** Single `/epubs` directory
+- **V2:** Organized `/stories` directory with subdirectories:
+  - `/stories/epubs` - EPUB files
+  - `/stories/html` - HTML files for in-app reading
+  - `/stories/covers` - Generated cover images
+
+**New Database:**
+- V2 introduces a `/data` mount containing a SQLite database (`litkeeper.db`)
+- Enables fast filtering, search, and automatic story update monitoring
+- Tracks metadata and links stories to their Literotica URLs
+
+### Migration Steps
+
+**1. Update your docker-compose.yml**
+
+Replace your old volume mounts with the new configuration shown in the [Installation](#installation) section above.
+
+**2. Migrate existing EPUB files**
+
+Copy your previously-downloaded stories from the legacy `/epubs` directory into the new `/stories/epubs` directory:
+
+```bash
+find /path/to/old_epubs -type f -name "*.epub" -exec cp "{}" /path/to/new_stories/epubs \;
+```
+
+**3. Start the application**
+
+Run `docker compose up -d` to start LitKeeper V2.
+
+**4. Automatic import**
+
+On startup, LitKeeper will automatically scan the `/stories/epubs` directory and import all stories into the database. The import process will:
+- Extract metadata from EPUB files (title, author, tags, etc.)
+- Attempt to match stories to their Literotica URLs using author and title
+- Allow story monitoring to check for new chapters or updates
+
+**Benefits of Migration:**
+- **Interactive reading:** Read stories directly in your browser with customizable formatting
+- **Story monitoring:** Automatically detect when series receive new chapters
+- **Multi-format support:** Generate HTML versions alongside EPUBs
+- **Advanced search:** Filter by author, category, tags, and more
+- **PWA support:** Install as a native app and sync stories for offline reading
+
+### Prefer the V1 Download-Only Interface?
+
+If you want to keep the simpler V1 download-only interface without the library UI, set `ENABLE_LIBRARY=false` in your docker-compose.yml. This hides the library, search, and reader features, returning to the basic download functionality.
+
+**Important:** Even with `ENABLE_LIBRARY=false`, you must still update your volume mounts to the new `/stories` and `/data` structure. The SQLite database will be created and updated regardless of this setting.
