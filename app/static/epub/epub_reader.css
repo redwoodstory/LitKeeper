@@ -61,7 +61,6 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
-  transition: transform 0.3s ease;
 }
 
 .header-left, .header-right {
@@ -286,10 +285,10 @@ body {
 
 #reader-main {
   position: fixed;
-  top: 0;
+  top: 80px;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 60px;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -358,7 +357,6 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
-  transition: transform 0.3s ease;
 }
 
 .progress-bar {
@@ -405,6 +403,16 @@ body {
   #viewer {
     padding: 0;
   }
+  
+  .reader-header,
+  .reader-footer {
+    transition: transform 0.3s ease;
+  }
+  
+  #reader-main {
+    top: 0;
+    bottom: 0;
+  }
 }
 
 #viewer iframe {
@@ -416,4 +424,12 @@ foliate-view {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-snap-stop: always;
+  -webkit-overflow-scrolling: touch;
+}
+
+foliate-view > * {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }

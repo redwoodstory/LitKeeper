@@ -21,6 +21,9 @@ const readerHeader = document.querySelector('.reader-header');
 const readerFooter = document.querySelector('.reader-footer');
 
 function toggleHeader() {
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
+  
   headerVisible = !headerVisible;
   
   if (headerVisible) {
@@ -39,6 +42,9 @@ function toggleHeader() {
 }
 
 function showHeaderTemporarily() {
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
+  
   if (!headerVisible) {
     headerVisible = true;
     readerHeader.style.transform = 'translateY(0)';
