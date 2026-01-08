@@ -60,6 +60,18 @@ class MetadataExtractor:
 
             chapter_count = len([item for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT)])
 
+            word_count = None
+            try:
+                from bs4 import BeautifulSoup
+                total_text = ""
+                for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+                    content = item.get_content().decode('utf-8', errors='ignore')
+                    soup = BeautifulSoup(content, 'html.parser')
+                    total_text += soup.get_text(separator=' ', strip=True) + " "
+                word_count = len(total_text.split())
+            except Exception:
+                pass
+
             return {
                 'title': title,
                 'author': author,
@@ -69,7 +81,7 @@ class MetadataExtractor:
                 'source_url': None,
                 'author_url': None,
                 'page_count': None,
-                'word_count': None,
+                'word_count': word_count,
                 'chapter_count': chapter_count
             }
         except Exception as e:

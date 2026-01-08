@@ -1,28 +1,10 @@
 from __future__ import annotations
 import os
 import traceback
-import warnings
 from .logger import log_error
 
 NOTIFICATION_URLS_RAW = os.getenv('NOTIFICATION_URLS', '')
 NOTIFICATION_URLS = NOTIFICATION_URLS_RAW.split(',')
-
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-    warnings.warn(
-        "TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are deprecated. "
-        "Please use NOTIFICATION_URLS with the format: tgram://BOT_TOKEN/CHAT_ID",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    log_error(
-        "DEPRECATION WARNING: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are deprecated. "
-        "Please migrate to NOTIFICATION_URLS using format: tgram://BOT_TOKEN/CHAT_ID"
-    )
-    telegram_url = f"tgram://{TELEGRAM_BOT_TOKEN}/{TELEGRAM_CHAT_ID}"
-    if telegram_url not in NOTIFICATION_URLS:
-        NOTIFICATION_URLS.append(telegram_url)
 
 ENABLE_NOTIFICATIONS = bool(NOTIFICATION_URLS and NOTIFICATION_URLS[0])
 

@@ -130,7 +130,18 @@ def filter_library() -> ResponseReturnValue:
             else:
                 return (story.get('created_at', ''),)
 
+        if validated.sort_by == 'length':
+            log_action(f"[SORT DEBUG] Sorting by length, order={validated.sort_order}, reverse={validated.sort_order == 'desc'}")
+            sample_stories = stories[:3] if len(stories) >= 3 else stories
+            for s in sample_stories:
+                log_action(f"[SORT DEBUG] Sample: {s.get('title')} - word_count={s.get('word_count')}")
+
         stories.sort(key=get_sort_key, reverse=(validated.sort_order == 'desc'))
+
+        if validated.sort_by == 'length':
+            sample_stories = stories[:3] if len(stories) >= 3 else stories
+            for s in sample_stories:
+                log_action(f"[SORT DEBUG] After sort: {s.get('title')} - word_count={s.get('word_count')}")
 
         return render_template("_library_content.html", stories=stories)
     except ValidationError as e:

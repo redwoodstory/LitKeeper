@@ -69,6 +69,7 @@ def _create_story_files(
             log_action(f"Created HTML: {html_file_name}")
 
         chapter_count = story_content.count("\n\nChapter ") if story_content else 1
+        word_count = len(story_content.split()) if story_content else 0
 
         _save_to_database(
             story_title=story_title,
@@ -80,7 +81,8 @@ def _create_story_files(
             page_count=page_count,
             formats=formats,
             series_url=series_url,
-            chapter_count=chapter_count
+            chapter_count=chapter_count,
+            word_count=word_count
         )
 
         formats_str = " and ".join(created_files)
@@ -111,7 +113,8 @@ def _save_to_database(
     page_count: Optional[int],
     formats: list[str],
     series_url: Optional[str] = None,
-    chapter_count: int = 1
+    chapter_count: int = 1,
+    word_count: Optional[int] = None
 ) -> None:
     """
     Save story metadata to database only if ENABLE_LIBRARY is true.
@@ -167,6 +170,7 @@ def _save_to_database(
                 literotica_series_url=series_url,
                 literotica_page_count=page_count,
                 chapter_count=chapter_count,
+                word_count=word_count,
                 filename_base=filename_base,
                 imported_at=datetime.utcnow(),
                 metadata_refresh_status='complete' if source_url else 'never'

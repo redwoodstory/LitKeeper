@@ -23,7 +23,7 @@ url_logger = _setup_console_logger('litkeeper.url')
 def _log_startup_info() -> None:
     """Log startup notification configuration information."""
     if action_logger:
-        from .notifier import NOTIFICATION_URLS_RAW, NOTIFICATION_URLS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ENABLE_NOTIFICATIONS
+        from .notifier import NOTIFICATION_URLS_RAW, NOTIFICATION_URLS, ENABLE_NOTIFICATIONS
         action_logger.info("[STARTUP] Notification configuration loaded")
         action_logger.info(f"[STARTUP] NOTIFICATION_URLS_RAW: '{NOTIFICATION_URLS_RAW[:100]}...'")
         action_logger.info(f"[STARTUP] NOTIFICATION_URLS_RAW length: {len(NOTIFICATION_URLS_RAW)}")
@@ -32,8 +32,6 @@ def _log_startup_info() -> None:
             url_preview = url[:50] + "..." if len(url) > 50 else url
             action_logger.info(f"[STARTUP] URL {i+1}: '{url_preview}' (length: {len(url)})")
         action_logger.info(f"[STARTUP] ENABLE_NOTIFICATIONS: {ENABLE_NOTIFICATIONS}")
-        action_logger.info(f"[STARTUP] TELEGRAM_BOT_TOKEN: {'SET' if TELEGRAM_BOT_TOKEN else 'NOT SET'}")
-        action_logger.info(f"[STARTUP] TELEGRAM_CHAT_ID: {'SET' if TELEGRAM_CHAT_ID else 'NOT SET'}")
 
 def log_action(message: str) -> None:
     """Log an action using rotating file handler."""
