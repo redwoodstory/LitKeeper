@@ -8,6 +8,7 @@ from .reader import ReadingProgress
 from .migration import MigrationLog, MetadataRefreshLog
 from .config import AppConfig
 from .download_queue import DownloadQueueItem
+from .metadata_refresh_queue import MetadataRefreshQueueItem
 
 __all__ = [
     'db',
@@ -24,4 +25,5 @@ __all__ = [
     'MetadataRefreshLog',
     'AppConfig',
     'DownloadQueueItem',
+    'MetadataRefreshQueueItem',
 ]

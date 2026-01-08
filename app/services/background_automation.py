@@ -19,6 +19,9 @@ class BackgroundAutomation:
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.check_interval = 300
+        self.last_run_time: Optional[datetime] = None
+        self.is_processing = False
+        self.has_completed_first_run = False
     
     def start(self):
         if self.running:
@@ -36,16 +39,53 @@ class BackgroundAutomation:
             self.thread.join(timeout=5)
         log_action("[AUTOMATION] Background automation stopped")
     
-    def _run_loop(self):
-        time.sleep(30)
+    def trigger_immediate_run(self):
+        """
+        Trigger an immediate automation run in a separate thread.
+        This allows on-demand processing without blocking the request.
+        """
+        if self.is_processing:
+            log_action("[AUTOMATION] Already processing, skipping immediate run")
+            return
         
-        while self.running:
+        def run_once():
             try:
+                self.is_processing = True
+                self.last_run_time = datetime.utcnow()
+                log_action("[AUTOMATION] Running immediate automation cycle")
+                
                 with self.app.app_context():
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
+                
+                self.is_processing = False
+                self.has_completed_first_run = True
+            except Exception as e:
+                log_error(f"[AUTOMATION] Error in immediate automation run: {str(e)}")
+                self.is_processing = False
+                self.has_completed_first_run = True
+        
+        thread = threading.Thread(target=run_once, daemon=True)
+        thread.start()
+    
+    def _run_loop(self):
+        time.sleep(5)
+        
+        while self.running:
+            try:
+                self.is_processing = True
+                self.last_run_time = datetime.utcnow()
+                
+                with self.app.app_context():
+                    self._auto_add_stories()
+                    self._auto_refresh_metadata()
+                
+                self.is_processing = False
+                self.has_completed_first_run = True
             except Exception as e:
                 log_error(f"[AUTOMATION] Error in background automation: {str(e)}")
+                self.is_processing = False
+                self.has_completed_first_run = True
             
             for _ in range(self.check_interval):
                 if not self.running:
@@ -60,6 +100,9 @@ class BackgroundAutomation:
             sync_status = sync_checker.check_sync()
             
             orphaned_count = sync_status['orphaned_files_count']
+            duplicate_count = sync_status.get('duplicate_files_count', 0)
+            
+            log_action(f"[AUTOMATION] Sync status: {orphaned_count} orphaned files, {duplicate_count} duplicates")
             
             if orphaned_count > 0:
                 log_action(f"[AUTOMATION] Found {orphaned_count} new stories in filesystem, adding to library...")
@@ -70,6 +113,8 @@ class BackgroundAutomation:
                     log_action(f"[AUTOMATION] Successfully added {added_count} stories to library")
                 else:
                     log_action(f"[AUTOMATION] No new stories added (duplicates or errors)")
+            else:
+                log_action("[AUTOMATION] No orphaned files to add")
             
         except Exception as e:
             log_error(f"[AUTOMATION] Error auto-adding stories: {str(e)}")
@@ -77,26 +122,81 @@ class BackgroundAutomation:
     def _auto_refresh_metadata(self):
         try:
             from app.services.metadata_refresh_service import MetadataRefreshService
+            from app.models import MetadataRefreshQueueItem
             
-            stories_missing_metadata = Story.query.filter(Story.literotica_url.is_(None)).all()
+            stories_missing_metadata = Story.query.filter(
+                Story.literotica_url.is_(None),
+                Story.auto_refresh_excluded == False
+            ).all()
+            
+            excluded_stories = Story.query.filter(
+                Story.literotica_url.is_(None),
+                Story.auto_refresh_excluded == True
+            ).count()
             
             if not stories_missing_metadata:
+                if excluded_stories > 0:
+                    log_action(f"[AUTOMATION] No stories to check ({excluded_stories} excluded from auto-refresh)")
+                else:
+                    log_action("[AUTOMATION] No stories missing metadata")
                 return
             
             log_action(f"[AUTOMATION] Found {len(stories_missing_metadata)} stories missing metadata, checking for auto-matches...")
+            if excluded_stories > 0:
+                log_action(f"[AUTOMATION] ({excluded_stories} stories excluded from auto-refresh)")
             
-            auto_matched_count = 0
+            queued_count = 0
+            processed_count = 0
             
             for story in stories_missing_metadata:
                 try:
+                    processed_count += 1
+                    log_action(f"[AUTOMATION] Checking story {processed_count}/{len(stories_missing_metadata)}: '{story.title}'")
+                    
+                    existing_job = MetadataRefreshQueueItem.query.filter(
+                        MetadataRefreshQueueItem.story_id == story.id,
+                        MetadataRefreshQueueItem.status.in_(['pending', 'processing'])
+                    ).first()
+                    
+                    if existing_job:
+                        log_action(f"[AUTOMATION] Skipping '{story.title}' - already queued")
+                        continue
+                    
                     service = MetadataRefreshService()
+                    
+                    log_action(f"[AUTOMATION] Searching Literotica for: title='{story.title}', author='{story.author.name}'")
                     
                     search_result = service.search_for_story(story.id)
                     
                     if not search_result.get('success'):
+                        exclusion_reason = f"No matches found on Literotica for '{story.title}' by {story.author.name}"
+                        log_action(f"[AUTOMATION] {exclusion_reason} - marking as excluded")
+                        
+                        story.auto_refresh_excluded = True
+                        story.auto_refresh_exclusion_reason = exclusion_reason
+                        story.auto_refresh_exclusion_type = 'no_match'
+                        db.session.commit()
                         continue
                     
+                    results = search_result.get('results', [])
+                    log_action(f"[AUTOMATION] Found {len(results)} potential matches for '{story.title}':")
+                    for idx, result in enumerate(results[:5], 1):
+                        log_action(f"[AUTOMATION]   {idx}. '{result['title']}' by {result['author']} - {result['confidence']:.1%} confidence")
+                        log_action(f"[AUTOMATION]      URL: {result['url']}")
+                    
                     if not search_result.get('auto_match'):
+                        best = search_result.get('best_match')
+                        if best:
+                            exclusion_reason = f"Best match only {best['confidence']:.1%} confident (need ≥85% for auto-match)"
+                            log_action(f"[AUTOMATION] {exclusion_reason} - marking as excluded")
+                        else:
+                            exclusion_reason = f"No confident match found on Literotica for '{story.title}' by {story.author.name}"
+                            log_action(f"[AUTOMATION] {exclusion_reason} - marking as excluded")
+                        
+                        story.auto_refresh_excluded = True
+                        story.auto_refresh_exclusion_reason = exclusion_reason
+                        story.auto_refresh_exclusion_type = 'low_confidence'
+                        db.session.commit()
                         continue
                     
                     best_match = search_result.get('best_match')
@@ -104,19 +204,22 @@ class BackgroundAutomation:
                         continue
                     
                     confidence = best_match.get('confidence', 0.0)
+                    log_action(f"[AUTOMATION] Found auto-match with {confidence:.1%} confidence")
                     
-                    if confidence >= 1.0:
+                    if confidence >= 0.85:
                         url = best_match['url']
-                        log_action(f"[AUTOMATION] Auto-refreshing metadata for '{story.title}' (100% match: {url})")
+                        log_action(f"[AUTOMATION] ✓ Queuing metadata refresh for '{story.title}' (100% match: {url})")
                         
-                        refresh_result = service.refresh_metadata_from_url(story.id, url, method='auto')
+                        queue_item = MetadataRefreshQueueItem(
+                            story_id=story.id,
+                            url=url,
+                            method='auto',
+                            status='pending'
+                        )
+                        db.session.add(queue_item)
+                        db.session.commit()
                         
-                        if refresh_result.get('success'):
-                            auto_matched_count += 1
-                            fields_changed = refresh_result.get('fields_changed', [])
-                            log_action(f"[AUTOMATION] Successfully refreshed metadata for '{story.title}' - Updated: {', '.join(fields_changed)}")
-                        else:
-                            log_error(f"[AUTOMATION] Failed to refresh metadata for '{story.title}': {refresh_result.get('message')}")
+                        queued_count += 1
                     
                     time.sleep(2)
                     
@@ -125,8 +228,10 @@ class BackgroundAutomation:
                     log_error(f"[AUTOMATION] Error processing story '{story.title}': {str(e)}")
                     continue
             
-            if auto_matched_count > 0:
-                log_action(f"[AUTOMATION] Auto-refreshed metadata for {auto_matched_count} stories with 100% matches")
+            if queued_count > 0:
+                log_action(f"[AUTOMATION] Queued {queued_count} metadata refresh jobs for stories with 100% matches")
+            else:
+                log_action(f"[AUTOMATION] Completed checking {len(stories_missing_metadata)} stories - no 100% matches found")
         
         except Exception as e:
             db.session.rollback()

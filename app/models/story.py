@@ -27,6 +27,10 @@ class Story(BaseModel, TimestampMixin):
     auto_update_enabled = db.Column(db.Boolean, default=True, nullable=False)
     last_update_check_at = db.Column(db.DateTime)
     content_hash = db.Column(db.String(64))
+    
+    auto_refresh_excluded = db.Column(db.Boolean, default=False, nullable=False)
+    auto_refresh_exclusion_reason = db.Column(db.String(500))
+    auto_refresh_exclusion_type = db.Column(db.String(50))
 
     author = db.relationship('Author', back_populates='stories', lazy='joined')
     category = db.relationship('Category', back_populates='stories', lazy='joined')

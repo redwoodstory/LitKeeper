@@ -22,10 +22,14 @@ class LiteroticaSearcher:
         self.base_search_url = "https://www.literotica.com/stories/search.php"
     
     def search_story(self, title: str, author: str) -> list[LiteroticaSearchResult]:
+        from ..logger import log_action
+        
         self.rate_limiter.wait_if_needed()
         
-        author_slug = author.lower().replace(' ', '').replace('_', '')
-        author_works_url = f"https://www.literotica.com/stories/memberpage.php?uid={author_slug}&page=submissions"
+        author_slug = author.lower().replace(' ', '_')
+        author_works_url = f"https://www.literotica.com/authors/{author_slug}/works/stories"
+        
+        log_action(f"[SEARCH] Querying URL: {author_works_url}")
         
         try:
             session = get_session()

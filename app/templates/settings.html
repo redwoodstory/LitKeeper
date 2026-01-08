@@ -123,6 +123,32 @@
     <hr class="border-gray-200 dark:border-gray-700">
 
     <section>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Auto-Refresh Exclusions
+        </h3>
+        <button id="resetAllExclusionsBtn" onclick="resetAllExclusions()" 
+                class="hidden px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">
+          Reset All Exclusions
+        </button>
+      </div>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Stories excluded from automatic metadata refresh due to conflicts or errors. These stories will not be checked during automation cycles.
+      </p>
+      
+      <div id="excludedStoriesContainer">
+        <div class="flex items-center justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="border-gray-200 dark:border-gray-700">
+
+    <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -319,5 +345,147 @@ async function refreshLog() {
     logContent.textContent = `Error loading log: ${error.message}`;
   }
 }
+
+async function loadExcludedStories() {
+  const container = document.getElementById('excludedStoriesContainer');
+  
+  try {
+    const response = await fetch('/settings/get-excluded-stories');
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load excluded stories');
+    }
+    
+    const resetBtn = document.getElementById('resetAllExclusionsBtn');
+    
+    if (data.stories.length === 0) {
+      if (resetBtn) resetBtn.classList.add('hidden');
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-gray-500 dark:text-gray-400 font-medium">No excluded stories</p>
+          <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">All stories are eligible for auto-refresh</p>
+        </div>
+      `;
+      return;
+    }
+    
+    if (resetBtn) resetBtn.classList.remove('hidden');
+    
+    container.innerHTML = `
+      <div class="space-y-3">
+        ${data.stories.map(story => `
+          <div class="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 transition-all duration-200">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h4 class="font-semibold text-gray-900 dark:text-white truncate">
+                    ${story.title}
+                  </h4>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  by <span class="font-medium">${story.author}</span>
+                </p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                  <span class="font-semibold text-amber-700 dark:text-amber-400">Reason:</span> ${story.exclusion_reason}
+                </p>
+              </div>
+              <div class="flex items-center">
+                ${story.exclusion_type === 'duplicate' ? `
+                  <button onclick="openStoryModalFromExclusions('${story.filename_base}')" 
+                          class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
+                    View Story
+                  </button>
+                ` : `
+                  <button onclick="linkExcludedStory(${story.id}, '${story.title.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${story.author.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" 
+                          class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
+                    Link Story
+                  </button>
+                `}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <svg class="w-16 h-16 mx-auto text-red-300 dark:text-red-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p class="text-red-600 dark:text-red-400 font-medium">Error loading excluded stories</p>
+        <p class="text-sm text-red-500 dark:text-red-500 mt-1">${error.message}</p>
+      </div>
+    `;
+  }
+}
+
+async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
+  if (typeof openRefreshModal === 'function') {
+    openRefreshModal(storyId, storyTitle, storyAuthor, async (fieldsChanged) => {
+      if (fieldsChanged) {
+        await loadExcludedStories();
+      }
+    });
+  } else {
+    console.error('openRefreshModal function not found');
+    alert('Metadata refresh modal is not available. Please refresh the page and try again.');
+  }
+}
+
+function openStoryModal(filenameBase) {
+  if (window.showStoryModal) {
+    window.showStoryModal(filenameBase);
+  } else {
+    window.location.href = `/?story=${filenameBase}`;
+  }
+}
+
+function openStoryModalFromExclusions(filenameBase) {
+  window.location.href = `/?story=${filenameBase}`;
+}
+
+async function resetAllExclusions() {
+  if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {
+    return;
+  }
+  
+  const btn = document.getElementById('resetAllExclusionsBtn');
+  const originalText = btn.textContent;
+  
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+    
+    const response = await fetch('/settings/reset-all-exclusions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      await loadExcludedStories();
+      alert(data.message);
+    } else {
+      alert(`Error: ${data.message}`);
+    }
+  } catch (error) {
+    alert(`Error resetting exclusions: ${error.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadExcludedStories();
+});
 </script>
 {% endblock %}

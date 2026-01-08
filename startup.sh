@@ -13,5 +13,8 @@ touch "$MARKER_FILE" 2>/dev/null || echo "Note: Could not create marker file (re
 
 echo "Stories directory ready at $STORIES_DIR"
 
+echo "Running database migrations..."
+SKIP_BACKGROUND_WORKERS=true flask db upgrade
+
 echo "Starting application..."
 exec "$@"

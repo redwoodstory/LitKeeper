@@ -1,7 +1,7 @@
 from __future__ import annotations
 from flask import Blueprint, render_template, request, send_from_directory, jsonify, abort, make_response
 from flask.typing import ResponseReturnValue
-from app.services import download_story_and_create_files, log_error, get_library_data
+from app.services import download_story_and_create_files, log_error, log_action, get_library_data
 from app.services.system_checks import check_mount_warning
 from app.utils import get_html_directory, get_epub_directory
 from app.validators import StoryDownloadRequest, LibraryFilterRequest
@@ -41,6 +41,7 @@ def index() -> ResponseReturnValue:
         from app.services.migration.file_scanner import FileScanner
         from app.services.migration.sync_checker import SyncChecker
         from app.models import Story
+        from flask import current_app
 
         mount_warning = check_mount_warning()
 
@@ -49,6 +50,21 @@ def index() -> ResponseReturnValue:
         if enable_library:
             sync_checker = SyncChecker()
             sync_status = sync_checker.check_sync()
+            
+            log_action(f"[BANNER] Sync check: in_sync={sync_status['in_sync']}, orphaned_files={sync_status['orphaned_files_count']}, orphaned_db={sync_status['orphaned_db_count']}")
+            
+            if not sync_status['in_sync'] and hasattr(current_app, 'automation'):
+                log_action(f"[BANNER] Automation state: has_completed_first_run={current_app.automation.has_completed_first_run}, is_processing={current_app.automation.is_processing}")
+                
+                if current_app.automation.is_processing:
+                    log_action("[BANNER] Automation is currently processing, hiding banner")
+                    sync_status = None
+                elif sync_status['orphaned_files_count'] > 0:
+                    log_action(f"[BANNER] Found {sync_status['orphaned_files_count']} orphaned files, triggering automation and hiding banner")
+                    current_app.automation.trigger_immediate_run()
+                    sync_status = None
+                else:
+                    log_action("[BANNER] Only orphaned DB records (no files to import), showing banner")
 
         stories = get_library_data() if enable_library else []
         categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []

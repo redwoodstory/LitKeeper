@@ -8,8 +8,17 @@ from typing import Any
 
 load_dotenv()
 
+# Build version identifier - update this when making significant changes
+APP_VERSION = "2026.01.06-automation-fix"
+
 def create_app() -> Flask:
     app = Flask(__name__)
+    
+    print(f"=" * 80)
+    print(f"LitKeeper Version: {APP_VERSION}")
+    print(f"Build Date: 2026-01-06")
+    print(f"Features: Automated background processing, metadata refresh, sync banner")
+    print(f"=" * 80)
 
     secret_key = os.getenv('SECRET_KEY')
     if not secret_key:
@@ -59,10 +68,26 @@ def create_app() -> Flask:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
         'pool_recycle': 3600,
+        'connect_args': {
+            'timeout': 30,
+            'check_same_thread': False,
+        },
     }
 
     db.init_app(app)
     migrate = Migrate(app, db)
+
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+    
+    @event.listens_for(Engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, connection_record):
+        if 'sqlite' in str(type(dbapi_conn)):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.close()
 
     with app.app_context():
         db.create_all()
@@ -152,14 +177,21 @@ def create_app() -> Flask:
     init_scheduler(app)
     atexit.register(shutdown_scheduler)
 
-    from app.services.download_queue_worker import DownloadQueueWorker
-    worker = DownloadQueueWorker(app, poll_interval=5)
-    worker.start()
-    atexit.register(worker.stop)
+    if os.getenv('SKIP_BACKGROUND_WORKERS') != 'true':
+        from app.services.download_queue_worker import DownloadQueueWorker
+        worker = DownloadQueueWorker(app, poll_interval=5)
+        worker.start()
+        atexit.register(worker.stop)
 
-    from app.services.background_automation import BackgroundAutomation
-    automation = BackgroundAutomation(app)
-    automation.start()
-    atexit.register(automation.stop)
+        from app.services.metadata_refresh_worker import MetadataRefreshWorker
+        metadata_worker = MetadataRefreshWorker(app, poll_interval=5)
+        metadata_worker.start()
+        atexit.register(metadata_worker.stop)
+
+        from app.services.background_automation import BackgroundAutomation
+        automation = BackgroundAutomation(app)
+        app.automation = automation
+        automation.start()
+        atexit.register(automation.stop)
 
     return app

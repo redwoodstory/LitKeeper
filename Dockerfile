@@ -42,6 +42,7 @@ WORKDIR /litkeeper
 
 # Copy only necessary files
 COPY app app/
+COPY migrations migrations/
 COPY run.py .
 COPY gunicorn.docker.conf.py .
 COPY startup.sh .

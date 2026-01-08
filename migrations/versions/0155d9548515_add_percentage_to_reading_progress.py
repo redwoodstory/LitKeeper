@@ -1,7 +1,7 @@
 """add_percentage_to_reading_progress
 
 Revision ID: 0155d9548515
-Revises: add_download_queue
+Revises: 20260106
 Create Date: 2026-01-06 14:16:46.710642
 
 """
@@ -11,13 +11,18 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0155d9548515'
-down_revision = 'add_download_queue'
+down_revision = '20260106'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.add_column('reading_progress', sa.Column('percentage', sa.Float(), nullable=True))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_columns = {col['name'] for col in inspector.get_columns('reading_progress')}
+    
+    if 'percentage' not in existing_columns:
+        op.add_column('reading_progress', sa.Column('percentage', sa.Float(), nullable=True))
 
 
 def downgrade():

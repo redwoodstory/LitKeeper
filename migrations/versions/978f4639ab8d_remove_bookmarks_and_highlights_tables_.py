@@ -30,10 +30,17 @@ def upgrade():
         with op.batch_alter_table('highlights', schema=None) as batch_op:
             batch_op.drop_index(batch_op.f('ix_highlights_story_id'))
         op.drop_table('highlights')
+    
+    # Check which columns already exist in stories table
+    existing_columns = {col['name'] for col in inspector.get_columns('stories')}
+    
     with op.batch_alter_table('stories', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('auto_update_enabled', sa.Boolean(), nullable=False, server_default='1'))
-        batch_op.add_column(sa.Column('last_update_check_at', sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column('content_hash', sa.String(length=64), nullable=True))
+        if 'auto_update_enabled' not in existing_columns:
+            batch_op.add_column(sa.Column('auto_update_enabled', sa.Boolean(), nullable=False, server_default='1'))
+        if 'last_update_check_at' not in existing_columns:
+            batch_op.add_column(sa.Column('last_update_check_at', sa.DateTime(), nullable=True))
+        if 'content_hash' not in existing_columns:
+            batch_op.add_column(sa.Column('content_hash', sa.String(length=64), nullable=True))
 
     # ### end Alembic commands ###
 

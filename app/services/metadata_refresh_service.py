@@ -71,6 +71,18 @@ class MetadataRefreshService:
         fields_changed = []
         previous_data = {}
         
+        existing_story = Story.query.filter_by(literotica_url=url).first()
+        if existing_story and existing_story.id != story.id:
+            error_msg = f"Duplicate story detected: URL already assigned to '{existing_story.title}'"
+            
+            story.auto_refresh_excluded = True
+            story.auto_refresh_exclusion_reason = error_msg
+            story.auto_refresh_exclusion_type = 'duplicate'
+            db.session.commit()
+            
+            self._log_refresh(story.id, "failed", url, None, error_msg)
+            return {"success": False, "message": error_msg, "duplicate_detected": True}
+        
         if story.literotica_url != url:
             previous_data['literotica_url'] = story.literotica_url
             story.literotica_url = url
@@ -103,8 +115,13 @@ class MetadataRefreshService:
             if existing_tag_names != new_tag_names:
                 previous_data['tags'] = list(existing_tag_names)
                 
-                tags_to_add = []
-                for tag_name in new_tag_names:
+                tags_to_remove = [tag for tag in story.tags if tag.name not in new_tag_names]
+                for tag in tags_to_remove:
+                    if tag in story.tags:
+                        story.tags.remove(tag)
+                
+                tags_to_add_names = new_tag_names - existing_tag_names
+                for tag_name in tags_to_add_names:
                     tag = Tag.query.filter_by(name=tag_name).first()
                     if not tag:
                         slug = Tag.create_slug(tag_name)
@@ -113,9 +130,8 @@ class MetadataRefreshService:
                             tag = Tag(name=tag_name)
                             db.session.add(tag)
                             db.session.flush()
-                    tags_to_add.append(tag)
-                
-                story.tags = tags_to_add
+                    if tag not in story.tags:
+                        story.tags.append(tag)
                 
                 fields_changed.append('tags')
         
