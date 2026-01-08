@@ -605,6 +605,10 @@ window.deleteStory = async function(storyId, storyTitle) {
       
       removeStoryFromDOM(storyId);
       
+      document.dispatchEvent(new CustomEvent('storyDeleted', { 
+        detail: { storyId: storyId } 
+      }));
+      
       checkIfLibraryEmpty();
     } else {
       throw new Error(result.message || 'Failed to delete story');

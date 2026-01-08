@@ -378,7 +378,7 @@ async function loadExcludedStories() {
     container.innerHTML = `
       <div class="space-y-3">
         ${data.stories.map(story => `
-          <div class="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 transition-all duration-200">
+          <div id="exclusion-card-${story.id}" class="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 transition-all duration-200">
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-2">
@@ -445,12 +445,41 @@ async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
   if (typeof openRefreshModal === 'function') {
     openRefreshModal(storyId, storyTitle, storyAuthor, async (fieldsChanged) => {
       if (fieldsChanged) {
-        await loadExcludedStories();
+        removeExclusionCard(storyId);
       }
     });
   } else {
     console.error('openRefreshModal function not found');
     alert('Metadata refresh modal is not available. Please refresh the page and try again.');
+  }
+}
+
+function removeExclusionCard(storyId) {
+  const card = document.getElementById(`exclusion-card-${storyId}`);
+  if (card) {
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      card.remove();
+      
+      const container = document.getElementById('excludedStoriesContainer');
+      const remainingCards = container.querySelectorAll('[id^="exclusion-card-"]');
+      
+      if (remainingCards.length === 0) {
+        const resetBtn = document.getElementById('resetAllExclusionsBtn');
+        if (resetBtn) resetBtn.classList.add('hidden');
+        
+        container.innerHTML = `
+          <div class="text-center py-8">
+            <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-gray-500 dark:text-gray-400 font-medium">No excluded stories</p>
+            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">All stories are eligible for auto-refresh</p>
+          </div>
+        `;
+      }
+    }, 200);
   }
 }
 
@@ -489,6 +518,12 @@ async function resetAllExclusions() {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadExcludedStories();
+  
+  document.addEventListener('storyDeleted', (event) => {
+    if (event.detail && event.detail.storyId) {
+      removeExclusionCard(event.detail.storyId);
+    }
+  });
 });
 </script>
 {% endblock %}

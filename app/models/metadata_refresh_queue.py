@@ -21,7 +21,7 @@ class MetadataRefreshQueueItem(BaseModel, TimestampMixin):
     retry_count = db.Column(db.Integer, default=0)
     max_retries = db.Column(db.Integer, default=3)
     
-    story = db.relationship('Story', backref='metadata_refresh_jobs', foreign_keys=[story_id])
+    story = db.relationship('Story', back_populates='metadata_refresh_jobs', foreign_keys=[story_id])
 
     def __repr__(self):
         return f'<MetadataRefreshQueueItem {self.id} story_id={self.story_id} {self.status}>'

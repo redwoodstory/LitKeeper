@@ -148,6 +148,11 @@ class MetadataRefreshService:
         story.last_metadata_refresh = datetime.utcnow()
         story.metadata_refresh_status = 'success'
         
+        if story.auto_refresh_excluded:
+            story.auto_refresh_excluded = False
+            story.auto_refresh_exclusion_reason = None
+            story.auto_refresh_exclusion_type = None
+        
         confidence = None
         if method == "auto":
             search_results = self.searcher.search_story(story.title, story.author.name)

@@ -183,7 +183,17 @@ async function refreshWithUrl(url, method) {
   
   const storyId = currentStoryId;
   const storyTitle = document.getElementById('metadataUpdateMessage')?.textContent || '';
-  closeRefreshModal();
+  
+  const contentDiv = document.getElementById('refreshModalContent');
+  contentDiv.innerHTML = `
+    <div class="text-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 dark:border-white mx-auto mb-4"></div>
+      <p class="text-slate-900 dark:text-white font-medium mb-2">Linking story...</p>
+      <p class="text-sm text-slate-600 dark:text-slate-400">This may take a moment</p>
+    </div>
+  `;
+  
+  showToast('Processing metadata update...', 'info');
   
   try {
     console.log('Making API call to /api/metadata/refresh/' + storyId);
@@ -198,6 +208,9 @@ async function refreshWithUrl(url, method) {
     const data = await response.json();
 
     if (data.success) {
+      showToast('Story linked successfully!', 'success');
+      closeRefreshModal();
+      
       if (refreshSuccessCallback && typeof refreshSuccessCallback === 'function') {
         try {
           await refreshSuccessCallback(data.fields_changed);
@@ -216,10 +229,12 @@ async function refreshWithUrl(url, method) {
 
       currentStoryId = null;
     } else {
+      closeRefreshModal();
       showToast(`Failed: ${data.message}`, 'error');
     }
   } catch (error) {
     console.error('Error in refreshWithUrl:', error);
+    closeRefreshModal();
     showToast('Error updating metadata', 'error');
   }
 }

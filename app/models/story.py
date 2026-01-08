@@ -37,6 +37,7 @@ class Story(BaseModel, TimestampMixin):
     tags = db.relationship('Tag', secondary='story_tags', back_populates='stories', lazy='subquery')
     formats = db.relationship('StoryFormat', back_populates='story', cascade='all, delete-orphan', lazy='subquery')
     reading_progress = db.relationship('ReadingProgress', back_populates='story', uselist=False, cascade='all, delete-orphan')
+    metadata_refresh_jobs = db.relationship('MetadataRefreshQueueItem', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
 
     def __repr__(self):
         return f'<Story {self.title}>'
