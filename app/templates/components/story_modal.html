@@ -1,0 +1,227 @@
+{% from 'macros.html' import format_badge, category_tag %}
+
+{% macro story_actions_section(story) %}
+{% set has_html = 'html' in story.formats or 'json' in story.formats %}
+{% set has_epub = 'epub' in story.formats %}
+
+<div class="flex flex-col gap-6 mt-6">
+  <div class="flex flex-col gap-3">
+    {% if has_html %}
+    <div class="flex gap-2">
+      <a href="/read/{{ story.html_file }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg border border-slate-900 dark:border-white shadow-sm transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        <span>Read HTML</span>
+      </a>
+      <a href="/download/html/{{ story.html_file }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all duration-200"
+         download>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        <span>Download HTML</span>
+      </a>
+    </div>
+    {% endif %}
+    {% if has_epub %}
+    <div class="flex gap-2">
+      <a href="/epub/reader/{{ story.id }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg border border-slate-900 dark:border-white shadow-sm transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        <span>Read EPUB</span>
+      </a>
+      <a href="/download/epub/{{ story.epub_file }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all duration-200"
+         download>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        <span>Download EPUB</span>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    {% if has_html %}
+    <button onclick="syncStory('{{ story.html_file }}', this)"
+            class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 inline-flex items-center gap-1.5"
+            title="Cache for offline reading">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+      </svg>
+      Sync for Offline
+    </button>
+    {% endif %}
+    {% if has_epub and not has_html %}
+    <button onclick="addHtmlFormat({{ story.id }}, '{{ story.title | replace("'", "\\'") }}', '{{ story.author | replace("'", "\\'") }}', this)"
+            class="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md border border-blue-200/60 dark:border-blue-700 transition-all duration-200 inline-flex items-center gap-1.5"
+            title="Generate HTML format from Literotica">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      Add HTML
+    </button>
+    {% endif %}
+    {% if has_html and not has_epub %}
+    <button onclick="addEpubFormat({{ story.id }}, this)"
+            class="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md border border-blue-200/60 dark:border-blue-700 transition-all duration-200 inline-flex items-center gap-1.5"
+            title="Generate EPUB format from existing data">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      Add EPUB
+    </button>
+    {% endif %}
+    {% if not story.source_url %}
+    <button onclick="openRefreshModal({{ story.id }}, '{{ story.title | replace("'", "\\'") }}', '{{ story.author | replace("'", "\\'") }}')"
+            class="px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md border border-amber-200/60 dark:border-amber-700 transition-all duration-200 inline-flex items-center gap-1.5"
+            title="Add metadata from Literotica">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      Refresh Metadata
+    </button>
+    {% endif %}
+    <button class="edit-metadata-btn px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 inline-flex items-center gap-1.5"
+            data-story-id="{{ story.id }}"
+            data-story-title="{{ story.title }}"
+            data-story-author="{{ story.author.name if story.author else '' }}"
+            data-story-category="{{ story.category.name if story.category else '' }}"
+            data-story-tags='{{ story.tags | tojson }}'
+            title="Edit story metadata">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+      </svg>
+      Edit Metadata
+    </button>
+    {% if story.source_url %}
+    <button onclick="toggleAutoUpdate({{ story.id }}, {{ story.auto_update_enabled|lower }}, this)"
+            class="px-3 py-1.5 text-xs font-medium {% if story.auto_update_enabled %}text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200/60 dark:border-green-700{% else %}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 border-slate-200/60 dark:border-slate-700{% endif %} rounded-md border transition-all duration-200 inline-flex items-center gap-1.5"
+            title="{% if story.auto_update_enabled %}Disable automatic updates{% else %}Enable automatic updates{% endif %}">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      Auto-Update: {% if story.auto_update_enabled %}ON{% else %}OFF{% endif %}
+    </button>
+    {% endif %}
+    <button onclick="confirmDeleteStory({{ story.id }}, '{{ story.title | replace("'", "\\'") }}')"
+            class="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md border border-red-200/60 dark:border-red-700 transition-all duration-200 inline-flex items-center gap-1.5"
+            title="Delete this story">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+      </svg>
+      Delete Story
+    </button>
+  </div>
+</div>
+{% endmacro %}
+
+<div id="storyModal" class="fixed inset-0 z-50 flex items-center md:items-center items-end justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200" 
+     hx-on:click="if(event.target === event.currentTarget) { document.getElementById('storyModal').remove(); document.body.style.overflow = ''; }">
+  <div class="w-full md:w-auto md:max-w-4xl md:mx-4 h-full md:h-auto md:max-h-[90vh] bg-white dark:bg-gray-800 rounded-none md:rounded-xl shadow-2xl overflow-y-auto transform transition-all relative" 
+       onclick="event.stopPropagation()">
+    <button onclick="document.getElementById('storyModal').remove(); document.body.style.overflow = '';"
+            class="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-200"
+            aria-label="Close modal">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+
+    <div class="p-6 md:p-8">
+      <div class="flex flex-col md:flex-row gap-6">
+        {% if story.cover %}
+        <div class="flex-shrink-0 mx-auto md:mx-0">
+          <img src="/api/cover/{{ story.cover }}"
+               alt="{{ story.title }} cover"
+               class="w-48 h-64 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
+               style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
+        </div>
+        {% endif %}
+
+        <div class="flex-1 min-w-0">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 pr-12">{{ story.title }}</h2>
+          {% if story.author %}
+          <p class="text-gray-600 dark:text-gray-400 mb-2">
+            by {% if story.author_url %}<a href="{{ story.author_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 underline decoration-dotted">{{ story.author.name if story.author.name is defined else story.author }}</a>{% else %}{{ story.author.name if story.author.name is defined else story.author }}{% endif %}
+          </p>
+          {% endif %}
+          {% if story.source_url %}
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            <a href="{{ story.source_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+              View on Literotica
+            </a>
+          </p>
+          {% endif %}
+          {% if story.series_url %}
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            <a href="{{ story.series_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              View Full Series on Literotica
+            </a>
+          </p>
+          {% endif %}
+
+          <div class="flex flex-wrap gap-2 mb-4">
+            {% if 'epub' in story.formats %}
+              {{ format_badge('epub') }}
+            {% endif %}
+            {% if 'html' in story.formats or 'json' in story.formats %}
+              {{ format_badge('html') }}
+            {% endif %}
+            {% if story.category %}
+              {{ category_tag(story.category.name if story.category.name is defined else story.category) }}
+            {% endif %}
+            {% if story.is_series %}
+              <span class="inline-flex items-center px-2 py-1 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 rounded">{{ story.chapter_count }} {% if story.chapter_count == 1 %}Part{% else %}Parts{% endif %}</span>
+            {% endif %}
+          </div>
+
+          {% if story.tags and story.tags|length > 0 %}
+          <div class="mb-4">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags:</p>
+            <div class="flex flex-wrap gap-2">
+              {% for tag in story.tags %}
+              <span class="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Added {{ story.created_at.strftime('%b %d, %Y') }}
+            {% if story.page_count %} • {{ story.page_count }} page{% if story.page_count != 1 %}s{% endif %}{% endif %}
+            {% if story.word_count %} • {% if story.word_count < 1000 %}{{ story.word_count }} words{% else %}{{ "%.1f"|format(story.word_count / 1000) }}k words{% endif %}{% endif %}
+            {% if story.size %} • {{ (story.size / 1024 / 1024)|round(2) }} MB{% endif %}
+          </p>
+
+          {{ story_actions_section(story) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.body.style.overflow = 'hidden';
+document.addEventListener('keydown', function handleEscape(e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('storyModal');
+    if (modal) {
+      modal.remove();
+      document.body.style.overflow = '';
+    }
+    document.removeEventListener('keydown', handleEscape);
+  }
+});
+</script>

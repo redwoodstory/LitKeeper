@@ -109,7 +109,10 @@
 {% endmacro %}
 
 {% macro story_card_cover_grid(story) %}
-  <div class="story-card-cover cursor-pointer" data-story='{{ story | tojson }}'>
+  <div class="cursor-pointer" 
+       hx-get="/api/story/{{ story.id }}/modal" 
+       hx-target="body" 
+       hx-swap="beforeend">
     <div class="aspect-[3/4] overflow-hidden rounded-lg border-2 border-white/80 dark:border-white/10 transition-all duration-200"
          style="box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);"
          onmouseenter="this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)'"

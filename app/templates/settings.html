@@ -398,7 +398,7 @@ async function loadExcludedStories() {
               </div>
               <div class="flex items-center">
                 ${story.exclusion_type === 'duplicate' ? `
-                  <button onclick="openStoryModalFromExclusions('${story.filename_base}')" 
+                  <button onclick="openStoryModalById(${story.id})" 
                           class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
                     View Story
                   </button>
@@ -427,6 +427,20 @@ async function loadExcludedStories() {
   }
 }
 
+async function openStoryModalById(storyId) {
+  try {
+    const response = await fetch(`/api/story/${storyId}/modal`);
+    if (response.ok) {
+      const html = await response.text();
+      document.body.insertAdjacentHTML('beforeend', html);
+    } else {
+      console.error('Failed to load story modal');
+    }
+  } catch (error) {
+    console.error('Error loading story modal:', error);
+  }
+}
+
 async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
   if (typeof openRefreshModal === 'function') {
     openRefreshModal(storyId, storyTitle, storyAuthor, async (fieldsChanged) => {
@@ -440,17 +454,6 @@ async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
   }
 }
 
-function openStoryModal(filenameBase) {
-  if (window.showStoryModal) {
-    window.showStoryModal(filenameBase);
-  } else {
-    window.location.href = `/?story=${filenameBase}`;
-  }
-}
-
-function openStoryModalFromExclusions(filenameBase) {
-  window.location.href = `/?story=${filenameBase}`;
-}
 
 async function resetAllExclusions() {
   if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {

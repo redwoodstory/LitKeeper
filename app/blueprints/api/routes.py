@@ -1,5 +1,5 @@
 from __future__ import annotations
-from flask import Blueprint, request, jsonify, send_from_directory, current_app, abort, Flask
+from flask import Blueprint, request, jsonify, send_from_directory, current_app, abort, Flask, render_template
 from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, log_url, log_action, generate_cover_image, extract_cover_from_epub, get_library_data
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
@@ -654,3 +654,32 @@ def cancel_queue_item(queue_id: int) -> ResponseReturnValue:
             "success": False,
             "message": "An error occurred while cancelling queue item"
         }), 500
+
+@api.route("/story/<int:story_id>/modal", methods=['GET'])
+def get_story_modal(story_id: int) -> ResponseReturnValue:
+    from app.models import Story
+    
+    story = Story.query.get_or_404(story_id)
+    
+    story_data = {
+        'id': story.id,
+        'title': story.title,
+        'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
+        'category': {'name': story.category.name} if story.category else None,
+        'tags': [tag.name for tag in story.tags],
+        'cover': story.cover_filename,
+        'formats': [fmt.format_type for fmt in story.formats],
+        'html_file': f"{story.filename_base}.html",
+        'epub_file': f"{story.filename_base}.epub",
+        'source_url': story.literotica_url,
+        'series_url': story.literotica_series_url,
+        'page_count': story.literotica_page_count,
+        'word_count': story.word_count,
+        'chapter_count': story.chapter_count,
+        'size': next((f.file_size for f in story.formats if f.format_type == 'epub'), None),
+        'created_at': story.created_at,
+        'auto_update_enabled': story.auto_update_enabled,
+        'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+    }
+    
+    return render_template('components/story_modal.html', story=story_data)
