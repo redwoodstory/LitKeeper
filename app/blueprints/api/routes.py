@@ -535,7 +535,7 @@ def delete_story(story_id: int) -> ResponseReturnValue:
 @api.route("/story/<int:story_id>/metadata", methods=['PUT'])
 def update_story_metadata(story_id: int) -> ResponseReturnValue:
     try:
-        from app.models import Story, db
+        from app.models import Story, Author, Category, db
         
         story = Story.query.get(story_id)
         
@@ -547,8 +547,8 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         
         data = request.get_json()
         title = data.get('title', '').strip()
-        author = data.get('author', '').strip()
-        category = data.get('category', '').strip()
+        author_name = data.get('author', '').strip()
+        category_name = data.get('category', '').strip()
         tags = data.get('tags', [])
         
         if not title:
@@ -558,8 +558,25 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
             }), 400
         
         story.title = title
-        story.author = author if author else None
-        story.category = category if category else None
+        
+        if author_name:
+            author_obj = Author.query.filter_by(name=author_name).first()
+            if not author_obj:
+                author_obj = Author(name=author_name)
+                db.session.add(author_obj)
+                db.session.flush()
+            story.author = author_obj
+        
+        if category_name:
+            category_obj = Category.query.filter_by(name=category_name).first()
+            if not category_obj:
+                category_obj = Category(name=category_name)
+                db.session.add(category_obj)
+                db.session.flush()
+            story.category = category_obj
+        else:
+            story.category = None
+        
         story.set_tags(tags)
         
         db.session.commit()

@@ -385,15 +385,41 @@ async function initializeReader() {
     console.log('[Foliate] Book opened successfully');
 
     const isMobile = window.innerWidth <= 768;
+    console.log('[Foliate] Is mobile:', isMobile, 'viewport:', window.innerWidth, 'x', window.innerHeight);
+    
     view.renderer.setAttribute('flow', 'paginated');
     view.renderer.setAttribute('animated', '');
     view.renderer.setAttribute('margin', '0');
     view.renderer.setAttribute('gap', '0');
-    if (!isMobile) {
+    
+    if (isMobile) {
+      view.renderer.setAttribute('max-inline-size', '100%');
+      view.renderer.setAttribute('max-block-size', '100%');
+      console.log('[Foliate] Mobile renderer configured with 100% dimensions');
+    } else {
       view.renderer.setAttribute('max-inline-size', savedWidth);
     }
 
+    console.log('[Foliate] Renderer attributes set, updating styles...');
     updateReaderStyles();
+    console.log('[Foliate] Styles updated');
+    
+    setTimeout(() => {
+      console.log('[Foliate] Checking view dimensions:', {
+        viewWidth: view.offsetWidth,
+        viewHeight: view.offsetHeight,
+        viewerWidth: viewerContainer.offsetWidth,
+        viewerHeight: viewerContainer.offsetHeight,
+        rendererExists: !!view.renderer
+      });
+      
+      if (view.offsetHeight === 0 || view.offsetWidth === 0) {
+        console.error('[Foliate] View has zero dimensions! Forcing reflow...');
+        view.style.display = 'none';
+        void view.offsetHeight;
+        view.style.display = 'block';
+      }
+    }, 100);
 
     view.addEventListener('load', (e) => {
       console.log('[Foliate] Content loaded, setting up tap zones');
