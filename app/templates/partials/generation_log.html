@@ -1,0 +1,5 @@
+{% if log_data.success and log_data.log_exists %}
+{{ log_data.entries|join('\n') }}
+{% else %}
+No log entries yet.
+{% endif %}

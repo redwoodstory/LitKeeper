@@ -24,9 +24,13 @@ def background_process_wrapper(app: Flask, url: str, formats: list[str]) -> None
 def queue_download() -> ResponseReturnValue:
     """Queue a story for background download"""
     try:
-        data = request.get_json()
-        url = data.get('url', '')
-        formats = data.get('format', ['epub', 'html'])
+        if request.is_json:
+            data = request.get_json()
+            url = data.get('url', '')
+            formats = data.get('format', ['epub', 'html'])
+        else:
+            url = request.form.get('url', '')
+            formats = request.form.getlist('format') or ['epub', 'html']
 
         validated = StoryDownloadRequest(url=url, format=formats)
 
@@ -34,6 +38,11 @@ def queue_download() -> ResponseReturnValue:
         error_details = e.errors()[0]
         error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
         log_error(f"Validation error: {error_msg}\nData: {request.get_data(as_text=True)}")
+        
+        if request.headers.get('HX-Request'):
+            return render_template('partials/queue_status.html', 
+                                 queue_item={'status': 'failed', 'error_message': error_msg})
+        
         return jsonify({
             "success": False,
             "message": error_msg
@@ -50,6 +59,8 @@ def queue_download() -> ResponseReturnValue:
         ).first()
 
         if existing:
+            if request.headers.get('HX-Request'):
+                return render_template('partials/queue_status.html', queue_item=existing.to_dict())
             return jsonify({
                 "success": True,
                 "message": "Story is already in the download queue",
@@ -62,6 +73,8 @@ def queue_download() -> ResponseReturnValue:
         ).first()
 
         if existing_processing:
+            if request.headers.get('HX-Request'):
+                return render_template('partials/queue_status.html', queue_item=existing_processing.to_dict())
             return jsonify({
                 "success": True,
                 "message": "Story is currently being downloaded",
@@ -78,6 +91,9 @@ def queue_download() -> ResponseReturnValue:
 
         log_action(f"Added story to download queue: {validated.url} (ID: {queue_item.id})")
 
+        if request.headers.get('HX-Request'):
+            return render_template('partials/queue_status.html', queue_item=queue_item.to_dict())
+        
         return jsonify({
             "success": True,
             "message": "Story added to download queue",
@@ -88,6 +104,11 @@ def queue_download() -> ResponseReturnValue:
         db.session.rollback()
         error_msg = f"Error adding to queue: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
+        
+        if request.headers.get('HX-Request'):
+            return render_template('partials/queue_status.html', 
+                                 queue_item={'status': 'failed', 'error_message': 'An error occurred while adding story to queue'})
+        
         return jsonify({
             "success": False,
             "message": "An error occurred while adding story to queue"
@@ -370,19 +391,35 @@ def get_missing_metadata() -> ResponseReturnValue:
 def generate_epub_format(story_id: int) -> ResponseReturnValue:
     try:
         from app.services.format_generator import FormatGeneratorService
-        from app.models import Story
+        from app.models import Story, db
 
         service = FormatGeneratorService()
         result = service.generate_epub_from_json(story_id)
 
         if result.get('success') and request.headers.get('HX-Request'):
-            story = Story.query.get(story_id)
+            story = db.session.get(Story, story_id)
             if story:
-                return jsonify({
-                    "success": True,
-                    "message": result.get('message'),
-                    "story": story.to_library_dict()
-                })
+                story_data = {
+                    'id': story.id,
+                    'title': story.title,
+                    'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
+                    'category': {'name': story.category.name} if story.category else None,
+                    'tags': [tag.name for tag in story.tags],
+                    'cover': story.cover_filename,
+                    'formats': [fmt.format_type for fmt in story.formats],
+                    'html_file': f"{story.filename_base}.html",
+                    'epub_file': f"{story.filename_base}.epub",
+                    'source_url': story.literotica_url,
+                    'series_url': story.literotica_series_url,
+                    'page_count': story.literotica_page_count,
+                    'word_count': story.word_count,
+                    'chapter_count': story.chapter_count,
+                    'size': next((f.file_size for f in story.formats if f.format_type == 'epub'), None),
+                    'created_at': story.created_at,
+                    'auto_update_enabled': story.auto_update_enabled,
+                    'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+                }
+                return render_template('components/story_modal.html', story=story_data)
 
         return jsonify(result)
     except Exception as e:
@@ -397,19 +434,35 @@ def generate_epub_format(story_id: int) -> ResponseReturnValue:
 def generate_html_format(story_id: int) -> ResponseReturnValue:
     try:
         from app.services.format_generator import FormatGeneratorService
-        from app.models import Story
+        from app.models import Story, db
 
         service = FormatGeneratorService()
         result = service.generate_html_from_url(story_id)
 
         if result.get('success') and request.headers.get('HX-Request'):
-            story = Story.query.get(story_id)
+            story = db.session.get(Story, story_id)
             if story:
-                return jsonify({
-                    "success": True,
-                    "message": result.get('message'),
-                    "story": story.to_library_dict()
-                })
+                story_data = {
+                    'id': story.id,
+                    'title': story.title,
+                    'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
+                    'category': {'name': story.category.name} if story.category else None,
+                    'tags': [tag.name for tag in story.tags],
+                    'cover': story.cover_filename,
+                    'formats': [fmt.format_type for fmt in story.formats],
+                    'html_file': f"{story.filename_base}.html",
+                    'epub_file': f"{story.filename_base}.epub",
+                    'source_url': story.literotica_url,
+                    'series_url': story.literotica_series_url,
+                    'page_count': story.literotica_page_count,
+                    'word_count': story.word_count,
+                    'chapter_count': story.chapter_count,
+                    'size': next((f.file_size for f in story.formats if f.format_type == 'epub'), None),
+                    'created_at': story.created_at,
+                    'auto_update_enabled': story.auto_update_enabled,
+                    'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+                }
+                return render_template('components/story_modal.html', story=story_data)
 
         return jsonify(result)
     except Exception as e:
@@ -654,6 +707,35 @@ def cancel_queue_item(queue_id: int) -> ResponseReturnValue:
             "success": False,
             "message": "An error occurred while cancelling queue item"
         }), 500
+
+@api.route("/queue/status-card/<int:queue_id>", methods=['GET'])
+def get_queue_status_card(queue_id: int) -> ResponseReturnValue:
+    """Get HTML status card for a queue item (for HTMX polling)"""
+    try:
+        from app.models import DownloadQueueItem
+        from app.blueprints.library.routes import get_library_data
+
+        item = DownloadQueueItem.query.get(queue_id)
+
+        if not item:
+            return render_template('partials/queue_status.html', 
+                                 queue_item={'status': 'failed', 'error_message': 'Queue item not found'})
+
+        library_content = None
+        if item.status == 'completed':
+            stories = get_library_data()
+            library_html = render_template('_library_content.html', stories=stories)
+            library_content = f'<div id="library-content" hx-swap-oob="true">{library_html}</div>'
+
+        return render_template('partials/queue_status.html', 
+                             queue_item=item.to_dict(), 
+                             library_content=library_content)
+
+    except Exception as e:
+        error_msg = f"Error fetching queue status card: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return render_template('partials/queue_status.html', 
+                             queue_item={'status': 'failed', 'error_message': 'Error loading status'})
 
 @api.route("/story/<int:story_id>/modal", methods=['GET'])
 def get_story_modal(story_id: int) -> ResponseReturnValue:

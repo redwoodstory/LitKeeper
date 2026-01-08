@@ -51,10 +51,14 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Create EPUB files for stories that only have HTML format.
           </p>
-          <button onclick="generateMissingEpubs()" 
+          <button hx-post="/settings/generate-missing-epubs"
+                  hx-target="#generationStatus"
+                  hx-swap="innerHTML"
+                  hx-indicator="#btnGenerateEpubs"
                   id="btnGenerateEpubs"
                   class="btn-primary w-full">
-            Generate EPUBs
+            <span class="htmx-indicator">Generating...</span>
+            <span class="htmx-not-indicator">Generate EPUBs</span>
           </button>
         </div>
 
@@ -63,10 +67,14 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Create HTML files for stories that only have EPUB format (auto-match only).
           </p>
-          <button onclick="generateMissingHtml()" 
+          <button hx-post="/settings/generate-missing-html"
+                  hx-target="#generationStatus"
+                  hx-swap="innerHTML"
+                  hx-indicator="#btnGenerateHtml"
                   id="btnGenerateHtml"
                   class="btn-primary w-full">
-            Generate HTML
+            <span class="htmx-indicator">Generating...</span>
+            <span class="htmx-not-indicator">Generate HTML</span>
           </button>
         </div>
 
@@ -75,27 +83,19 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Generate all missing formats for all stories in your library.
           </p>
-          <button onclick="generateAllMissing()" 
+          <button hx-post="/settings/generate-all-missing-formats"
+                  hx-target="#generationStatus"
+                  hx-swap="innerHTML"
+                  hx-indicator="#btnGenerateAll"
                   id="btnGenerateAll"
                   class="btn-primary w-full">
-            Generate All
+            <span class="htmx-indicator">Generating...</span>
+            <span class="htmx-not-indicator">Generate All</span>
           </button>
         </div>
       </div>
 
-      <div id="generationStatus" class="hidden mt-4 p-4 rounded-lg"></div>
-      
-      <div id="generationLog" class="hidden mt-4">
-        <div class="flex items-center justify-between mb-2">
-          <h4 class="font-medium text-gray-900 dark:text-white">Generation Log</h4>
-          <button onclick="refreshLog()" class="text-sm text-primary hover:text-primary/80 transition-colors">
-            Refresh
-          </button>
-        </div>
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 max-h-96 overflow-y-auto">
-          <pre id="logContent" class="text-xs text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap"></pre>
-        </div>
-      </div>
+      <div id="generationStatus"></div>
     </section>
 
     <hr class="border-gray-200 dark:border-gray-700">
@@ -139,7 +139,10 @@
         Stories excluded from automatic metadata refresh due to conflicts or errors. These stories will not be checked during automation cycles.
       </p>
       
-      <div id="excludedStoriesContainer">
+      <div id="excludedStoriesContainer"
+           hx-get="/settings/get-excluded-stories-html"
+           hx-trigger="load"
+           hx-swap="innerHTML">
         <div class="flex items-center justify-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -173,179 +176,6 @@
 </div>
 
 <script>
-async function generateMissingEpubs() {
-  const btn = document.getElementById('btnGenerateEpubs');
-  const status = document.getElementById('generationStatus');
-  const log = document.getElementById('generationLog');
-  
-  btn.disabled = true;
-  btn.textContent = 'Generating...';
-  status.className = 'mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
-  status.innerHTML = '<p class="text-sm text-blue-800 dark:text-blue-300">Generating missing EPUBs... This may take a while.</p>';
-  status.classList.remove('hidden');
-  
-  try {
-    const response = await fetch('/settings/generate-missing-epubs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await response.json();
-    
-    if (data.success) {
-      status.className = 'mt-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
-      status.innerHTML = `
-        <p class="text-sm text-green-800 dark:text-green-300 font-medium mb-2">EPUB Generation Complete</p>
-        <p class="text-sm text-green-700 dark:text-green-400">
-          ✓ ${data.successful} successful, ✗ ${data.failed} failed out of ${data.total} total
-        </p>
-        ${data.errors.length > 0 ? `
-          <details class="mt-2">
-            <summary class="cursor-pointer text-sm text-green-800 dark:text-green-300">View errors</summary>
-            <ul class="mt-2 text-xs text-green-700 dark:text-green-400 space-y-1">
-              ${data.errors.map(e => `<li>• ${e.title}: ${e.error}</li>`).join('')}
-            </ul>
-          </details>
-        ` : ''}
-      `;
-      log.classList.remove('hidden');
-      refreshLog();
-    } else {
-      throw new Error(data.message || 'Generation failed');
-    }
-  } catch (error) {
-    status.className = 'mt-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
-    status.innerHTML = `<p class="text-sm text-red-800 dark:text-red-300">Error: ${error.message}</p>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Generate EPUBs';
-  }
-}
-
-async function generateMissingHtml() {
-  const btn = document.getElementById('btnGenerateHtml');
-  const status = document.getElementById('generationStatus');
-  const log = document.getElementById('generationLog');
-  
-  btn.disabled = true;
-  btn.textContent = 'Generating...';
-  status.className = 'mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
-  status.innerHTML = '<p class="text-sm text-blue-800 dark:text-blue-300">Generating missing HTML... This may take a while.</p>';
-  status.classList.remove('hidden');
-  
-  try {
-    const response = await fetch('/settings/generate-missing-html', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await response.json();
-    
-    if (data.success) {
-      status.className = 'mt-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
-      status.innerHTML = `
-        <p class="text-sm text-green-800 dark:text-green-300 font-medium mb-2">HTML Generation Complete</p>
-        <p class="text-sm text-green-700 dark:text-green-400">
-          ✓ ${data.successful} successful, ✗ ${data.failed} failed, ⊘ ${data.skipped} skipped (no match) out of ${data.total} total
-        </p>
-        ${data.no_match_stories.length > 0 ? `
-          <details class="mt-2">
-            <summary class="cursor-pointer text-sm text-green-800 dark:text-green-300">Stories without 100% match (${data.no_match_stories.length})</summary>
-            <ul class="mt-2 text-xs text-green-700 dark:text-green-400 space-y-1">
-              ${data.no_match_stories.map(s => `<li>• ${s.title} by ${s.author}</li>`).join('')}
-            </ul>
-          </details>
-        ` : ''}
-        ${data.errors.length > 0 ? `
-          <details class="mt-2">
-            <summary class="cursor-pointer text-sm text-green-800 dark:text-green-300">View errors</summary>
-            <ul class="mt-2 text-xs text-green-700 dark:text-green-400 space-y-1">
-              ${data.errors.map(e => `<li>• ${e.title}: ${e.error}</li>`).join('')}
-            </ul>
-          </details>
-        ` : ''}
-      `;
-      log.classList.remove('hidden');
-      refreshLog();
-    } else {
-      throw new Error(data.message || 'Generation failed');
-    }
-  } catch (error) {
-    status.className = 'mt-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
-    status.innerHTML = `<p class="text-sm text-red-800 dark:text-red-300">Error: ${error.message}</p>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Generate HTML';
-  }
-}
-
-async function generateAllMissing() {
-  const btn = document.getElementById('btnGenerateAll');
-  const status = document.getElementById('generationStatus');
-  const log = document.getElementById('generationLog');
-  
-  btn.disabled = true;
-  btn.textContent = 'Generating...';
-  status.className = 'mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
-  status.innerHTML = '<p class="text-sm text-blue-800 dark:text-blue-300">Generating all missing formats... This may take a while.</p>';
-  status.classList.remove('hidden');
-  
-  try {
-    const response = await fetch('/settings/generate-all-missing-formats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await response.json();
-    
-    if (data.success) {
-      status.className = 'mt-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
-      status.innerHTML = `
-        <p class="text-sm text-green-800 dark:text-green-300 font-medium mb-2">All Formats Generation Complete</p>
-        <p class="text-sm text-green-700 dark:text-green-400 mb-3">
-          ✓ ${data.total_successful} successful, ✗ ${data.total_failed} failed, ⊘ ${data.total_skipped} skipped
-        </p>
-        <div class="space-y-2 text-xs text-green-700 dark:text-green-400">
-          <p><strong>EPUBs:</strong> ${data.epub_result.successful} of ${data.epub_result.total} generated</p>
-          <p><strong>HTML:</strong> ${data.html_result.successful} of ${data.html_result.total} generated (${data.html_result.skipped} skipped - no match)</p>
-        </div>
-        ${data.html_result.no_match_stories.length > 0 ? `
-          <details class="mt-2">
-            <summary class="cursor-pointer text-sm text-green-800 dark:text-green-300">Stories without 100% match (${data.html_result.no_match_stories.length})</summary>
-            <ul class="mt-2 text-xs text-green-700 dark:text-green-400 space-y-1">
-              ${data.html_result.no_match_stories.map(s => `<li>• ${s.title} by ${s.author}</li>`).join('')}
-            </ul>
-          </details>
-        ` : ''}
-      `;
-      log.classList.remove('hidden');
-      refreshLog();
-    } else {
-      throw new Error(data.message || 'Generation failed');
-    }
-  } catch (error) {
-    status.className = 'mt-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
-    status.innerHTML = `<p class="text-sm text-red-800 dark:text-red-300">Error: ${error.message}</p>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Generate All';
-  }
-}
-
-async function refreshLog() {
-  const logContent = document.getElementById('logContent');
-  
-  try {
-    const response = await fetch('/settings/get-generation-log');
-    const data = await response.json();
-    
-    if (data.success && data.log_exists) {
-      logContent.textContent = data.entries.join('\n');
-    } else {
-      logContent.textContent = 'No log entries yet.';
-    }
-  } catch (error) {
-    logContent.textContent = `Error loading log: ${error.message}`;
-  }
-}
-
 async function loadExcludedStories() {
   const container = document.getElementById('excludedStoriesContainer');
   

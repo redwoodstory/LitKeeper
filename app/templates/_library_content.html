@@ -1,5 +1,6 @@
 {% from 'macros.html' import story_card_cover_grid %}
 
+<div id="library-content">
 {% if stories|length == 0 %}
   <div class="text-center text-gray-500 dark:text-gray-400 py-12">
     <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -15,3 +16,4 @@
     {% endfor %}
   </div>
 {% endif %}
+</div>

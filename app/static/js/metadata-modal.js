@@ -3,6 +3,7 @@ class MetadataModal {
         this.modal = null;
         this.metadata = null;
         this.onSaveCallback = null;
+        this.boundHandleEscape = this.handleEscape.bind(this);
     }
 
     show(metadata, onSave) {
@@ -18,6 +19,7 @@ class MetadataModal {
             this.modal.remove();
             this.modal = null;
         }
+        document.removeEventListener('keydown', this.boundHandleEscape);
         document.body.style.overflow = '';
     }
 
@@ -151,7 +153,7 @@ class MetadataModal {
         closeBtn?.addEventListener('click', () => this.hide());
         cancelBtn?.addEventListener('click', () => this.hide());
 
-        document.addEventListener('keydown', this.handleEscape.bind(this));
+        document.addEventListener('keydown', this.boundHandleEscape);
 
         form?.addEventListener('submit', async (e) => {
             e.preventDefault();

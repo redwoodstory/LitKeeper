@@ -21,12 +21,16 @@
           <strong>{{ sync_status.orphaned_files_count }}</strong> {{ 'story' if sync_status.orphaned_files_count == 1 else 'stories' }} to add, <strong>{{ sync_status.orphaned_db_count }}</strong> to remove.
         {% endif %}
       </p>
-      <button id="btnFixSync" onclick="fixLibrarySync()"
-         class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+      <button hx-post="/admin/sync/full"
+              hx-target="#syncBanner"
+              hx-swap="outerHTML"
+              id="btnFixSync"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        <span id="btnFixSyncText">Fix Now</span>
+        <span class="htmx-not-indicator">Fix Now</span>
+        <span class="htmx-indicator">Syncing...</span>
       </button>
     </div>
     <button onclick="dismissSyncBanner()" class="text-amber-600 dark:text-amber-500 hover:text-amber-800 dark:hover:text-amber-300 transition-colors">
@@ -38,44 +42,6 @@
 </div>
 
 <script>
-async function fixLibrarySync() {
-  const btn = document.getElementById('btnFixSync');
-  const btnText = document.getElementById('btnFixSyncText');
-  const message = document.getElementById('syncMessage');
-  const banner = document.getElementById('syncBanner');
-
-  btn.disabled = true;
-  btnText.textContent = 'Syncing...';
-
-  try {
-    const response = await fetch('/admin/sync/full', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await response.json();
-
-    if (data.success) {
-      banner.className = 'mb-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-600 rounded-lg p-6';
-      banner.querySelector('svg').className = 'w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5';
-      banner.querySelector('h3').className = 'font-semibold text-green-900 dark:text-green-200 mb-2';
-      banner.querySelector('h3').textContent = 'Library synced successfully!';
-      message.className = 'text-sm text-green-800 dark:text-green-300 mb-4';
-      message.innerHTML = data.message;
-      btn.style.display = 'none';
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    } else {
-      throw new Error(data.error || 'Sync failed');
-    }
-  } catch (error) {
-    message.innerHTML = `<strong class="text-red-600 dark:text-red-400">Error:</strong> ${error.message}`;
-    btnText.textContent = 'Retry';
-    btn.disabled = false;
-  }
-}
-
 function dismissSyncBanner() {
   sessionStorage.setItem('syncBannerDismissed', 'true');
   const banner = document.getElementById('syncBanner');
@@ -92,7 +58,11 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
 {% endif %}
 
 <div class="card mb-8">
-  <form id="downloadForm" class="grid md:grid-cols-[1fr_auto] gap-6 items-start">
+  <form id="downloadForm" 
+        hx-post="/api/queue"
+        hx-target="#result"
+        hx-swap="innerHTML"
+        class="grid md:grid-cols-[1fr_auto] gap-6 items-start">
     <div class="space-y-4">
       <div>
         <label for="url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -127,25 +97,18 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
             <span class="ml-2 text-gray-700 dark:text-gray-300">HTML (Read Online)</span>
           </label>
         </div>
-        <p id="formatError" class="hidden text-sm text-red-600 dark:text-red-400 mt-1">
-          Please select at least one format
-        </p>
       </div>
     </div>
 
     <div class="flex md:pt-7">
       <button type="submit" class="btn-primary w-full md:w-auto md:px-8 whitespace-nowrap">
-        Download Story
+        <span class="htmx-indicator">Submitting...</span>
+        <span class="htmx-not-indicator">Download Story</span>
       </button>
     </div>
   </form>
 
-  <div id="loading" class="hidden mt-4 text-center">
-    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-primary"></div>
-    <p class="mt-2 text-gray-600 dark:text-gray-400">Processing your request...</p>
-  </div>
-
-  <div id="result" class="hidden mt-4 p-4 rounded-lg"></div>
+  <div id="result"></div>
 </div>
 
 {% if enable_library %}
@@ -174,7 +137,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
                placeholder="Search stories..."
                hx-get="/library/filter"
                hx-trigger="keyup changed delay:300ms"
-               hx-target="#library"
+               hx-target="#library-content"
                hx-include="[name='category'], [name='sort_by'], [name='sort_order']"
                class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
@@ -192,7 +155,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
                   name="category"
                   hx-get="/library/filter"
                   hx-trigger="change"
-                  hx-target="#library"
+                  hx-target="#library-content"
                   hx-include="[name='search'], [name='sort_by'], [name='sort_order']"
                   class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
                          bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
@@ -212,7 +175,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
                   name="sort_by"
                   hx-get="/library/filter"
                   hx-trigger="change"
-                  hx-target="#library"
+                  hx-target="#library-content"
                   hx-include="[name='search'], [name='category'], [name='sort_order']"
                   class="h-10 px-4 rounded-lg border border-slate-200 dark:border-gray-700
                          bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
@@ -225,12 +188,13 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
             <option value="length">Story Length</option>
           </select>
 
-          <button id="sortOrderToggle"
+          <button type="button"
+                  id="sortOrderToggle"
                   name="sort_order"
                   value="desc"
                   hx-get="/library/filter"
                   hx-trigger="click"
-                  hx-target="#library"
+                  hx-target="#library-content"
                   hx-include="[name='search'], [name='category'], [name='sort_by']"
                   class="h-10 w-10 rounded-lg border border-slate-200 dark:border-gray-700
                          bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
@@ -246,23 +210,25 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
     </div>
   </div>
 
-  {% if stories|length == 0 %}
-  <div class="text-center text-gray-500 dark:text-gray-400 py-12">
-    <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-    </svg>
-    <p class="text-lg font-medium">No stories in your library</p>
-    <p class="text-sm mt-1">Download a story to get started</p>
-  </div>
-  {% else %}
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
-    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
-      {% for story in stories %}
-        {{ story_card_cover_grid(story) }}
-      {% endfor %}
+    <div id="library-content">
+    {% if stories|length == 0 %}
+      <div class="text-center text-gray-500 dark:text-gray-400 py-12">
+        <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        <p class="text-lg font-medium">No stories in your library</p>
+        <p class="text-sm mt-1">Download a story to get started</p>
+      </div>
+    {% else %}
+      <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
+        {% for story in stories %}
+          {{ story_card_cover_grid(story) }}
+        {% endfor %}
+      </div>
+    {% endif %}
     </div>
   </div>
-  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

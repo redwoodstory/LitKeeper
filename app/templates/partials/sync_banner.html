@@ -1,0 +1,58 @@
+{% if success %}
+<div id="syncBanner" class="mb-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-600 rounded-lg p-6">
+  <div class="flex items-start gap-4">
+    <svg class="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div class="flex-1">
+      <h3 class="font-semibold text-green-900 dark:text-green-200 mb-2">
+        Library synced successfully!
+      </h3>
+      <p class="text-sm text-green-800 dark:text-green-300 mb-4">
+        {{ message }}
+      </p>
+    </div>
+    <button onclick="dismissSyncBanner()" class="text-green-600 dark:text-green-500 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div hx-get="/library/filter" 
+     hx-trigger="load delay:2s" 
+     hx-target="#library" 
+     hx-swap="outerHTML"
+     hx-swap-oob="true"></div>
+{% else %}
+<div id="syncBanner" class="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 dark:border-red-600 rounded-lg p-6">
+  <div class="flex items-start gap-4">
+    <svg class="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div class="flex-1">
+      <h3 class="font-semibold text-red-900 dark:text-red-200 mb-2">
+        Sync failed
+      </h3>
+      <p class="text-sm text-red-800 dark:text-red-300 mb-4">
+        <strong>Error:</strong> {{ error }}
+      </p>
+      <button hx-post="/admin/sync/full"
+              hx-target="#syncBanner"
+              hx-swap="outerHTML"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Retry</span>
+      </button>
+    </div>
+    <button onclick="dismissSyncBanner()" class="text-red-600 dark:text-red-500 hover:text-red-800 dark:hover:text-red-300 transition-colors">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+</div>
+{% endif %}

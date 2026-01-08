@@ -259,13 +259,21 @@ def full_sync():
         sync_checker = SyncChecker()
         result = sync_checker.full_sync()
         
+        message = f"Cleaned {result['records_cleaned']} orphaned records, added {result['files_added']} files"
+        
+        if request.headers.get('HX-Request'):
+            return render_template('partials/sync_banner.html', success=True, message=message)
+        
         return jsonify({
             'success': True,
-            'message': f"Cleaned {result['records_cleaned']} orphaned records, added {result['files_added']} files",
+            'message': message,
             'records_cleaned': result['records_cleaned'],
             'files_added': result['files_added']
         })
     except Exception as e:
+        if request.headers.get('HX-Request'):
+            return render_template('partials/sync_banner.html', success=False, error=str(e))
+        
         return jsonify({
             'success': False,
             'error': str(e)

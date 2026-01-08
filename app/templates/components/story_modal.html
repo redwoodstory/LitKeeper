@@ -9,6 +9,7 @@
     {% if has_html %}
     <div class="flex gap-2">
       <a href="/read/{{ story.html_file }}"
+         hx-boost="false"
          class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg border border-slate-900 dark:border-white shadow-sm transition-all duration-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
@@ -28,6 +29,7 @@
     {% if has_epub %}
     <div class="flex gap-2">
       <a href="/epub/reader/{{ story.id }}"
+         hx-boost="false"
          class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg border border-slate-900 dark:border-white shadow-sm transition-all duration-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
@@ -58,23 +60,35 @@
     </button>
     {% endif %}
     {% if has_epub and not has_html %}
-    <button onclick="addHtmlFormat({{ story.id }}, '{{ story.title | replace("'", "\\'") }}', '{{ story.author | replace("'", "\\'") }}', this)"
+    <button hx-post="/api/format/generate-html/{{ story.id }}"
+            hx-target="#storyModal"
+            hx-swap="outerHTML"
             class="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md border border-blue-200/60 dark:border-blue-700 transition-all duration-200 inline-flex items-center gap-1.5"
             title="Generate HTML format from Literotica">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-3.5 h-3.5 htmx-not-indicator" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
       </svg>
-      Add HTML
+      <svg class="w-3.5 h-3.5 htmx-indicator animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      <span class="htmx-not-indicator">Add HTML</span>
+      <span class="htmx-indicator">Generating...</span>
     </button>
     {% endif %}
     {% if has_html and not has_epub %}
-    <button onclick="addEpubFormat({{ story.id }}, this)"
+    <button hx-post="/api/format/generate-epub/{{ story.id }}"
+            hx-target="#storyModal"
+            hx-swap="outerHTML"
             class="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md border border-blue-200/60 dark:border-blue-700 transition-all duration-200 inline-flex items-center gap-1.5"
             title="Generate EPUB format from existing data">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-3.5 h-3.5 htmx-not-indicator" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
       </svg>
-      Add EPUB
+      <svg class="w-3.5 h-3.5 htmx-indicator animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      <span class="htmx-not-indicator">Add EPUB</span>
+      <span class="htmx-indicator">Generating...</span>
     </button>
     {% endif %}
     {% if not story.source_url %}

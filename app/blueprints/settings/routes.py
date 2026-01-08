@@ -18,14 +18,13 @@ def generate_missing_epubs() -> ResponseReturnValue:
     try:
         service = BulkFormatGeneratorService()
         result = service.generate_missing_epubs()
-        return jsonify(result)
+        return render_template('partials/generation_status.html', result=result, generation_type='epub')
     except Exception as e:
         error_msg = f"Error generating missing EPUBs: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while generating EPUBs"
-        }), 500
+        return render_template('partials/generation_status.html', 
+                             result={"success": False, "message": "An error occurred while generating EPUBs"}, 
+                             generation_type='epub'), 500
 
 
 @settings.route('/generate-missing-html', methods=['POST'])
@@ -33,14 +32,13 @@ def generate_missing_html() -> ResponseReturnValue:
     try:
         service = BulkFormatGeneratorService()
         result = service.generate_missing_html()
-        return jsonify(result)
+        return render_template('partials/generation_status.html', result=result, generation_type='html')
     except Exception as e:
         error_msg = f"Error generating missing HTML: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while generating HTML"
-        }), 500
+        return render_template('partials/generation_status.html', 
+                             result={"success": False, "message": "An error occurred while generating HTML"}, 
+                             generation_type='html'), 500
 
 
 @settings.route('/generate-all-missing-formats', methods=['POST'])
@@ -48,14 +46,13 @@ def generate_all_missing_formats() -> ResponseReturnValue:
     try:
         service = BulkFormatGeneratorService()
         result = service.generate_all_missing_formats()
-        return jsonify(result)
+        return render_template('partials/generation_status.html', result=result, generation_type='all')
     except Exception as e:
         error_msg = f"Error generating all missing formats: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while generating formats"
-        }), 500
+        return render_template('partials/generation_status.html', 
+                             result={"success": False, "message": "An error occurred while generating formats"}, 
+                             generation_type='all'), 500
 
 
 @settings.route('/get-generation-log')
@@ -63,14 +60,11 @@ def get_generation_log() -> ResponseReturnValue:
     try:
         service = BulkFormatGeneratorService()
         log_data = service.get_generation_log()
-        return jsonify(log_data)
+        return render_template('partials/generation_log.html', log_data=log_data)
     except Exception as e:
         error_msg = f"Error fetching generation log: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while fetching log"
-        }), 500
+        return "Error loading log", 500
 
 
 @settings.route('/get-excluded-stories')
@@ -101,6 +95,32 @@ def get_excluded_stories() -> ResponseReturnValue:
             "success": False,
             "message": "An error occurred while fetching excluded stories"
         }), 500
+
+
+@settings.route('/get-excluded-stories-html')
+def get_excluded_stories_html() -> ResponseReturnValue:
+    try:
+        excluded_stories = Story.query.filter(
+            Story.auto_refresh_excluded == True
+        ).all()
+        
+        stories_data = [
+            {
+                "id": story.id,
+                "title": story.title,
+                "author": story.author.name if story.author else "Unknown",
+                "exclusion_reason": story.auto_refresh_exclusion_reason,
+                "exclusion_type": story.auto_refresh_exclusion_type,
+                "filename_base": story.filename_base
+            }
+            for story in excluded_stories
+        ]
+        
+        return render_template('partials/excluded_stories.html', stories=stories_data)
+    except Exception as e:
+        error_msg = f"Error fetching excluded stories: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return '<div class="text-center py-8 text-red-600 dark:text-red-400">Error loading excluded stories</div>', 500
 
 
 @settings.route('/remove-exclusion/<int:story_id>', methods=['POST'])
