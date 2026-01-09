@@ -12,18 +12,6 @@
     </svg>
   </a>
 </div>
-<div class="fixed top-4 right-4 z-50 flex gap-2">
-  <button id="themeToggle"
-          class="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:scale-110 transition-transform"
-          aria-label="Toggle theme">
-    <svg class="w-6 h-6 hidden dark:block text-gray-800 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-    </svg>
-    <svg class="w-6 h-6 block dark:hidden text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-    </svg>
-  </button>
-</div>
 {% endblock %}
 
 {% block main_content %}
@@ -34,6 +22,47 @@
   </div>
 
   <div class="space-y-8">
+    <section>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        Theme
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Choose your preferred color theme. Readers can temporarily override this setting.
+      </p>
+
+      <div class="inline-flex rounded-lg border border-slate-200 dark:border-gray-700 p-1 bg-slate-50 dark:bg-gray-900">
+        <button type="button"
+                data-theme-option="light"
+                class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'light' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
+          <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+          <span class="pointer-events-none">Light</span>
+        </button>
+        <button type="button"
+                data-theme-option="dark"
+                class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'dark' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
+          <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+          <span class="pointer-events-none">Dark</span>
+        </button>
+        <button type="button"
+                data-theme-option="system"
+                class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'system' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
+          <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
+          <span class="pointer-events-none">System</span>
+        </button>
+      </div>
+    </section>
+
+    <hr class="border-gray-200 dark:border-gray-700">
+
     <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -346,14 +375,71 @@ async function resetAllExclusions() {
   }
 }
 
+function initializeThemeButtons() {
+  const themeButtons = document.querySelectorAll('.theme-option');
+  themeButtons.forEach(button => {
+    const existingHandler = button._themeClickHandler;
+    if (existingHandler) {
+      button.removeEventListener('click', existingHandler);
+    }
+
+    const handler = async () => {
+      const theme = button.getAttribute('data-theme-option');
+
+      try {
+        const response = await fetch('/settings/theme-preference', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ theme })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          themeButtons.forEach(btn => {
+            btn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+            btn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-white');
+          });
+
+          button.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-white');
+          button.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+
+          if (typeof window.applyThemePreference === 'function') {
+            window.applyThemePreference(theme);
+          } else {
+            const html = document.documentElement;
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            const actualTheme = theme === 'system' ? systemTheme : theme;
+            html.setAttribute('data-theme', actualTheme);
+          }
+        }
+      } catch (error) {
+        console.error('Error saving theme preference:', error);
+      }
+    };
+
+    button._themeClickHandler = handler;
+    button.addEventListener('click', handler);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadExcludedStories();
-  
+  initializeThemeButtons();
+
   document.addEventListener('storyDeleted', (event) => {
     if (event.detail && event.detail.storyId) {
       removeExclusionCard(event.detail.storyId);
     }
   });
+});
+
+document.body.addEventListener('htmx:afterSwap', (event) => {
+  if (event.detail.target === document.body) {
+    initializeThemeButtons();
+  }
 });
 </script>
 {% endblock %}

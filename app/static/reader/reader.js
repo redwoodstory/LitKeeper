@@ -12,16 +12,32 @@
   const widthRange = document.getElementById('widthRange');
   const widthValue = document.getElementById('widthValue');
 
-  // Theme management
-  function getInitialTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) return savedTheme;
+  let savedThemePreference = 'system';
+
+  async function fetchThemePreference() {
+    try {
+      const response = await fetch('/settings/theme-preference');
+      const data = await response.json();
+      if (data.success) {
+        savedThemePreference = data.theme;
+        return data.theme;
+      }
+    } catch (error) {
+      console.error('Error fetching theme preference:', error);
+    }
+    return 'system';
+  }
+
+  function getSystemTheme() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
   function setTheme(theme) {
-    html.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      html.setAttribute('data-theme', 'dark');
+    } else {
+      html.setAttribute('data-theme', 'light');
+    }
     const sunIcon = themeToggle.querySelector('.sun-icon');
     const moonIcon = themeToggle.querySelector('.moon-icon');
     if (theme === 'dark') {
@@ -33,17 +49,58 @@
     }
   }
 
-  function toggleTheme() {
-    const currentTheme = html.getAttribute('data-theme');
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  function applyThemePreference(preference) {
+    if (preference === 'system') {
+      setTheme(getSystemTheme());
+    } else {
+      setTheme(preference);
+    }
+    savedThemePreference = preference;
   }
 
-  setTheme(getInitialTheme());
+  async function initTheme() {
+    const preference = await fetchThemePreference();
+    applyThemePreference(preference);
+  }
+
+  async function toggleTheme() {
+    let newPreference;
+    if (savedThemePreference === 'system') {
+      const currentTheme = html.getAttribute('data-theme');
+      newPreference = currentTheme === 'dark' ? 'light' : 'dark';
+    } else if (savedThemePreference === 'dark') {
+      newPreference = 'light';
+    } else {
+      newPreference = 'dark';
+    }
+
+    try {
+      const response = await fetch('/settings/theme-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: newPreference })
+      });
+      if (response.ok) {
+        applyThemePreference(newPreference);
+      }
+    } catch (error) {
+      console.error('Error saving theme preference:', error);
+    }
+  }
+
+  initTheme();
   themeToggle.addEventListener('click', toggleTheme);
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (!localStorage.getItem('theme')) {
+    if (savedThemePreference === 'system') {
       setTheme(e.matches ? 'dark' : 'light');
+    }
+  });
+
+  window.addEventListener('pageshow', async (event) => {
+    if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
+      const preference = await fetchThemePreference();
+      applyThemePreference(preference);
     }
   });
 

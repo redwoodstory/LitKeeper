@@ -1,24 +1,46 @@
-const themeToggle = document.getElementById('themeToggle');
 const html = document.documentElement;
+let savedThemePreference = 'system';
 
-function getInitialTheme() {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) return savedTheme;
+async function fetchThemePreference() {
+  try {
+    const response = await fetch('/settings/theme-preference');
+    const data = await response.json();
+    if (data.success) {
+      savedThemePreference = data.theme;
+      return data.theme;
+    }
+  } catch (error) {
+    console.error('Error fetching theme preference:', error);
+  }
+  return 'system';
+}
+
+function getSystemTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 function setTheme(theme) {
-  if (theme === 'dark') {
-    html.classList.add('dark');
-  } else {
-    html.classList.remove('dark');
-  }
-  localStorage.setItem('theme', theme);
+  html.setAttribute('data-theme', theme);
 }
 
-themeToggle.addEventListener('click', () => {
-  const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
-  setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+function applyThemePreference(preference) {
+  if (preference === 'system') {
+    setTheme(getSystemTheme());
+  } else {
+    setTheme(preference);
+  }
+  savedThemePreference = preference;
+}
+
+async function initTheme() {
+  const preference = await fetchThemePreference();
+  applyThemePreference(preference);
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (savedThemePreference === 'system') {
+    setTheme(e.matches ? 'dark' : 'light');
+  }
 });
 
 function showHiddenWarnings() {
@@ -47,10 +69,14 @@ function showHiddenWarnings() {
   }
 }
 
-setTheme(getInitialTheme());
+window.applyThemePreference = applyThemePreference;
+window.showHiddenWarnings = showHiddenWarnings;
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  if (!localStorage.getItem('theme')) {
-    setTheme(e.matches ? 'dark' : 'light');
+initTheme();
+
+window.addEventListener('pageshow', async (event) => {
+  if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
+    const preference = await fetchThemePreference();
+    applyThemePreference(preference);
   }
 });
