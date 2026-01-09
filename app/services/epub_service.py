@@ -3,12 +3,14 @@ import os
 import zipfile
 import xml.etree.ElementTree as ET
 import warnings
+import traceback
 from typing import Optional, Dict, List, Any
 from ebooklib import epub
 from flask import current_app
 from app.models import Story, ReadingProgress
 from app.models.base import db
 from datetime import datetime
+from .logger import log_error
 
 warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
 
@@ -121,3 +123,83 @@ class EpubService:
 
         db.session.commit()
         return progress
+    
+    @staticmethod
+    def update_epub_cover(epub_path: str, cover_image_path: str) -> bool:
+        """Update the cover image in an existing EPUB file.
+        
+        Args:
+            epub_path: Path to the EPUB file
+            cover_image_path: Path to the new cover image
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not os.path.exists(epub_path):
+                log_error(f"EPUB file not found: {epub_path}")
+                return False
+            
+            if not os.path.exists(cover_image_path):
+                log_error(f"Cover image not found: {cover_image_path}")
+                return False
+            
+            book = epub.read_epub(epub_path, options={'ignore_ncx': True, 'ignore_missing_toc': True})
+            
+            with open(cover_image_path, 'rb') as cover_file:
+                cover_data = cover_file.read()
+            
+            items_to_remove = []
+            for item in book.get_items():
+                if hasattr(item, 'get_name'):
+                    item_name = item.get_name()
+                    if item_name and 'cover' in item_name.lower():
+                        items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                book.items.remove(item)
+            
+            cover_item = epub.EpubItem(
+                uid="cover-img",
+                file_name="cover.jpg",
+                media_type="image/jpeg",
+                content=cover_data
+            )
+            book.add_item(cover_item)
+            
+            metadata = book.metadata.get('http://www.idpf.org/2007/opf', [])
+            metadata_to_remove = []
+            for item in metadata:
+                if item and len(item) >= 2 and item[0] == 'meta':
+                    attrs = item[1] if len(item) > 1 else {}
+                    if attrs and attrs.get('name') == 'cover':
+                        metadata_to_remove.append(item)
+            
+            for item in metadata_to_remove:
+                metadata.remove(item)
+            
+            book.metadata['http://www.idpf.org/2007/opf'] = metadata
+            book.add_metadata('http://www.idpf.org/2007/opf', 'meta', '', {'name': 'cover', 'content': 'cover-img'})
+            
+            ncx_item = None
+            for item in book.get_items():
+                if isinstance(item, epub.EpubNcx):
+                    ncx_item = item
+                    break
+            
+            if ncx_item:
+                book.items.remove(ncx_item)
+            
+            epub.write_epub(epub_path, book, {
+                'epub3_pages': False,
+                'epub3_landmark': None,
+                'epub2_guide': None,
+                'spine_direction': True
+            })
+            
+            return True
+            
+        except Exception as e:
+            error_msg = f"Error updating EPUB cover: {str(e)}\n{traceback.format_exc()}"
+            log_error(error_msg)
+            return False

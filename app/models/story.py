@@ -42,6 +42,25 @@ class Story(BaseModel, TimestampMixin):
     def __repr__(self):
         return f'<Story {self.title}>'
 
+    def set_tags(self, tag_names: list[str]) -> None:
+        """Update story tags from a list of tag names"""
+        from .tag import Tag
+        
+        tag_objects = []
+        for tag_name in tag_names:
+            if not tag_name or not tag_name.strip():
+                continue
+            
+            tag_name = tag_name.strip()
+            tag = Tag.query.filter_by(name=tag_name).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.session.add(tag)
+                db.session.flush()
+            tag_objects.append(tag)
+        
+        self.tags = tag_objects
+
     def to_library_dict(self) -> dict:
         """Convert to library display format (backward compatible with current UI)"""
         epub_format = next((f for f in self.formats if f.format_type == 'epub'), None)

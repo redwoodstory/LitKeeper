@@ -807,7 +807,8 @@ async function saveMetadataChanges(storyId) {
     const response = await fetch(`/api/story/${storyId}/metadata`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'HX-Request': 'true'
       },
       body: JSON.stringify({ title, author, category, tags })
     });
@@ -815,17 +816,51 @@ async function saveMetadataChanges(storyId) {
     const result = await response.json();
 
     if (result.success) {
-      showToast('Metadata updated successfully', 'success');
       closeEditMetadataModal();
-      closeStoryModal();
-
-      setTimeout(() => {
-        if (typeof refreshLibrary === 'function') {
-          refreshLibrary();
-        } else {
-          window.location.reload();
+      
+      if (result.cover_regenerated) {
+        const timestamp = new Date().getTime();
+        const modal = document.getElementById('storyModal');
+        if (modal) {
+          try {
+            const modalResponse = await fetch(`/api/story/${storyId}/modal?t=${timestamp}`);
+            if (modalResponse.ok) {
+              const modalHtml = await modalResponse.text();
+              modal.outerHTML = modalHtml;
+              
+              const newModal = document.getElementById('storyModal');
+              if (newModal && result.cover_filename) {
+                const coverImg = newModal.querySelector('img[alt*="cover"]');
+                if (coverImg) {
+                  const coverSrc = coverImg.src.split('?')[0];
+                  coverImg.src = `${coverSrc}?t=${timestamp}`;
+                }
+              }
+            }
+          } catch (modalError) {
+            console.error('Error refreshing modal:', modalError);
+          }
         }
-      }, 500);
+        
+        if (result.cover_filename) {
+          htmx.trigger(document.body, 'coverRegenerated', { 
+            storyId: storyId, 
+            coverFilename: result.cover_filename 
+          });
+        }
+        
+        showToast('Metadata updated successfully', 'success');
+      } else {
+        showToast('Metadata updated successfully', 'success');
+        closeStoryModal();
+        setTimeout(() => {
+          if (typeof refreshLibrary === 'function') {
+            refreshLibrary();
+          } else {
+            window.location.reload();
+          }
+        }, 500);
+      }
     } else {
       showToast(result.message || 'Failed to update metadata', 'error');
     }
@@ -834,3 +869,88 @@ async function saveMetadataChanges(storyId) {
     showToast('An error occurred while updating metadata', 'error');
   }
 }
+
+document.body.addEventListener('coverRegenerated', function(evt) {
+  const { storyId, coverFilename } = evt.detail;
+  const timestamp = new Date().getTime();
+  
+  const libraryCovers = document.querySelectorAll(`img[src*="${coverFilename}"]`);
+  libraryCovers.forEach(img => {
+    if (!img.closest('#storyModal')) {
+      const currentSrc = img.src.split('?')[0];
+      img.src = `${currentSrc}?t=${timestamp}`;
+    }
+  });
+});
+
+window.regenerateCover = async function(storyId, button) {
+  const originalText = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `
+    <svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+    </svg>
+    Regenerating...
+  `;
+
+  try {
+    const response = await fetch(`/api/story/${storyId}/regenerate-cover`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      button.innerHTML = `
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Cover Updated!
+      `;
+      
+      const modal = document.getElementById('storyModal');
+      if (modal && result.cover_filename) {
+        try {
+          const modalResponse = await fetch(`/api/story/${storyId}/modal`);
+          if (modalResponse.ok) {
+            const modalHtml = await modalResponse.text();
+            modal.outerHTML = modalHtml;
+          }
+        } catch (modalError) {
+          console.error('Error refreshing modal:', modalError);
+        }
+      }
+      
+      if (result.cover_filename) {
+        htmx.trigger(document.body, 'coverRegenerated', { 
+          storyId: storyId, 
+          coverFilename: result.cover_filename 
+        });
+      }
+      
+      let message = 'Cover regenerated successfully';
+      if (result.epub_updated) {
+        message += ' (EPUB updated)';
+      }
+      showToast(message, 'success');
+      
+      setTimeout(() => {
+        const regenerateBtn = document.querySelector(`button[onclick*="regenerateCover(${storyId}"]`);
+        if (regenerateBtn) {
+          regenerateBtn.innerHTML = originalText;
+          regenerateBtn.disabled = false;
+        }
+      }, 2000);
+    } else {
+      throw new Error(result.message || 'Failed to regenerate cover');
+    }
+  } catch (error) {
+    console.error('Cover regeneration error:', error);
+    showToast('Failed to regenerate cover', 'error');
+    button.innerHTML = originalText;
+    button.disabled = false;
+  }
+};

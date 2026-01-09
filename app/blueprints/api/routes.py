@@ -536,6 +536,7 @@ def delete_story(story_id: int) -> ResponseReturnValue:
 def update_story_metadata(story_id: int) -> ResponseReturnValue:
     try:
         from app.models import Story, Author, Category, db
+        from app.services.epub_service import EpubService
         
         story = Story.query.get(story_id)
         
@@ -556,6 +557,9 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
                 "success": False,
                 "message": "Title is required"
             }), 400
+        
+        old_title = story.title
+        old_author = story.author.name if story.author else ''
         
         story.title = title
         
@@ -583,10 +587,46 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         
         log_action(f"Updated metadata for story {story_id}: {title}")
         
+        cover_regenerated = False
+        epub_updated = False
+        cover_filename = None
+        
+        if old_title != title or old_author != author_name:
+            try:
+                cover_directory = get_cover_directory()
+                os.makedirs(cover_directory, exist_ok=True)
+                
+                cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                cover_path = os.path.join(cover_directory, cover_filename)
+                
+                generate_cover_image(story.title, author_name or 'Unknown Author', cover_path)
+                cover_regenerated = True
+                log_action(f"Auto-regenerated cover for story: {story.title}")
+                
+                has_epub = any(f.format_type == 'epub' for f in story.formats)
+                if has_epub:
+                    epub_directory = get_epub_directory()
+                    epub_path = os.path.join(epub_directory, f"{story.filename_base}.epub")
+                    
+                    if os.path.exists(epub_path):
+                        if EpubService.update_epub_cover(epub_path, cover_path):
+                            epub_updated = True
+                            log_action(f"Updated EPUB cover for story: {story.title}")
+                
+                if not story.cover_filename:
+                    story.cover_filename = cover_filename
+                    db.session.commit()
+                    
+            except Exception as cover_error:
+                log_error(f"Error regenerating cover during metadata update: {str(cover_error)}")
+        
         return jsonify({
             "success": True,
             "message": "Metadata updated successfully",
-            "story": story.to_library_dict()
+            "story": story.to_library_dict(),
+            "cover_regenerated": cover_regenerated,
+            "epub_updated": epub_updated,
+            "cover_filename": cover_filename
         })
         
     except Exception as e:
@@ -782,3 +822,57 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
     }
     
     return render_template('components/story_modal.html', story=story_data)
+
+@api.route("/story/<int:story_id>/regenerate-cover", methods=['POST'])
+def regenerate_cover(story_id: int) -> ResponseReturnValue:
+    """Regenerate cover image for a story and update both the covers directory and EPUB file"""
+    try:
+        from app.models import Story
+        from app.models.base import db
+        from app.services.epub_service import EpubService
+        
+        story = Story.query.get_or_404(story_id)
+        
+        cover_directory = get_cover_directory()
+        os.makedirs(cover_directory, exist_ok=True)
+        
+        cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+        cover_path = os.path.join(cover_directory, cover_filename)
+        
+        author_name = story.author.name if story.author else 'Unknown Author'
+        
+        generate_cover_image(story.title, author_name, cover_path)
+        log_action(f"Regenerated cover for story: {story.title}")
+        
+        epub_updated = False
+        has_epub = any(f.format_type == 'epub' for f in story.formats)
+        
+        if has_epub:
+            epub_directory = get_epub_directory()
+            epub_path = os.path.join(epub_directory, f"{story.filename_base}.epub")
+            
+            if os.path.exists(epub_path):
+                if EpubService.update_epub_cover(epub_path, cover_path):
+                    epub_updated = True
+                    log_action(f"Updated EPUB cover for story: {story.title}")
+                else:
+                    log_error(f"Failed to update EPUB cover for story: {story.title}")
+        
+        if not story.cover_filename:
+            story.cover_filename = cover_filename
+            db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Cover regenerated successfully",
+            "epub_updated": epub_updated,
+            "cover_filename": cover_filename
+        })
+        
+    except Exception as e:
+        error_msg = f"Error regenerating cover: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "Failed to regenerate cover"
+        }), 500
