@@ -361,9 +361,10 @@ async function saveProgress(fraction, cfi) {
 async function initializeReader() {
   console.log('[Foliate] Starting initialization...');
   console.log('[Foliate] EPUB URL:', epubUrl);
-  
+
   let isInitialLoad = true;
-  
+  let hasSavedProgress = false;
+
   showHeaderTemporarily();
 
   try {
@@ -435,33 +436,7 @@ async function initializeReader() {
       }
     }, 200);
 
-    let loadEventFired = false;
-    let hasSavedProgress = false;
-    const loadTimeout = setTimeout(async () => {
-      if (!loadEventFired) {
-        console.error('[Foliate] Load event NEVER FIRED after 10s!');
-        if (!hasSavedProgress && isMobile) {
-          console.log('[Foliate] Attempting recovery: forcing navigation');
-          try {
-            await view.goTo(0);
-            console.log('[Foliate] Recovery: navigation triggered');
-            setTimeout(() => {
-              if (!loadEventFired) {
-                console.error('[Foliate] Recovery failed - reload page to retry');
-              }
-            }, 3000);
-          } catch (err) {
-            console.error('[Foliate] Recovery failed:', err.message);
-          }
-        } else {
-          console.log('[Foliate] Skipping recovery (has saved progress or desktop)');
-        }
-      }
-    }, 10000);
-
     view.addEventListener('load', (e) => {
-      loadEventFired = true;
-      clearTimeout(loadTimeout);
       console.log('[Foliate] Content loaded event fired');
       const { doc } = e.detail;
       console.log('[Foliate] Document:', doc ? 'exists' : 'null');
@@ -563,30 +538,22 @@ async function initializeReader() {
       }
     }
 
+    let lastLocation = null;
     if (progressToUse && progressToUse.cfi) {
       hasSavedProgress = true;
       console.log('[Progress] Restoring from CFI:', progressToUse.cfi);
-      try {
-        await view.goTo(progressToUse.cfi);
-        setTimeout(() => { isInitialLoad = false; }, 500);
-      } catch (e) {
-        console.warn('[Progress] Failed to restore from CFI, starting from beginning');
-        if (isMobile) await view.goTo(0);
-        isInitialLoad = false;
-      }
+      lastLocation = progressToUse.cfi;
     } else if (progressToUse && progressToUse.percentage !== null && progressToUse.percentage !== undefined) {
       hasSavedProgress = true;
       console.log('[Progress] Restoring from percentage:', progressToUse.percentage);
-      await view.goToFraction(progressToUse.percentage);
-      setTimeout(() => { isInitialLoad = false; }, 500);
+      lastLocation = { fraction: progressToUse.percentage };
     } else {
       console.log('[Progress] No saved position, starting from beginning');
-      if (isMobile) {
-        console.log('[Progress] Mobile: triggering initial render');
-        await view.goTo(0);
-      }
-      isInitialLoad = false;
     }
+
+    console.log('[Foliate] Initializing view with lastLocation:', lastLocation);
+    await view.init({ lastLocation });
+    setTimeout(() => { isInitialLoad = false; }, 500);
 
     prevBtn.addEventListener('click', () => view.goLeft());
     nextBtn.addEventListener('click', () => view.goRight());
@@ -615,12 +582,28 @@ async function initializeReader() {
       stack: error.stack,
       cause: error.cause
     });
+    
+    let errorTitle = 'Failed to Load EPUB';
+    let errorMessage = error.message;
+    let additionalInfo = 'Check the browser console for more details.';
+    
+    if (error.message.includes('corrupted or malformed')) {
+      errorTitle = 'EPUB File is Corrupted or Malformed';
+      errorMessage = 'The EPUB file appears to be damaged or incomplete. It may need to be re-downloaded or regenerated.';
+      additionalInfo = 'File size: ' + blob.size + ' bytes. This file may be too small or have structural issues.';
+    } else if (error.message.includes('timeout')) {
+      errorTitle = 'EPUB Loading Timeout';
+      errorMessage = 'The EPUB file took too long to load. It may be too large for this device.';
+      additionalInfo = 'Try using a desktop browser or a smaller file.';
+    }
+    
     document.getElementById('viewer').innerHTML = `
       <div style="padding: 2rem; text-align: center; color: var(--text-color);">
-        <h2 style="color: #ef4444; margin-bottom: 1rem;">Failed to Load EPUB</h2>
-        <p style="margin-bottom: 1rem;">${error.message}</p>
-        <p style="font-size: 0.875rem; color: var(--secondary-text);">Check the browser console for more details.</p>
+        <h2 style="color: #ef4444; margin-bottom: 1rem;">${errorTitle}</h2>
+        <p style="margin-bottom: 1rem;">${errorMessage}</p>
+        <p style="font-size: 0.875rem; color: var(--secondary-text);">${additionalInfo}</p>
         <button onclick="window.location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">Retry</button>
+        <button onclick="window.history.back()" style="margin-top: 1rem; margin-left: 0.5rem; padding: 0.5rem 1rem; background: var(--secondary-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">Go Back</button>
       </div>
     `;
   }

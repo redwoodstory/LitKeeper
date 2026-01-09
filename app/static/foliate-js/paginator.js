@@ -776,6 +776,7 @@ export class Paginator extends HTMLElement {
         return this.#container.getBoundingClientRect()[this.sideProp]
     }
     get viewSize() {
+        if (!this.#view?.element) return 0
         return this.#view.element.getBoundingClientRect()[this.sideProp]
     }
     get start() {
@@ -943,6 +944,7 @@ export class Paginator extends HTMLElement {
         await this.#scrollToPage(newPage + 1, reason)
     }
     #getVisibleRange() {
+        if (!this.#view?.document) return null
         if (this.scrolled) return getVisibleRange(this.#view.document,
             this.start + this.#margin, this.end - this.#margin, this.#getRectMapper())
         const size = this.#rtl ? -this.size : this.size
@@ -951,6 +953,7 @@ export class Paginator extends HTMLElement {
     }
     #afterScroll(reason) {
         const range = this.#getVisibleRange()
+        if (!range) return
         this.#lastVisibleRange = range
         // don't set new anchor if relocation was to scroll to anchor
         if (reason !== 'selection' && reason !== 'navigation' && reason !== 'anchor')
@@ -970,6 +973,7 @@ export class Paginator extends HTMLElement {
     }
     async #display(promise) {
         const { index, src, anchor, onLoad, select } = await promise
+        if (index === undefined) return
         this.#index = index
         const hasFocus = this.#view?.document?.hasFocus()
         if (src) {
@@ -993,10 +997,15 @@ export class Paginator extends HTMLElement {
                 },
             }))
             this.#view = view
+        } else if (!this.#view) {
+            console.error('[Paginator] Failed to load section - no src provided and no existing view')
+            throw new Error(`Failed to load section ${index} - EPUB may be corrupted or malformed`)
         }
-        await this.scrollToAnchor((typeof anchor === 'function'
-            ? anchor(this.#view.document) : anchor) ?? 0, select)
-        if (hasFocus) this.focusView()
+        if (this.#view) {
+            await this.scrollToAnchor((typeof anchor === 'function'
+                ? anchor(this.#view.document) : anchor) ?? 0, select)
+            if (hasFocus) this.focusView()
+        }
     }
     #canGoToIndex(index) {
         return index >= 0 && index <= this.sections.length - 1
@@ -1116,6 +1125,7 @@ export class Paginator extends HTMLElement {
         this.#view?.document?.fonts?.ready?.then(() => this.#view.expand())
     }
     focusView() {
+        if (!this.#view?.document?.defaultView) return
         this.#view.document.defaultView.focus()
     }
     destroy() {

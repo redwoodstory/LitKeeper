@@ -126,12 +126,12 @@ class EpubService:
     
     @staticmethod
     def update_epub_cover(epub_path: str, cover_image_path: str) -> bool:
-        """Update the cover image in an existing EPUB file.
-        
+        """Update the cover image in an existing EPUB file using direct ZIP manipulation.
+
         Args:
             epub_path: Path to the EPUB file
             cover_image_path: Path to the new cover image
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -139,66 +139,38 @@ class EpubService:
             if not os.path.exists(epub_path):
                 log_error(f"EPUB file not found: {epub_path}")
                 return False
-            
+
             if not os.path.exists(cover_image_path):
                 log_error(f"Cover image not found: {cover_image_path}")
                 return False
-            
-            book = epub.read_epub(epub_path, options={'ignore_ncx': True, 'ignore_missing_toc': True})
-            
+
+            import tempfile
+            import shutil
+
             with open(cover_image_path, 'rb') as cover_file:
-                cover_data = cover_file.read()
-            
-            items_to_remove = []
-            for item in book.get_items():
-                if hasattr(item, 'get_name'):
-                    item_name = item.get_name()
-                    if item_name and 'cover' in item_name.lower():
-                        items_to_remove.append(item)
-            
-            for item in items_to_remove:
-                book.items.remove(item)
-            
-            cover_item = epub.EpubItem(
-                uid="cover-img",
-                file_name="cover.jpg",
-                media_type="image/jpeg",
-                content=cover_data
-            )
-            book.add_item(cover_item)
-            
-            metadata = book.metadata.get('http://www.idpf.org/2007/opf', [])
-            metadata_to_remove = []
-            for item in metadata:
-                if item and len(item) >= 2 and item[0] == 'meta':
-                    attrs = item[1] if len(item) > 1 else {}
-                    if attrs and attrs.get('name') == 'cover':
-                        metadata_to_remove.append(item)
-            
-            for item in metadata_to_remove:
-                metadata.remove(item)
-            
-            book.metadata['http://www.idpf.org/2007/opf'] = metadata
-            book.add_metadata('http://www.idpf.org/2007/opf', 'meta', '', {'name': 'cover', 'content': 'cover-img'})
-            
-            ncx_item = None
-            for item in book.get_items():
-                if isinstance(item, epub.EpubNcx):
-                    ncx_item = item
-                    break
-            
-            if ncx_item:
-                book.items.remove(ncx_item)
-            
-            epub.write_epub(epub_path, book, {
-                'epub3_pages': False,
-                'epub3_landmark': None,
-                'epub2_guide': None,
-                'spine_direction': True
-            })
-            
-            return True
-            
+                new_cover_data = cover_file.read()
+
+            temp_dir = tempfile.mkdtemp()
+            temp_epub = os.path.join(temp_dir, 'temp.epub')
+
+            try:
+                with zipfile.ZipFile(epub_path, 'r') as zip_in:
+                    with zipfile.ZipFile(temp_epub, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                        for item in zip_in.infolist():
+                            data = zip_in.read(item.filename)
+
+                            if 'cover.jpg' in item.filename.lower():
+                                zip_out.writestr(item.filename, new_cover_data)
+                            else:
+                                zip_out.writestr(item, data)
+
+                shutil.move(temp_epub, epub_path)
+                return True
+
+            finally:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+
         except Exception as e:
             error_msg = f"Error updating EPUB cover: {str(e)}\n{traceback.format_exc()}"
             log_error(error_msg)
