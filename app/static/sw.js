@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v11';
 const STATIC_CACHE = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 
