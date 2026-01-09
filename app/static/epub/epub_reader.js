@@ -372,21 +372,38 @@ async function initializeReader() {
       throw new Error('Failed to fetch EPUB file: ' + response.status);
     }
     const blob = await response.blob();
-    console.log('[Foliate] EPUB file loaded, size:', blob.size);
+    console.log('[Foliate] EPUB loaded, size:', blob.size, 'bytes');
 
     const file = new File([blob], 'book.epub', { type: 'application/epub+zip' });
-    console.log('[Foliate] Created File object with name:', file.name);
+    console.log('[Foliate] File object created, size:', file.size);
 
     view = document.createElement('foliate-view');
     const viewerContainer = document.getElementById('viewer');
     viewerContainer.appendChild(view);
-
-    await view.open(file);
-    console.log('[Foliate] Book opened successfully');
+    console.log('[Foliate] View element created');
 
     const isMobile = window.innerWidth <= 768;
     console.log('[Foliate] Is mobile:', isMobile, 'viewport:', window.innerWidth, 'x', window.innerHeight);
+    console.log('[Foliate] Opening file...');
     
+    try {
+      if (isMobile) {
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('EPUB open timeout (30s) - file may be too large for mobile')), 30000)
+        );
+        await Promise.race([view.open(file), timeout]);
+      } else {
+        await view.open(file);
+      }
+      console.log('[Foliate] Book opened successfully');
+    } catch (openError) {
+      console.error('[Foliate] ERROR opening book:', openError.message);
+      console.error('[Foliate] File size:', file.size, 'bytes');
+      console.error('[Foliate] Is mobile:', isMobile);
+      throw new Error('Failed to open EPUB: ' + openError.message);
+    }
+    
+    console.log('[Foliate] Setting renderer attributes...');
     view.renderer.setAttribute('flow', 'paginated');
     view.renderer.setAttribute('animated', '');
     view.renderer.setAttribute('margin', '0');
@@ -395,23 +412,20 @@ async function initializeReader() {
     if (isMobile) {
       view.renderer.setAttribute('max-inline-size', '100%');
       view.renderer.setAttribute('max-block-size', '100%');
-      console.log('[Foliate] Mobile renderer configured with 100% dimensions');
+      console.log('[Foliate] Mobile renderer configured');
     } else {
       view.renderer.setAttribute('max-inline-size', savedWidth);
     }
+    console.log('[Foliate] Renderer attributes set');
 
-    console.log('[Foliate] Renderer attributes set, updating styles...');
+    console.log('[Foliate] Updating styles...');
     updateReaderStyles();
     console.log('[Foliate] Styles updated');
     
     setTimeout(() => {
-      console.log('[Foliate] Checking view dimensions:', {
-        viewWidth: view.offsetWidth,
-        viewHeight: view.offsetHeight,
-        viewerWidth: viewerContainer.offsetWidth,
-        viewerHeight: viewerContainer.offsetHeight,
-        rendererExists: !!view.renderer
-      });
+      const dims = 'view:' + view.offsetWidth + 'x' + view.offsetHeight + 
+                   ' container:' + viewerContainer.offsetWidth + 'x' + viewerContainer.offsetHeight;
+      console.log('[Foliate] Dimensions:', dims);
       
       if (view.offsetHeight === 0 || view.offsetWidth === 0) {
         console.error('[Foliate] View has zero dimensions! Forcing reflow...');
@@ -419,11 +433,38 @@ async function initializeReader() {
         void view.offsetHeight;
         view.style.display = 'block';
       }
-    }, 100);
+    }, 200);
+
+    let loadEventFired = false;
+    let hasSavedProgress = false;
+    const loadTimeout = setTimeout(async () => {
+      if (!loadEventFired) {
+        console.error('[Foliate] Load event NEVER FIRED after 10s!');
+        if (!hasSavedProgress && isMobile) {
+          console.log('[Foliate] Attempting recovery: forcing navigation');
+          try {
+            await view.goTo(0);
+            console.log('[Foliate] Recovery: navigation triggered');
+            setTimeout(() => {
+              if (!loadEventFired) {
+                console.error('[Foliate] Recovery failed - reload page to retry');
+              }
+            }, 3000);
+          } catch (err) {
+            console.error('[Foliate] Recovery failed:', err.message);
+          }
+        } else {
+          console.log('[Foliate] Skipping recovery (has saved progress or desktop)');
+        }
+      }
+    }, 10000);
 
     view.addEventListener('load', (e) => {
-      console.log('[Foliate] Content loaded, setting up tap zones');
+      loadEventFired = true;
+      clearTimeout(loadTimeout);
+      console.log('[Foliate] Content loaded event fired');
       const { doc } = e.detail;
+      console.log('[Foliate] Document:', doc ? 'exists' : 'null');
       
       doc.addEventListener('click', (clickEvent) => {
         const selection = doc.getSelection();
@@ -523,20 +564,27 @@ async function initializeReader() {
     }
 
     if (progressToUse && progressToUse.cfi) {
+      hasSavedProgress = true;
       console.log('[Progress] Restoring from CFI:', progressToUse.cfi);
       try {
         await view.goTo(progressToUse.cfi);
         setTimeout(() => { isInitialLoad = false; }, 500);
       } catch (e) {
         console.warn('[Progress] Failed to restore from CFI, starting from beginning');
+        if (isMobile) await view.goTo(0);
         isInitialLoad = false;
       }
     } else if (progressToUse && progressToUse.percentage !== null && progressToUse.percentage !== undefined) {
+      hasSavedProgress = true;
       console.log('[Progress] Restoring from percentage:', progressToUse.percentage);
       await view.goToFraction(progressToUse.percentage);
       setTimeout(() => { isInitialLoad = false; }, 500);
     } else {
       console.log('[Progress] No saved position, starting from beginning');
+      if (isMobile) {
+        console.log('[Progress] Mobile: triggering initial render');
+        await view.goTo(0);
+      }
       isInitialLoad = false;
     }
 
@@ -561,7 +609,20 @@ async function initializeReader() {
 
   } catch (error) {
     console.error('[Foliate] Error loading EPUB:', error);
-    document.getElementById('viewer').innerHTML = '<div style="padding: 2rem; text-align: center;"><p>Error loading EPUB file: ' + error.message + '</p></div>';
+    console.error('[Foliate] Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause
+    });
+    document.getElementById('viewer').innerHTML = `
+      <div style="padding: 2rem; text-align: center; color: var(--text-color);">
+        <h2 style="color: #ef4444; margin-bottom: 1rem;">Failed to Load EPUB</h2>
+        <p style="margin-bottom: 1rem;">${error.message}</p>
+        <p style="font-size: 0.875rem; color: var(--secondary-text);">Check the browser console for more details.</p>
+        <button onclick="window.location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">Retry</button>
+      </div>
+    `;
   }
 }
 

@@ -414,16 +414,8 @@ body {
   }
   
   #reader-main {
-    top: 60px;
-    bottom: 60px;
-  }
-  
-  .reader-header {
-    height: 60px;
-  }
-  
-  .reader-footer {
-    height: 60px;
+    top: 0;
+    bottom: 0;
   }
 }
 
