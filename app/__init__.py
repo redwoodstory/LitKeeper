@@ -11,14 +11,30 @@ load_dotenv()
 # Build version identifier - update this when making significant changes
 APP_VERSION = "2026.01.06-automation-fix"
 
+def _validate_deployment_config():
+    """Validate deployment configuration safety"""
+    import sys
+
+    db_uri = os.getenv('SQLALCHEMY_DATABASE_URI', '')
+    if 'sqlite' in db_uri.lower() or not db_uri:
+        print("INFO: SQLite detected - single worker required")
+
+    skip_workers = os.getenv('SKIP_BACKGROUND_WORKERS', 'false').lower() == 'true'
+    if skip_workers:
+        print("INFO: Background workers disabled")
+    else:
+        print("INFO: Embedded workers enabled (3 threads)")
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
-    
+
     print(f"=" * 80)
     print(f"LitKeeper Version: {APP_VERSION}")
-    print(f"Build Date: 2026-01-06")
-    print(f"Features: Automated background processing, metadata refresh, sync banner")
+    print(f"Build: Production-ready multi-user deployment")
     print(f"=" * 80)
+
+    _validate_deployment_config()
 
     secret_key = os.getenv('SECRET_KEY')
     if not secret_key:
@@ -38,12 +54,19 @@ def create_app() -> Flask:
             import secrets
             secret_key = secrets.token_hex(32)
             try:
-                with open(secret_key_file, 'w') as f:
+                os.makedirs(os.path.dirname(secret_key_file), mode=0o750, exist_ok=True)
+
+                fd = os.open(secret_key_file, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'w') as f:
                     f.write(secret_key)
-                print(f"Generated and saved new SECRET_KEY to {secret_key_file}")
+
+                print(f"Generated SECRET_KEY with mode 0600: {secret_key_file}")
+            except FileExistsError:
+                with open(secret_key_file, 'r') as f:
+                    secret_key = f.read().strip()
             except Exception as e:
-                print(f"Warning: Could not save secret key to file: {e}")
-                print("Using temporary key. Sessions will not persist across restarts.")
+                print(f"Warning: Could not save secret key: {e}")
+                print("Using temporary key - sessions won't persist")
 
     app.config['SECRET_KEY'] = secret_key
 

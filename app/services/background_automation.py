@@ -20,8 +20,19 @@ class BackgroundAutomation:
         self.thread: Optional[threading.Thread] = None
         self.check_interval = 300
         self.last_run_time: Optional[datetime] = None
-        self.is_processing = False
+        self._processing_lock = threading.Lock()
+        self._is_processing = False
         self.has_completed_first_run = False
+
+    @property
+    def is_processing(self) -> bool:
+        with self._processing_lock:
+            return self._is_processing
+
+    @is_processing.setter
+    def is_processing(self, value: bool):
+        with self._processing_lock:
+            self._is_processing = value
     
     def start(self):
         if self.running:
@@ -44,27 +55,28 @@ class BackgroundAutomation:
         Trigger an immediate automation run in a separate thread.
         This allows on-demand processing without blocking the request.
         """
-        if self.is_processing:
-            log_action("[AUTOMATION] Already processing, skipping immediate run")
-            return
-        
+        with self._processing_lock:
+            if self._is_processing:
+                log_action("[AUTOMATION] Already processing, skipping immediate run")
+                return
+            self._is_processing = True
+
         def run_once():
             try:
-                self.is_processing = True
                 self.last_run_time = datetime.utcnow()
                 log_action("[AUTOMATION] Running immediate automation cycle")
-                
+
                 with self.app.app_context():
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
-                
+
                 self.is_processing = False
                 self.has_completed_first_run = True
             except Exception as e:
                 log_error(f"[AUTOMATION] Error in immediate automation run: {str(e)}")
                 self.is_processing = False
                 self.has_completed_first_run = True
-        
+
         thread = threading.Thread(target=run_once, daemon=True)
         thread.start()
     

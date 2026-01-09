@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, send_from_directory, current_app,
 from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, log_url, log_action, generate_cover_image, extract_cover_from_epub, get_library_data
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
+from app.utils.security import validate_file_in_directory
 from app.validators import StoryDownloadRequest, StoryMetadataUpdate
 from app.services.story_downloader import download_story
 from app.services.metadata_refresh_service import MetadataRefreshService
@@ -10,15 +11,10 @@ from pydantic import ValidationError
 import os
 from datetime import datetime
 import traceback
-import threading
 import json
 from typing import Optional
 
 api = Blueprint('api', __name__, url_prefix='/api')
-
-def background_process_wrapper(app: Flask, url: str, formats: list[str]) -> None:
-    with app.app_context():
-        download_story_and_create_files(url, formats, send_notifications=True)
 
 @api.route("/queue", methods=['POST'])
 def queue_download() -> ResponseReturnValue:
@@ -207,6 +203,7 @@ def save_story() -> ResponseReturnValue:
 
 @api.route("/download", methods=['GET', 'POST'])
 def download() -> ResponseReturnValue:
+    """DEPRECATED: Use /api/queue for new clients. Maintained for backward compatibility."""
     try:
         if request.method == 'POST':
             if request.is_json:
@@ -241,12 +238,31 @@ def download() -> ResponseReturnValue:
     log_url(url)
 
     if not validated.wait:
-        app = current_app._get_current_object()
-        thread = threading.Thread(target=background_process_wrapper, args=(app, url, validated.format))
-        thread.start()
+        from app.models import DownloadQueueItem, db
+
+        existing = DownloadQueueItem.query.filter_by(
+            url=validated.url,
+            status='pending'
+        ).first()
+
+        if existing:
+            return jsonify({
+                "success": True,
+                "message": "Already in queue",
+                "queue_item": existing.to_dict()
+            })
+
+        queue_item = DownloadQueueItem(url=validated.url, status='pending')
+        queue_item.set_formats(validated.format)
+        db.session.add(queue_item)
+        db.session.commit()
+
+        log_action(f"Added to queue via /download: {validated.url} (ID: {queue_item.id})")
+
         return jsonify({
-            "success": "true",
-            "message": "Request accepted, processing in background"
+            "success": True,
+            "message": "Story added to download queue",
+            "queue_item": queue_item.to_dict()
         })
 
     result = download_story_and_create_files(url, validated.format)
@@ -265,14 +281,15 @@ def get_library() -> ResponseReturnValue:
 def get_cover(filename: str) -> ResponseReturnValue:
     from app.services import generate_cover_image, extract_cover_from_epub
 
-    if '/..' in filename or filename.startswith('/') or filename.startswith('..'):
-        log_error(f"Attempted path traversal in cover request: {filename}")
-        abort(404)
-
-    if not filename.endswith('.jpg'):
+    if not filename or not filename.endswith('.jpg'):
         abort(404)
 
     cover_directory = get_cover_directory()
+
+    if not validate_file_in_directory(cover_directory, filename):
+        log_error(f"Path traversal blocked in cover: {filename}")
+        abort(403)
+
     cover_path = os.path.join(cover_directory, filename)
 
     if os.path.exists(cover_path):

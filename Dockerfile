@@ -37,24 +37,30 @@ RUN apt-get update && apt-get install -y \
     libjpeg62-turbo \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN groupadd -r -g 1000 litkeeper && \
+    useradd -r -u 1000 -g litkeeper -m -s /bin/bash litkeeper
+
 # Set up application directory
 WORKDIR /litkeeper
 
-# Copy only necessary files
-COPY app app/
-COPY migrations migrations/
-COPY run.py .
-COPY gunicorn.docker.conf.py .
-COPY startup.sh .
+# Copy files with correct ownership
+COPY --chown=litkeeper:litkeeper app app/
+COPY --chown=litkeeper:litkeeper migrations migrations/
+COPY --chown=litkeeper:litkeeper run.py gunicorn.docker.conf.py startup.sh .
 
-# Create data and stories directories with correct permissions
+# Create directories with secure permissions (750 = owner rwx, group rx, no world access)
 RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
-    chmod -R 777 app/data app/stories && \
+    chown -R litkeeper:litkeeper app/data app/stories && \
+    chmod -R 750 app/data app/stories && \
     chmod +x startup.sh
 
 # Set environment variables
 ENV PYTHONPATH=/litkeeper
 ENV PYTHONUNBUFFERED=1
+
+# Switch to non-root user
+USER litkeeper
 
 # Expose port
 EXPOSE 5000

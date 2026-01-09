@@ -21,10 +21,34 @@ class DownloadQueueWorker:
         if self.thread and self.thread.is_alive():
             return
 
+        self._recover_stale_jobs()
+
         self.running = True
         self._stop_event.clear()
         self.thread = threading.Thread(target=self._worker_loop, daemon=True, name="DownloadQueueWorker")
         self.thread.start()
+
+    def _recover_stale_jobs(self):
+        """Reset jobs stuck in 'processing' state (from crashes/restarts)"""
+        from app.models import DownloadQueueItem, db
+        from datetime import datetime, timedelta
+
+        with self.app.app_context():
+            from .logger import log_action
+
+            stale_cutoff = datetime.utcnow() - timedelta(minutes=10)
+            stale_items = DownloadQueueItem.query.filter(
+                DownloadQueueItem.status == 'processing',
+                DownloadQueueItem.started_at < stale_cutoff
+            ).all()
+
+            if stale_items:
+                log_action(f"[DOWNLOAD WORKER] Recovering {len(stale_items)} stale jobs")
+                for item in stale_items:
+                    item.status = 'pending'
+                    item.started_at = None
+                    item.progress_message = 'Reset from stale processing state'
+                db.session.commit()
 
     def stop(self):
         """Stop the background worker thread"""
@@ -54,15 +78,21 @@ class DownloadQueueWorker:
         """Process the next pending item in the queue"""
         from app.models import DownloadQueueItem, db
         from .logger import log_action, log_error
+        from sqlalchemy import select
 
-        item = DownloadQueueItem.query.filter_by(status='pending').order_by(
-            DownloadQueueItem.created_at.asc()
-        ).first()
+        item = db.session.execute(
+            select(DownloadQueueItem)
+            .filter_by(status='pending')
+            .order_by(DownloadQueueItem.created_at.asc())
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
 
         if not item:
             return
 
-        log_action(f"Processing download queue item {item.id}: {item.url}")
+        item_id = item.id
+        log_action(f"Processing download queue item {item_id}: {item.url}")
 
         item.status = 'processing'
         item.started_at = datetime.utcnow()
@@ -87,7 +117,15 @@ class DownloadQueueWorker:
 
         except Exception as e:
             error_msg = str(e)
-            log_error(f"Failed to process download queue item {item.id}: {error_msg}\n{traceback.format_exc()}")
+
+            db.session.rollback()
+
+            item = db.session.get(DownloadQueueItem, item_id)
+            if not item:
+                log_error(f"Failed to process download queue item {item_id}: Item no longer exists")
+                return
+
+            log_error(f"Failed to process download queue item {item_id}: {error_msg}\n{traceback.format_exc()}")
 
             item.retry_count += 1
 
@@ -95,11 +133,11 @@ class DownloadQueueWorker:
                 item.status = 'failed'
                 item.error_message = f"Failed after {item.retry_count} attempts: {error_msg}"
                 item.completed_at = datetime.utcnow()
-                log_action(f"Download queue item {item.id} failed permanently after {item.retry_count} retries")
+                log_action(f"Download queue item {item_id} failed permanently after {item.retry_count} retries")
             else:
                 item.status = 'pending'
                 item.error_message = f"Attempt {item.retry_count} failed: {error_msg}"
-                log_action(f"Download queue item {item.id} will be retried (attempt {item.retry_count + 1}/{item.max_retries})")
+                log_action(f"Download queue item {item_id} will be retried (attempt {item.retry_count + 1}/{item.max_retries})")
 
             db.session.commit()
 

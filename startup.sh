@@ -1,15 +1,27 @@
 #!/bin/bash
 set -e
 
+DATA_DIR="/litkeeper/app/data"
 STORIES_DIR="/litkeeper/app/stories"
-MARKER_FILE="$STORIES_DIR/.mount_marker"
 
-echo "Checking for stories bind mount..."
+echo "Checking directory permissions..."
+
+# Validate write access to required directories
+if [ ! -w "$DATA_DIR" ]; then
+    echo "ERROR: Data directory not writable: $DATA_DIR"
+    echo "Ensure volume mounted with correct permissions (UID:GID 1000:1000)"
+    exit 1
+fi
+
+if [ ! -w "$STORIES_DIR" ]; then
+    echo "ERROR: Stories directory not writable: $STORIES_DIR"
+    echo "Ensure volume mounted with correct permissions (UID:GID 1000:1000)"
+    exit 1
+fi
+
+echo "Directory permissions validated"
 
 mkdir -p "$STORIES_DIR/epubs" "$STORIES_DIR/html" "$STORIES_DIR/covers"
-
-# Create marker file to indicate mount is configured
-touch "$MARKER_FILE" 2>/dev/null || echo "Note: Could not create marker file (read-only mount?)"
 
 echo "Stories directory ready at $STORIES_DIR"
 

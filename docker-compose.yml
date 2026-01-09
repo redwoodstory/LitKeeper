@@ -2,8 +2,13 @@ services:
   litkeeper:
     image: ghcr.io/redwoodstory/litkeeper:latest
     restart: unless-stopped
+
+    # Run as non-root user
+    user: "1000:1000"
+
     ports:
       - "5000:5000"
+      
     volumes:
       # Set /data mount to persist database and secret key
       - ./data:/litkeeper/app/data

@@ -4,6 +4,7 @@ from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, log_action, get_library_data
 from app.services.system_checks import check_mount_warning
 from app.utils import get_html_directory, get_epub_directory
+from app.utils.security import validate_file_in_directory
 from app.validators import StoryDownloadRequest, LibraryFilterRequest
 from pydantic import ValidationError
 import os
@@ -153,8 +154,7 @@ def filter_library() -> ResponseReturnValue:
 
 @library.route("/read/<filename>")
 def read_story(filename: str) -> ResponseReturnValue:
-    if '..' in filename or filename.startswith('/'):
-        log_error(f"Attempted path traversal in read: {filename}")
+    if not filename:
         abort(404)
 
     html_directory = get_html_directory()
@@ -165,6 +165,10 @@ def read_story(filename: str) -> ResponseReturnValue:
         json_filename = filename
     else:
         abort(404)
+
+    if not validate_file_in_directory(html_directory, json_filename):
+        log_error(f"Path traversal blocked in read: {filename}")
+        abort(403)
 
     json_path = os.path.join(html_directory, json_filename)
 
@@ -187,8 +191,7 @@ def read_story(filename: str) -> ResponseReturnValue:
 
 @library.route("/download/<format_type>/<filename>")
 def download_story(format_type: str, filename: str) -> ResponseReturnValue:
-    if '..' in filename or filename.startswith('/'):
-        log_error(f"Attempted path traversal in download: {filename}")
+    if not filename:
         abort(404)
 
     if format_type not in ['html', 'epub']:
@@ -203,6 +206,10 @@ def download_story(format_type: str, filename: str) -> ResponseReturnValue:
             json_filename = filename
         else:
             abort(404)
+
+        if not validate_file_in_directory(html_directory, json_filename):
+            log_error(f"Path traversal blocked in download: {filename}")
+            abort(403)
 
         json_path = os.path.join(html_directory, json_filename)
 
@@ -239,6 +246,10 @@ def download_story(format_type: str, filename: str) -> ResponseReturnValue:
             epub_filename = filename.replace('.json', '.epub')
         else:
             abort(404)
+
+        if not validate_file_in_directory(epub_directory, epub_filename):
+            log_error(f"Path traversal blocked in download: {filename}")
+            abort(403)
 
         epub_path = os.path.join(epub_directory, epub_filename)
 

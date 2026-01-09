@@ -3,6 +3,8 @@ from flask import render_template, jsonify, request, send_file, abort, current_a
 from . import epub
 from app.models import Story
 from app.services.epub_service import EpubService
+from app.utils.security import sanitize_zip_path
+from app.services.logger import log_error
 import os
 
 @epub.route('/reader/<int:story_id>')
@@ -44,42 +46,49 @@ def serve_epub_resource(story_id: int, filepath: str):
     """Serve individual files from within the EPUB archive."""
     import zipfile
     from io import BytesIO
-    
+
     story = Story.query.get_or_404(story_id)
     epub_path = EpubService.get_epub_path(story)
-    
+
     if not epub_path or not os.path.exists(epub_path):
         abort(404, description="EPUB file not found")
-    
+
+    safe_filepath = sanitize_zip_path(filepath)
+    if not safe_filepath:
+        log_error(f"Path traversal blocked: story={story_id}, path={filepath}")
+        abort(403, description="Invalid file path")
+
     try:
         with zipfile.ZipFile(epub_path, 'r') as zip_file:
-            # Try to read the requested file from the EPUB
+            if safe_filepath not in zip_file.namelist():
+                abort(404, description="File not found in EPUB")
+
             try:
-                file_data = zip_file.read(filepath)
+                file_data = zip_file.read(safe_filepath)
             except KeyError:
-                abort(404, description=f"File {filepath} not found in EPUB")
+                abort(404, description=f"File {safe_filepath} not found in EPUB")
             
             # Determine MIME type based on file extension
             mimetype = 'application/octet-stream'
-            if filepath.endswith('.xml'):
+            if safe_filepath.endswith('.xml'):
                 mimetype = 'application/xml'
-            elif filepath.endswith('.xhtml') or filepath.endswith('.html'):
+            elif safe_filepath.endswith('.xhtml') or safe_filepath.endswith('.html'):
                 mimetype = 'application/xhtml+xml'
-            elif filepath.endswith('.css'):
+            elif safe_filepath.endswith('.css'):
                 mimetype = 'text/css'
-            elif filepath.endswith('.js'):
+            elif safe_filepath.endswith('.js'):
                 mimetype = 'application/javascript'
-            elif filepath.endswith('.jpg') or filepath.endswith('.jpeg'):
+            elif safe_filepath.endswith('.jpg') or safe_filepath.endswith('.jpeg'):
                 mimetype = 'image/jpeg'
-            elif filepath.endswith('.png'):
+            elif safe_filepath.endswith('.png'):
                 mimetype = 'image/png'
-            elif filepath.endswith('.gif'):
+            elif safe_filepath.endswith('.gif'):
                 mimetype = 'image/gif'
-            elif filepath.endswith('.svg'):
+            elif safe_filepath.endswith('.svg'):
                 mimetype = 'image/svg+xml'
-            elif filepath.endswith('.opf'):
+            elif safe_filepath.endswith('.opf'):
                 mimetype = 'application/oebps-package+xml'
-            elif filepath.endswith('.ncx'):
+            elif safe_filepath.endswith('.ncx'):
                 mimetype = 'application/x-dtbncx+xml'
             
             return send_file(
