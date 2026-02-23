@@ -5,6 +5,7 @@ import traceback
 from datetime import datetime
 from typing import Optional
 from flask import Flask
+from app.services.metadata_refresh.rate_limiter import RateLimiter
 
 class DownloadQueueWorker:
     """Background worker for processing download queue"""
@@ -15,6 +16,9 @@ class DownloadQueueWorker:
         self.thread: Optional[threading.Thread] = None
         self.running = False
         self._stop_event = threading.Event()
+        # Conservative rate limit: max 5 downloads per 60 seconds to avoid
+        # triggering Literotica's bot-detection between queued story downloads.
+        self._rate_limiter = RateLimiter(max_requests=5, time_window=60)
 
     def start(self):
         """Start the background worker thread"""
@@ -92,6 +96,8 @@ class DownloadQueueWorker:
 
         item_id = item.id
         log_action(f"Processing download queue item {item_id}: {item.url}")
+
+        self._rate_limiter.wait_if_needed()
 
         item.status = 'processing'
         item.started_at = datetime.utcnow()

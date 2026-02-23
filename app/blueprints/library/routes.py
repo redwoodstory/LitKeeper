@@ -81,8 +81,7 @@ def sync_banner():
     from app.services.migration.sync_checker import SyncChecker
     from flask import current_app
 
-    config = get_config()
-    enable_library = config.get('enable_library', False)
+    enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
     if not enable_library:
         return '', 204

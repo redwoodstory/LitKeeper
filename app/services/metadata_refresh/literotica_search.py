@@ -87,7 +87,8 @@ class LiteroticaSearcher:
                     "author_url": author_url,
                     "page_count": page_count or 0,
                     "series_url": series_url,
-                    "literotica_url": url
+                    "literotica_url": url,
+                    "_story_content": content,  # retained for HTML generation, not stored in DB
                 }
 
             return None

@@ -100,28 +100,46 @@ class EpubService:
         percentage: float = None
     ) -> ReadingProgress:
         """Update or create reading progress for a story."""
+
+        def _apply_fields(progress: ReadingProgress) -> None:
+            if current_chapter is not None:
+                progress.current_chapter = current_chapter
+            if current_paragraph is not None:
+                progress.current_paragraph = current_paragraph
+            if scroll_position is not None:
+                progress.scroll_position = scroll_position
+            if is_completed is not None:
+                progress.is_completed = is_completed
+            if cfi is not None:
+                progress.cfi = cfi
+            if percentage is not None:
+                progress.percentage = percentage
+            progress.last_read_at = datetime.utcnow()
+
         progress = ReadingProgress.query.filter_by(story_id=story_id).first()
 
         if not progress:
             progress = ReadingProgress(story_id=story_id)
             db.session.add(progress)
 
-        if current_chapter is not None:
-            progress.current_chapter = current_chapter
-        if current_paragraph is not None:
-            progress.current_paragraph = current_paragraph
-        if scroll_position is not None:
-            progress.scroll_position = scroll_position
-        if is_completed is not None:
-            progress.is_completed = is_completed
-        if cfi is not None:
-            progress.cfi = cfi
-        if percentage is not None:
-            progress.percentage = percentage
+        _apply_fields(progress)
 
-        progress.last_read_at = datetime.utcnow()
+        try:
+            db.session.commit()
+        except Exception as e:
+            # Handle concurrent INSERT race: two requests both saw no existing row
+            # and both tried to INSERT, causing a UNIQUE constraint violation.
+            if 'UNIQUE constraint failed' in str(e):
+                db.session.rollback()
+                progress = ReadingProgress.query.filter_by(story_id=story_id).first()
+                if progress:
+                    _apply_fields(progress)
+                    db.session.commit()
+                else:
+                    raise
+            else:
+                raise
 
-        db.session.commit()
         return progress
     
     @staticmethod

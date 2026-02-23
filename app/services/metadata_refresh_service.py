@@ -68,6 +68,9 @@ class MetadataRefreshService:
             self._log_refresh(story.id, "failed", url, None, "Failed to fetch metadata from URL")
             return {"success": False, "message": "Failed to fetch metadata from URL"}
         
+        # Extract story content before using metadata (not stored in DB)
+        story_content = metadata.pop("_story_content", None)
+        
         fields_changed = []
         previous_data = {}
         
@@ -172,7 +175,53 @@ class MetadataRefreshService:
             fields_changed,
             previous_data
         )
-        
+
+        # Generate HTML/JSON file from the already-downloaded content (no extra network cost)
+        if story_content and story.filename_base:
+            from app.models import StoryFormat
+            from app.utils import get_html_directory
+            from .html_generator import create_html_file
+            from .story_downloader import extract_chapter_titles
+            import os, json as _json
+
+            existing_json = StoryFormat.query.filter_by(
+                story_id=story.id, format_type='json'
+            ).first()
+
+            if not existing_json:
+                try:
+                    from app.services.logger import log_action as _log_action, log_error as _log_error
+                    _log_action(f"Generating HTML/JSON for story: {story.title}")
+                    chapter_titles = extract_chapter_titles(story_content)
+                    json_path = create_html_file(
+                        story_title=story.title,
+                        story_author=story.author.name,
+                        story_content=story_content,
+                        output_directory=get_html_directory(),
+                        story_category=metadata.get('category'),
+                        story_tags=metadata.get('tags'),
+                        chapter_titles=chapter_titles if chapter_titles else None,
+                        source_url=url,
+                        author_url=metadata.get('author_url'),
+                        page_count=metadata.get('page_count'),
+                        filename_base=story.filename_base,
+                    )
+                    with open(json_path, 'r', encoding='utf-8') as f:
+                        json_data = _json.load(f)
+                    json_format = StoryFormat(
+                        story_id=story.id,
+                        format_type='json',
+                        file_path=json_path,
+                        file_size=os.path.getsize(json_path),
+                        json_data=_json.dumps(json_data),
+                    )
+                    db.session.add(json_format)
+                    fields_changed.append('html_generated')
+                    _log_action(f"Successfully generated HTML/JSON for story: {story.title}")
+                except Exception as html_err:
+                    from app.services.logger import log_error as _log_error
+                    _log_error(f"HTML generation failed for story {story.id}: {html_err}")
+
         db.session.commit()
         
         return {
