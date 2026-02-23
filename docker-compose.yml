@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
 
     # Run as non-root user
-    user: "1000:1000"
+    # user: "1000:1000"
 
     ports:
       - "5000:5000"

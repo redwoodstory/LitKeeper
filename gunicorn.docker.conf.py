@@ -15,8 +15,8 @@ worker_class = "sync"
 timeout = 300
 threads = int(os.getenv("GUNICORN_THREADS", 4))
 keepalive = 5
-max_requests = 1000
-max_requests_jitter = 50
+max_requests = 5000
+max_requests_jitter = 100
 
 accesslog = "-"
 errorlog = "-"

@@ -85,7 +85,6 @@ class DownloadQueueWorker:
             .filter_by(status='pending')
             .order_by(DownloadQueueItem.created_at.asc())
             .limit(1)
-            .with_for_update(skip_locked=True)
         ).scalar_one_or_none()
 
         if not item:

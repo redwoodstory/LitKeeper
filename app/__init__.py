@@ -5,6 +5,7 @@ import atexit
 from datetime import datetime
 from dotenv import load_dotenv
 from typing import Any
+from app.utils.paths import get_data_directory, get_stories_directory
 
 load_dotenv()
 
@@ -32,6 +33,8 @@ def create_app() -> Flask:
     print(f"=" * 80)
     print(f"LitKeeper Version: {APP_VERSION}")
     print(f"Build: Production-ready multi-user deployment")
+    print(f"[CONFIG] Data Directory: {get_data_directory()}")
+    print(f"[CONFIG] Stories Directory: {get_stories_directory()}")
     print(f"=" * 80)
 
     _validate_deployment_config()

@@ -4,11 +4,12 @@
 
 {% block theme_toggle %}
 <div class="fixed top-4 left-4 z-50">
-  <a href="/"
-     class="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:scale-110 transition-transform block"
-     aria-label="Home">
+  <a href="/" class="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:scale-110 transition-transform block"
+    aria-label="Home">
     <svg class="w-6 h-6 text-gray-800 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+      </path>
     </svg>
   </a>
 </div>
@@ -25,7 +26,8 @@
     <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
         Theme
       </h3>
@@ -34,27 +36,29 @@
       </p>
 
       <div class="inline-flex rounded-lg border border-slate-200 dark:border-gray-700 p-1 bg-slate-50 dark:bg-gray-900">
-        <button type="button"
-                data-theme-option="light"
-                class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'light' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
+        <button type="button" data-theme-option="light"
+          class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'light' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
           <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+            </path>
           </svg>
           <span class="pointer-events-none">Light</span>
         </button>
-        <button type="button"
-                data-theme-option="dark"
-                class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'dark' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
+        <button type="button" data-theme-option="dark"
+          class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'dark' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
           <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
           </svg>
           <span class="pointer-events-none">Dark</span>
         </button>
-        <button type="button"
-                data-theme-option="system"
-                class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'system' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
+        <button type="button" data-theme-option="system"
+          class="theme-option px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer {% if theme_preference == 'system' %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white{% endif %}">
           <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+            </path>
           </svg>
           <span class="pointer-events-none">System</span>
         </button>
@@ -66,26 +70,24 @@
     <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         Bulk Format Generation
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Generate missing file formats for all stories in your library. For HTML generation, stories with 100% match confidence will be processed automatically.
+        Generate missing file formats for all stories in your library. For HTML generation, stories with 100% match
+        confidence will be processed automatically.
       </p>
-      
+
       <div class="grid md:grid-cols-3 gap-4">
         <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
           <h4 class="font-medium text-gray-900 dark:text-white mb-2">Generate Missing EPUBs</h4>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Create EPUB files for stories that only have HTML format.
           </p>
-          <button hx-post="/settings/generate-missing-epubs"
-                  hx-target="#generationStatus"
-                  hx-swap="innerHTML"
-                  hx-indicator="#btnGenerateEpubs"
-                  id="btnGenerateEpubs"
-                  class="btn-primary w-full">
+          <button hx-post="/settings/generate-missing-epubs" hx-target="#generationStatus" hx-swap="innerHTML"
+            hx-indicator="#btnGenerateEpubs" id="btnGenerateEpubs" class="btn-primary w-full">
             <span class="htmx-indicator">Generating...</span>
             <span class="htmx-not-indicator">Generate EPUBs</span>
           </button>
@@ -96,12 +98,8 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Create HTML files for stories that only have EPUB format (auto-match only).
           </p>
-          <button hx-post="/settings/generate-missing-html"
-                  hx-target="#generationStatus"
-                  hx-swap="innerHTML"
-                  hx-indicator="#btnGenerateHtml"
-                  id="btnGenerateHtml"
-                  class="btn-primary w-full">
+          <button hx-post="/settings/generate-missing-html" hx-target="#generationStatus" hx-swap="innerHTML"
+            hx-indicator="#btnGenerateHtml" id="btnGenerateHtml" class="btn-primary w-full">
             <span class="htmx-indicator">Generating...</span>
             <span class="htmx-not-indicator">Generate HTML</span>
           </button>
@@ -112,12 +110,8 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Generate all missing formats for all stories in your library.
           </p>
-          <button hx-post="/settings/generate-all-missing-formats"
-                  hx-target="#generationStatus"
-                  hx-swap="innerHTML"
-                  hx-indicator="#btnGenerateAll"
-                  id="btnGenerateAll"
-                  class="btn-primary w-full">
+          <button hx-post="/settings/generate-all-missing-formats" hx-target="#generationStatus" hx-swap="innerHTML"
+            hx-indicator="#btnGenerateAll" id="btnGenerateAll" class="btn-primary w-full">
             <span class="htmx-indicator">Generating...</span>
             <span class="htmx-not-indicator">Generate All</span>
           </button>
@@ -132,20 +126,46 @@
     <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
         </svg>
         Offline Reading
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
         Cache all HTML stories for offline reading. This will download all stories to your browser's cache.
       </p>
-      
+
       <button id="syncAllStories"
-              class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+        class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
         </svg>
         Sync All Offline
+      </button>
+    </section>
+
+    <hr class="border-gray-200 dark:border-gray-700">
+
+    <section>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        Troubleshooting
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        If you're experiencing issues with the app, try clearing the cache and resetting the application state.
+      </p>
+
+      <button id="resetAppCache" onclick="resetAppCache()"
+        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Clear Cache & Reset
       </button>
     </section>
 
@@ -155,23 +175,23 @@
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           Auto-Refresh Exclusions
         </h3>
-        <button id="resetAllExclusionsBtn" onclick="resetAllExclusions()" 
-                class="hidden px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">
+        <button id="resetAllExclusionsBtn" onclick="resetAllExclusions()"
+          class="hidden px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">
           Reset All Exclusions
         </button>
       </div>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Stories excluded from automatic metadata refresh due to conflicts or errors. These stories will not be checked during automation cycles.
+        Stories excluded from automatic metadata refresh due to conflicts or errors. These stories will not be checked
+        during automation cycles.
       </p>
-      
-      <div id="excludedStoriesContainer"
-           hx-get="/settings/get-excluded-stories-html"
-           hx-trigger="load"
-           hx-swap="innerHTML">
+
+      <div id="excludedStoriesContainer" hx-get="/settings/get-excluded-stories-html" hx-trigger="load"
+        hx-swap="innerHTML">
         <div class="flex items-center justify-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -183,20 +203,26 @@
     <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
+          </path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+          </path>
         </svg>
         Warnings & Notifications
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
         Manage dismissed warnings and notifications.
       </p>
-      
+
       <button onclick="showHiddenWarnings()"
-              class="px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 inline-flex items-center gap-2">
+        class="px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 inline-flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
+          </path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+          </path>
         </svg>
         Show Hidden Warnings
       </button>
@@ -205,22 +231,22 @@
 </div>
 
 <script>
-async function loadExcludedStories() {
-  const container = document.getElementById('excludedStoriesContainer');
-  
-  try {
-    const response = await fetch('/settings/get-excluded-stories');
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.message || 'Failed to load excluded stories');
-    }
-    
-    const resetBtn = document.getElementById('resetAllExclusionsBtn');
-    
-    if (data.stories.length === 0) {
-      if (resetBtn) resetBtn.classList.add('hidden');
-      container.innerHTML = `
+  async function loadExcludedStories() {
+    const container = document.getElementById('excludedStoriesContainer');
+
+    try {
+      const response = await fetch('/settings/get-excluded-stories');
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to load excluded stories');
+      }
+
+      const resetBtn = document.getElementById('resetAllExclusionsBtn');
+
+      if (data.stories.length === 0) {
+        if (resetBtn) resetBtn.classList.add('hidden');
+        container.innerHTML = `
         <div class="text-center py-8">
           <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -229,12 +255,12 @@ async function loadExcludedStories() {
           <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">All stories are eligible for auto-refresh</p>
         </div>
       `;
-      return;
-    }
-    
-    if (resetBtn) resetBtn.classList.remove('hidden');
-    
-    container.innerHTML = `
+        return;
+      }
+
+      if (resetBtn) resetBtn.classList.remove('hidden');
+
+      container.innerHTML = `
       <div class="space-y-3">
         ${data.stories.map(story => `
           <div id="exclusion-card-${story.id}" class="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 transition-all duration-200">
@@ -273,8 +299,8 @@ async function loadExcludedStories() {
         `).join('')}
       </div>
     `;
-  } catch (error) {
-    container.innerHTML = `
+    } catch (error) {
+      container.innerHTML = `
       <div class="text-center py-8">
         <svg class="w-16 h-16 mx-auto text-red-300 dark:text-red-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -283,52 +309,52 @@ async function loadExcludedStories() {
         <p class="text-sm text-red-500 dark:text-red-500 mt-1">${error.message}</p>
       </div>
     `;
-  }
-}
-
-async function openStoryModalById(storyId) {
-  try {
-    const response = await fetch(`/api/story/${storyId}/modal`);
-    if (response.ok) {
-      const html = await response.text();
-      document.body.insertAdjacentHTML('beforeend', html);
-    } else {
-      console.error('Failed to load story modal');
     }
-  } catch (error) {
-    console.error('Error loading story modal:', error);
   }
-}
 
-async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
-  if (typeof openRefreshModal === 'function') {
-    openRefreshModal(storyId, storyTitle, storyAuthor, async (fieldsChanged) => {
-      if (fieldsChanged) {
-        removeExclusionCard(storyId);
+  async function openStoryModalById(storyId) {
+    try {
+      const response = await fetch(`/api/story/${storyId}/modal`);
+      if (response.ok) {
+        const html = await response.text();
+        document.body.insertAdjacentHTML('beforeend', html);
+      } else {
+        console.error('Failed to load story modal');
       }
-    });
-  } else {
-    console.error('openRefreshModal function not found');
-    alert('Metadata refresh modal is not available. Please refresh the page and try again.');
+    } catch (error) {
+      console.error('Error loading story modal:', error);
+    }
   }
-}
 
-function removeExclusionCard(storyId) {
-  const card = document.getElementById(`exclusion-card-${storyId}`);
-  if (card) {
-    card.style.opacity = '0';
-    card.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-      card.remove();
-      
-      const container = document.getElementById('excludedStoriesContainer');
-      const remainingCards = container.querySelectorAll('[id^="exclusion-card-"]');
-      
-      if (remainingCards.length === 0) {
-        const resetBtn = document.getElementById('resetAllExclusionsBtn');
-        if (resetBtn) resetBtn.classList.add('hidden');
-        
-        container.innerHTML = `
+  async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
+    if (typeof openRefreshModal === 'function') {
+      openRefreshModal(storyId, storyTitle, storyAuthor, async (fieldsChanged) => {
+        if (fieldsChanged) {
+          removeExclusionCard(storyId);
+        }
+      });
+    } else {
+      console.error('openRefreshModal function not found');
+      alert('Metadata refresh modal is not available. Please refresh the page and try again.');
+    }
+  }
+
+  function removeExclusionCard(storyId) {
+    const card = document.getElementById(`exclusion-card-${storyId}`);
+    if (card) {
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        card.remove();
+
+        const container = document.getElementById('excludedStoriesContainer');
+        const remainingCards = container.querySelectorAll('[id^="exclusion-card-"]');
+
+        if (remainingCards.length === 0) {
+          const resetBtn = document.getElementById('resetAllExclusionsBtn');
+          if (resetBtn) resetBtn.classList.add('hidden');
+
+          container.innerHTML = `
           <div class="text-center py-8">
             <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -337,109 +363,146 @@ function removeExclusionCard(storyId) {
             <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">All stories are eligible for auto-refresh</p>
           </div>
         `;
+        }
+      }, 200);
+    }
+  }
+
+
+  async function resetAllExclusions() {
+    if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {
+      return;
+    }
+
+    const btn = document.getElementById('resetAllExclusionsBtn');
+    const originalText = btn.textContent;
+
+    try {
+      btn.disabled = true;
+      btn.textContent = 'Resetting...';
+
+      const response = await fetch('/settings/reset-all-exclusions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        await loadExcludedStories();
+        alert(data.message);
+      } else {
+        alert(`Error: ${data.message}`);
       }
-    }, 200);
-  }
-}
-
-
-async function resetAllExclusions() {
-  if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {
-    return;
-  }
-  
-  const btn = document.getElementById('resetAllExclusionsBtn');
-  const originalText = btn.textContent;
-  
-  try {
-    btn.disabled = true;
-    btn.textContent = 'Resetting...';
-    
-    const response = await fetch('/settings/reset-all-exclusions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await response.json();
-    
-    if (data.success) {
-      await loadExcludedStories();
-      alert(data.message);
-    } else {
-      alert(`Error: ${data.message}`);
+    } catch (error) {
+      alert(`Error resetting exclusions: ${error.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
-  } catch (error) {
-    alert(`Error resetting exclusions: ${error.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
   }
-}
 
-function initializeThemeButtons() {
-  const themeButtons = document.querySelectorAll('.theme-option');
-  themeButtons.forEach(button => {
-    const existingHandler = button._themeClickHandler;
-    if (existingHandler) {
-      button.removeEventListener('click', existingHandler);
-    }
+  function initializeThemeButtons() {
+    const themeButtons = document.querySelectorAll('.theme-option');
+    themeButtons.forEach(button => {
+      const existingHandler = button._themeClickHandler;
+      if (existingHandler) {
+        button.removeEventListener('click', existingHandler);
+      }
 
-    const handler = async () => {
-      const theme = button.getAttribute('data-theme-option');
+      const handler = async () => {
+        const theme = button.getAttribute('data-theme-option');
 
-      try {
-        const response = await fetch('/settings/theme-preference', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ theme })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          themeButtons.forEach(btn => {
-            btn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
-            btn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-white');
+        try {
+          const response = await fetch('/settings/theme-preference', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ theme })
           });
 
-          button.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-white');
-          button.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+          const data = await response.json();
 
-          if (typeof window.applyThemePreference === 'function') {
-            window.applyThemePreference(theme);
-          } else {
-            const html = document.documentElement;
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            const actualTheme = theme === 'system' ? systemTheme : theme;
-            html.setAttribute('data-theme', actualTheme);
+          if (data.success) {
+            themeButtons.forEach(btn => {
+              btn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+              btn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-white');
+            });
+
+            button.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:text-gray-900', 'dark:hover:text-white');
+            button.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+
+            if (typeof window.applyThemePreference === 'function') {
+              window.applyThemePreference(theme);
+            } else {
+              const html = document.documentElement;
+              const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              const actualTheme = theme === 'system' ? systemTheme : theme;
+              html.setAttribute('data-theme', actualTheme);
+            }
           }
+        } catch (error) {
+          console.error('Error saving theme preference:', error);
         }
-      } catch (error) {
-        console.error('Error saving theme preference:', error);
+      };
+
+      button._themeClickHandler = handler;
+      button.addEventListener('click', handler);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadExcludedStories();
+    initializeThemeButtons();
+
+    document.addEventListener('storyDeleted', (event) => {
+      if (event.detail && event.detail.storyId) {
+        removeExclusionCard(event.detail.storyId);
       }
-    };
-
-    button._themeClickHandler = handler;
-    button.addEventListener('click', handler);
+    });
   });
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadExcludedStories();
-  initializeThemeButtons();
-
-  document.addEventListener('storyDeleted', (event) => {
-    if (event.detail && event.detail.storyId) {
-      removeExclusionCard(event.detail.storyId);
+  document.body.addEventListener('htmx:afterSwap', (event) => {
+    if (event.detail.target === document.body) {
+      initializeThemeButtons();
     }
   });
-});
+  async function resetAppCache() {
+    if (!confirm('This will clear all offline data and reload the application. Continue?')) {
+      return;
+    }
 
-document.body.addEventListener('htmx:afterSwap', (event) => {
-  if (event.detail.target === document.body) {
-    initializeThemeButtons();
+    const btn = document.getElementById('resetAppCache');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Clearing...';
+
+    try {
+      // 1. Unregister Service Workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('Service Worker unregistered');
+        }
+      }
+
+      // 2. Clear Caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+        console.log('Caches cleared');
+      }
+
+      // 3. Reload
+      console.log('Reloading...');
+      window.location.reload(true);
+    } catch (error) {
+      console.error('Error resetting cache:', error);
+      alert('Error resetting cache. Please try manually clearing your browser data.');
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   }
-});
 </script>
 {% endblock %}

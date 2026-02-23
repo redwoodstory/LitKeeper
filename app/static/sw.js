@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v11';
+const CACHE_VERSION = 'v12';
 const STATIC_CACHE = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 
@@ -134,8 +134,8 @@ self.addEventListener('install', (event) => {
       // Request persistent storage to prevent eviction
       navigator.storage && navigator.storage.persist
         ? navigator.storage.persist().then((persistent) => {
-            console.log('[Service Worker] Persistent storage:', persistent ? 'granted' : 'denied');
-          })
+          console.log('[Service Worker] Persistent storage:', persistent ? 'granted' : 'denied');
+        })
         : Promise.resolve()
     ])
   );
@@ -146,7 +146,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   console.log('[Service Worker] Activating...');
   console.log('[Service Worker] Scope:', self.registration.scope);
-  
+
   event.waitUntil(
     Promise.all([
       // Clean up old caches
@@ -279,6 +279,14 @@ self.addEventListener('fetch', (event) => {
       })
     );
   }
+  // Sync banner: Always fetch fresh (never cache dynamic state)
+  else if (url.pathname === '/sync-banner') {
+    event.respondWith(
+      fetch(request).catch(() => {
+        return new Response('', { status: 204 });
+      })
+    );
+  }
   // API calls: Network first with cache fallback
   else if (url.pathname.startsWith('/api/')) {
     event.respondWith(
@@ -314,7 +322,7 @@ self.addEventListener('fetch', (event) => {
 // Handle story requests with OPFS
 async function handleStoryRequest(request, url) {
   const filename = url.pathname.split('/').pop();
-  
+
   try {
     // Try OPFS first (if supported)
     if (opfsStorage.initialized || await opfsStorage.init()) {
@@ -352,19 +360,19 @@ async function handleStoryRequest(request, url) {
     if (response && response.status === 200) {
       const responseClone = response.clone();
       const content = await responseClone.text();
-      
+
       // Try to save to OPFS (primary storage)
       if (opfsStorage.initialized) {
         await opfsStorage.saveStory(filename, content).catch((error) => {
           console.log('[OPFS] Save failed, falling back to cache:', error);
         });
       }
-      
+
       // Always cache as fallback
       caches.open(DYNAMIC_CACHE).then((cache) => {
         cache.put(request, response.clone());
       });
-      
+
       console.log('[Network] Fetched and saved story:', filename);
     }
     return response;
@@ -390,7 +398,7 @@ self.addEventListener('message', async (event) => {
       const estimate = await navigator.storage.estimate();
       const persistent = await navigator.storage.persisted();
       const stories = await opfsStorage.listStories();
-      
+
       event.ports[0].postMessage({
         success: true,
         storage: {
@@ -417,11 +425,11 @@ self.addEventListener('message', async (event) => {
       // Clear OPFS
       const stories = await opfsStorage.listStories();
       await Promise.all(stories.map(story => opfsStorage.deleteStory(story)));
-      
+
       // Clear caches
       const cacheNames = await caches.keys();
       await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-      
+
       console.log('[Service Worker] All storage cleared');
       event.ports[0].postMessage({ success: true });
     } catch (error) {

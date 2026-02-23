@@ -75,6 +75,41 @@ def index() -> ResponseReturnValue:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
         return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, enable_library=enable_library)
 
+@library.route('/sync-banner')
+def sync_banner():
+    """Return just the sync banner HTML (for dynamic loading via HTMX)."""
+    from app.services.migration.sync_checker import SyncChecker
+    from flask import current_app
+
+    config = get_config()
+    enable_library = config.get('enable_library', False)
+
+    if not enable_library:
+        return '', 204
+
+    sync_checker = SyncChecker()
+    sync_status = sync_checker.check_sync()
+
+    log_action(f"[BANNER] Sync check: in_sync={sync_status['in_sync']}, orphaned_files={sync_status['orphaned_files_count']}, orphaned_db={sync_status['orphaned_db_count']}")
+
+    if not sync_status['in_sync'] and hasattr(current_app, 'automation'):
+        log_action(f"[BANNER] Automation state: has_completed_first_run={current_app.automation.has_completed_first_run}, is_processing={current_app.automation.is_processing}")
+
+        if current_app.automation.is_processing:
+            log_action("[BANNER] Automation is currently processing, hiding banner")
+            sync_status = None
+        elif sync_status['orphaned_files_count'] > 0:
+            log_action(f"[BANNER] Found {sync_status['orphaned_files_count']} orphaned files, triggering automation and hiding banner")
+            current_app.automation.trigger_immediate_run()
+            sync_status = None
+        else:
+            log_action("[BANNER] Only orphaned DB records (no files to import), showing banner")
+
+    if not sync_status or sync_status['in_sync']:
+        return '', 204
+
+    return render_template("partials/sync_banner_warning.html", sync_status=sync_status)
+
 @library.route("/library/filter", methods=["GET"])
 def filter_library() -> ResponseReturnValue:
     try:

@@ -44,15 +44,15 @@ RUN groupadd -r -g 1000 litkeeper && \
 # Set up application directory
 WORKDIR /litkeeper
 
-# Copy files with correct ownership
-COPY --chown=litkeeper:litkeeper app app/
-COPY --chown=litkeeper:litkeeper migrations migrations/
-COPY --chown=litkeeper:litkeeper run.py gunicorn.docker.conf.py startup.sh .
+# Copy files
+COPY app app/
+COPY migrations migrations/
+COPY run.py gunicorn.docker.conf.py startup.sh .
 
-# Create directories with secure permissions (750 = owner rwx, group rx, no world access)
+# Create directories and a build-time marker file
+# The marker file is used to detect missing bind mounts at runtime
 RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
-    chown -R litkeeper:litkeeper app/data app/stories && \
-    chmod -R 750 app/data app/stories && \
+    touch app/stories/.container_default && \
     chmod +x startup.sh
 
 # Set environment variables
@@ -60,7 +60,7 @@ ENV PYTHONPATH=/litkeeper
 ENV PYTHONUNBUFFERED=1
 
 # Switch to non-root user
-USER litkeeper
+# USER litkeeper
 
 # Expose port
 EXPOSE 5000
