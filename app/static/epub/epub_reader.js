@@ -87,26 +87,8 @@ function setTheme(theme) {
   }
   
   if (view?.renderer) {
-    applyThemeStyles(theme);
+    updateReaderStyles();
   }
-}
-
-function applyThemeStyles(theme) {
-  const isDark = theme === 'dark';
-  const styles = `
-    @namespace epub "http://www.idpf.org/2007/ops";
-    html {
-      color-scheme: ${isDark ? 'dark' : 'light'};
-    }
-    body {
-      color: ${isDark ? '#e5e7eb' : '#1a1a1a'} !important;
-      background: ${isDark ? '#0f1419' : '#ffffff'} !important;
-    }
-    p, li, blockquote, dd {
-      line-height: ${localStorage.getItem('epubLineHeight') || '1.6'};
-    }
-  `;
-  view.renderer.setStyles?.(styles);
 }
 
 function applyThemePreference(preference) {
@@ -196,7 +178,7 @@ const lineHeightValue = document.getElementById('lineHeightValue');
 const widthRange = document.getElementById('widthRange');
 const widthValue = document.getElementById('widthValue');
 
-const savedFont = localStorage.getItem('fontFamily') || "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif";
+const savedFont = localStorage.getItem('fontFamily') || "ProximaNovaMedium, system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', Helvetica, Arial, sans-serif";
 const savedFontSize = localStorage.getItem('epubFontSize') || '18';
 const savedLineHeight = localStorage.getItem('epubLineHeight') || '1.6';
 
@@ -208,13 +190,14 @@ lineHeightValue.textContent = savedLineHeight;
 
 function updateReaderStyles() {
   if (!view?.renderer) return;
-  
+
   const theme = html.getAttribute('data-theme');
   const isDark = theme === 'dark';
   const fontSize = fontSizeRange.value;
   const lineHeight = lineHeightRange.value;
   const fontFamily = fontSelect.value;
-  
+  const margin = parseInt(marginRange.value) || 0;
+
   const styles = `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
@@ -225,9 +208,12 @@ function updateReaderStyles() {
       background: ${isDark ? '#0f1419' : '#ffffff'} !important;
       font-family: ${fontFamily} !important;
       font-size: ${fontSize}px !important;
+      line-height: ${lineHeight} !important;
+      padding-left: ${margin}px !important;
+      padding-right: ${margin}px !important;
     }
-    p, li, blockquote, dd {
-      line-height: ${lineHeight};
+    p, li, blockquote, dd, h1, h2, h3, h4, h5, h6 {
+      line-height: ${lineHeight} !important;
       font-family: ${fontFamily} !important;
     }
     div, span {
@@ -271,13 +257,38 @@ widthRange.addEventListener('input', (e) => {
   const width = e.target.value;
   widthValue.textContent = width + 'px';
   localStorage.setItem('epubReadingWidth', width);
-  
+
   if (window.innerWidth > 768) {
     document.documentElement.style.setProperty('--max-width', width + 'px');
     if (view?.renderer) {
       view.renderer.setAttribute('max-inline-size', width);
     }
   }
+});
+
+const marginRange = document.getElementById('marginRange');
+const marginValue = document.getElementById('marginValue');
+const savedMargin = localStorage.getItem('epubMobileMargin') || '16';
+marginRange.value = savedMargin;
+marginValue.textContent = savedMargin + 'px';
+
+function applyMobileVisibility() {
+  const isMobile = window.innerWidth <= 768;
+  document.querySelectorAll('.desktop-only-setting').forEach(el => {
+    el.style.display = isMobile ? 'none' : '';
+  });
+  document.querySelectorAll('.mobile-only-setting').forEach(el => {
+    el.style.display = isMobile ? '' : 'none';
+  });
+}
+applyMobileVisibility();
+window.addEventListener('resize', applyMobileVisibility);
+
+marginRange.addEventListener('input', (e) => {
+  const margin = e.target.value;
+  marginValue.textContent = margin + 'px';
+  localStorage.setItem('epubMobileMargin', margin);
+  updateReaderStyles();
 });
 
 class ProgressDB {

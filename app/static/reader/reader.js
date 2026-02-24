@@ -167,6 +167,33 @@
     localStorage.setItem('readingWidth', width);
   });
 
+  // Mobile margin adjustment
+  const marginRange = document.getElementById('marginRange');
+  const marginValue = document.getElementById('marginValue');
+  const savedMargin = localStorage.getItem('mobileMargin') || '16';
+  marginRange.value = savedMargin;
+  marginValue.textContent = savedMargin + 'px';
+  root.style.setProperty('--mobile-margin', savedMargin + 'px');
+
+  marginRange.addEventListener('input', (e) => {
+    const margin = e.target.value;
+    marginValue.textContent = margin + 'px';
+    root.style.setProperty('--mobile-margin', margin + 'px');
+    localStorage.setItem('mobileMargin', margin);
+  });
+
+  function applyMobileVisibility() {
+    const mobile = window.innerWidth <= 768;
+    document.querySelectorAll('.desktop-only-setting').forEach(el => {
+      el.style.display = mobile ? 'none' : '';
+    });
+    document.querySelectorAll('.mobile-only-setting').forEach(el => {
+      el.style.display = mobile ? '' : 'none';
+    });
+  }
+  applyMobileVisibility();
+  window.addEventListener('resize', applyMobileVisibility);
+
   // Auto-hide controls on scroll (mobile only)
   let lastScrollTop = 0;
   let scrollTimeout;

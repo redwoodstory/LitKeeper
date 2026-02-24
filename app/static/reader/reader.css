@@ -56,6 +56,12 @@ body {
   :root {
     --font-size: 16px;
     --max-width: 100%;
+    --mobile-margin: 16px;
+  }
+
+  .story-container {
+    padding-left: var(--mobile-margin);
+    padding-right: var(--mobile-margin);
   }
 }
 
@@ -157,7 +163,7 @@ body {
 }
 
 .settings-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .settings-group:last-child {
@@ -173,28 +179,74 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
 }
 
-.settings-select, .settings-range {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--separator-color);
-  border-radius: 8px;
-  background: var(--header-bg);
-  color: var(--text-color);
+.range-value {
+  float: right;
+  color: var(--secondary-text);
+  font-weight: 400;
   font-size: 0.875rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-.settings-select:focus, .settings-range:focus {
+.settings-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--separator-color);
+  border-radius: 6px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-select:hover {
+  border-color: var(--accent-color);
+}
+
+.settings-select:focus {
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
 }
 
-.range-value {
-  display: inline-block;
-  margin-left: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--secondary-text);
+.settings-range {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--separator-color);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  border: none;
+}
+
+.settings-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.settings-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.settings-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.2s ease;
+}
+
+.settings-range::-moz-range-thumb:hover {
+  transform: scale(1.2);
 }
 
 .download-buttons {

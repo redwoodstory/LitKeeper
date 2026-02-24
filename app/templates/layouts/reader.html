@@ -59,15 +59,19 @@
     </div>
     <div class="settings-group">
       <label class="settings-label">Font Size <span id="fontSizeValue" class="range-value">16px</span></label>
-      <input type="range" id="fontSizeRange" class="settings-range" min="14" max="24" value="16" step="1">
+      <input type="range" id="fontSizeRange" class="settings-range" min="12" max="24" value="16" step="1">
     </div>
     <div class="settings-group">
       <label class="settings-label">Line Spacing <span id="lineHeightValue" class="range-value">1.58</span></label>
       <input type="range" id="lineHeightRange" class="settings-range" min="1.4" max="2.4" value="1.58" step="0.01">
     </div>
-    <div class="settings-group">
+    <div class="settings-group desktop-only-setting">
       <label class="settings-label">Reading Width <span id="widthValue" class="range-value">800px</span></label>
       <input type="range" id="widthRange" class="settings-range" min="600" max="1200" value="800" step="50">
+    </div>
+    <div class="settings-group mobile-only-setting">
+      <label class="settings-label">Margin Width <span id="marginValue" class="range-value">16px</span></label>
+      <input type="range" id="marginRange" class="settings-range" min="0" max="48" value="16" step="4">
     </div>
     {% block download_button %}
     <div class="settings-group">
