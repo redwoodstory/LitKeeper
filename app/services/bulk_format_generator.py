@@ -6,8 +6,11 @@ from datetime import datetime
 from app.models import Story, StoryFormat, db
 from app.services.format_generator import FormatGeneratorService
 from app.services.metadata_refresh_service import MetadataRefreshService
+from app.services.cover_generator import generate_cover_image
+from app.services.epub_service import EpubService
 from app.services.logger import log_action, log_error
-from app.utils import get_data_directory
+from app.utils import get_data_directory, get_cover_directory, get_epub_directory
+from sqlalchemy.orm import joinedload
 
 
 class BulkFormatGeneratorService:
@@ -206,6 +209,98 @@ class BulkFormatGeneratorService:
             "message": summary
         }
     
+    def regenerate_all_covers(self) -> dict:
+        self._write_log("Starting bulk cover regeneration")
+        stories = Story.query.options(joinedload(Story.author), joinedload(Story.formats)).all()
+        total = len(stories)
+        successful = 0
+        failed = 0
+        errors: list[dict] = []
+        cover_dir = get_cover_directory()
+        epub_dir = get_epub_directory()
+        os.makedirs(cover_dir, exist_ok=True)
+
+        self._write_log(f"Found {total} stories to regenerate covers for")
+
+        for story in stories:
+            try:
+                author_name = story.author.name if story.author else 'Unknown Author'
+                cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                cover_path = os.path.join(cover_dir, cover_filename)
+
+                generate_cover_image(story.title, author_name, cover_path)
+
+                if any(f.format_type == 'epub' for f in story.formats):
+                    epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
+                    if os.path.exists(epub_path):
+                        EpubService.update_epub_cover(epub_path, cover_path)
+
+                if not story.cover_filename:
+                    story.cover_filename = cover_filename
+                    db.session.commit()
+
+                successful += 1
+                self._write_log(f"✓ Regenerated cover for: {story.title}")
+            except Exception as e:
+                failed += 1
+                error_msg = f"✗ Failed cover for: {story.title} - {str(e)}"
+                self._write_log(error_msg, "error")
+                errors.append({"story_id": story.id, "title": story.title, "error": str(e)})
+
+        summary = f"Cover regeneration complete: {successful} successful, {failed} failed out of {total} total"
+        self._write_log(summary)
+        return {
+            "success": True,
+            "total": total,
+            "successful": successful,
+            "failed": failed,
+            "errors": errors,
+            "message": summary,
+        }
+
+    def reembed_existing_covers(self) -> dict:
+        self._write_log("Starting cover re-embed into EPUBs")
+        stories = Story.query.options(joinedload(Story.author), joinedload(Story.formats)).all()
+        epub_stories = [s for s in stories if any(f.format_type == 'epub' for f in s.formats)]
+        total = len(epub_stories)
+        successful = 0
+        failed = 0
+        errors: list[dict] = []
+        cover_dir = get_cover_directory()
+        epub_dir = get_epub_directory()
+
+        self._write_log(f"Found {total} EPUBs to update with existing covers")
+
+        for story in epub_stories:
+            try:
+                cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                cover_path = os.path.join(cover_dir, cover_filename)
+                epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
+
+                if not os.path.exists(cover_path) or not os.path.exists(epub_path):
+                    total -= 1
+                    continue
+
+                EpubService.update_epub_cover(epub_path, cover_path)
+                successful += 1
+                self._write_log(f"✓ Re-embedded cover for: {story.title}")
+            except Exception as e:
+                failed += 1
+                error_msg = f"✗ Failed re-embed for: {story.title} - {str(e)}"
+                self._write_log(error_msg, "error")
+                errors.append({"story_id": story.id, "title": story.title, "error": str(e)})
+
+        summary = f"Cover re-embed complete: {successful} successful, {failed} failed out of {total} EPUBs"
+        self._write_log(summary)
+        return {
+            "success": True,
+            "total": total,
+            "successful": successful,
+            "failed": failed,
+            "errors": errors,
+            "message": summary,
+        }
+
     def get_generation_log(self) -> dict:
         if not os.path.exists(self.log_file):
             return {
