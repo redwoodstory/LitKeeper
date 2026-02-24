@@ -3,6 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function() {
+      var pref = localStorage.getItem('litkeeper_theme');
+      if (pref === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else if (pref === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme',
+          window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      }
+    })();
+  </script>
 
   <title>{% block title %}LitKeeper{% endblock %}</title>
 

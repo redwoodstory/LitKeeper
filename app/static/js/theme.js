@@ -7,6 +7,7 @@ async function fetchThemePreference() {
     const data = await response.json();
     if (data.success) {
       savedThemePreference = data.theme;
+      localStorage.setItem('litkeeper_theme', data.theme);
       return data.theme;
     }
   } catch (error) {
@@ -30,6 +31,7 @@ function applyThemePreference(preference) {
     setTheme(preference);
   }
   savedThemePreference = preference;
+  localStorage.setItem('litkeeper_theme', preference);
 }
 
 async function initTheme() {
