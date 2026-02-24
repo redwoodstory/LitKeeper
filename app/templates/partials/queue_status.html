@@ -44,7 +44,62 @@
   </div>
 </div>
 
-{{ library_content|safe }}
+<script>
+(async function() {
+  if (typeof invalidateLibraryCache === 'function' && typeof refreshLibrary === 'function') {
+    await invalidateLibraryCache();
+    
+    const storyId = {{ queue_item.story_id if queue_item.story_id else 'null' }};
+    
+    if (storyId) {
+      try {
+        const response = await fetch(`/api/story/${storyId}/card`);
+        if (response.ok) {
+          const cardHtml = await response.text();
+          
+          const libraryContent = document.getElementById('library-content');
+          if (libraryContent) {
+            const grid = libraryContent.querySelector('.grid');
+            if (grid) {
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = cardHtml;
+              const newCard = tempDiv.firstElementChild;
+              
+              newCard.style.opacity = '0';
+              newCard.style.transform = 'scale(0.95)';
+              grid.insertBefore(newCard, grid.firstChild);
+              
+              setTimeout(() => {
+                newCard.style.transition = 'opacity 300ms, transform 300ms';
+                newCard.style.opacity = '1';
+                newCard.style.transform = 'scale(1)';
+              }, 10);
+              
+              const countElement = document.getElementById('libraryCount');
+              if (countElement) {
+                const currentText = countElement.textContent.trim();
+                const match = currentText.match(/(\d+) stor/);
+                if (match) {
+                  const newCount = parseInt(match[1]) + 1;
+                  countElement.textContent = `${newCount} ${newCount === 1 ? 'story' : 'stories'}`;
+                } else if (currentText.includes('No stories')) {
+                  countElement.textContent = '1 story';
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch new story card:', error);
+      }
+    }
+    
+    setTimeout(() => {
+      refreshLibrary();
+    }, 500);
+  }
+})();
+</script>
 {% elif queue_item.status == 'failed' %}
 <div class="mt-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
   <div class="flex items-start gap-3">

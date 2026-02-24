@@ -811,6 +811,15 @@ def get_queue_status_card(queue_id: int) -> ResponseReturnValue:
         return render_template('partials/queue_status.html', 
                              queue_item={'status': 'failed', 'error_message': 'Error loading status'})
 
+@api.route("/story/<int:story_id>/card", methods=['GET'])
+def get_story_card(story_id: int) -> ResponseReturnValue:
+    from app.models import Story
+    
+    story = Story.query.get_or_404(story_id)
+    story_dict = story.to_library_dict()
+    
+    return render_template('partials/story_card.html', story=story_dict)
+
 @api.route("/story/<int:story_id>/modal", methods=['GET'])
 def get_story_modal(story_id: int) -> ResponseReturnValue:
     from app.models import Story
@@ -892,4 +901,52 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
         return jsonify({
             "success": False,
             "message": "Failed to regenerate cover"
+        }), 500
+
+@api.route("/offline/story-urls", methods=['GET'])
+def get_offline_story_urls() -> ResponseReturnValue:
+    """Return all URLs needed for offline reading.
+
+    Returns two lists:
+    - reader_urls: /read/<filename> JSON reader pages (all stories)
+    - epub_urls:   /epub/reader/<id> page + /epub/file/<id> binary (epub stories only)
+
+    Caching both lists gives full offline support for both reader types.
+    """
+    try:
+        from app.models import Story, StoryFormat
+
+        # All stories get a JSON reader URL
+        all_stories = Story.query.with_entities(Story.id, Story.filename_base).all()
+        reader_urls = [f"/read/{row.filename_base}.html" for row in all_stories]
+
+        # Only stories with an epub format get epub URLs
+        epub_story_ids = {
+            row.story_id
+            for row in StoryFormat.query.with_entities(StoryFormat.story_id)
+            .filter(StoryFormat.format_type == 'epub').all()
+        }
+        epub_urls = []
+        for row in all_stories:
+            if row.id in epub_story_ids:
+                epub_urls.append(f"/epub/reader/{row.id}")
+                epub_urls.append(f"/epub/file/{row.id}")
+
+        return jsonify({
+            "success": True,
+            "reader_urls": reader_urls,
+            "epub_urls": epub_urls,
+            "count": len(reader_urls) + len(epub_urls),
+            # Legacy key — keep for any old clients
+            "urls": reader_urls,
+        })
+
+    except Exception as e:
+        log_error(f"Error fetching offline story URLs: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while fetching story URLs",
+            "reader_urls": [],
+            "epub_urls": [],
+            "urls": [],
         }), 500

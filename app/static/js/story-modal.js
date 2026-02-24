@@ -4,6 +4,55 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+async function invalidateLibraryCache() {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    try {
+      const messageChannel = new MessageChannel();
+      const promise = new Promise((resolve) => {
+        messageChannel.port1.onmessage = (event) => {
+          resolve(event.data);
+        };
+      });
+      navigator.serviceWorker.controller.postMessage(
+        { type: 'INVALIDATE_LIBRARY_CACHE' },
+        [messageChannel.port2]
+      );
+      await promise;
+      console.log('[Cache] Library cache invalidated');
+    } catch (error) {
+      console.error('[Cache] Failed to invalidate cache:', error);
+    }
+  }
+}
+
+function refreshLibrary() {
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const sortBy = document.getElementById('sortBy');
+  const sortOrderToggle = document.getElementById('sortOrderToggle');
+  
+  if (searchInput) {
+    htmx.trigger(searchInput, 'keyup');
+  } else {
+    const libraryContent = document.getElementById('library-content');
+    if (libraryContent) {
+      const params = new URLSearchParams();
+      if (categoryFilter) params.append('category', categoryFilter.value);
+      if (sortBy) params.append('sort_by', sortBy.value);
+      if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
+      
+      fetch(`/library/filter?${params.toString()}`)
+        .then(response => response.text())
+        .then(html => {
+          libraryContent.outerHTML = html;
+        })
+        .catch(error => {
+          console.error('[Library] Failed to refresh:', error);
+        });
+    }
+  }
+}
+
 document.addEventListener('click', function(e) {
   const editMetadataBtn = e.target.closest('.edit-metadata-btn');
   if (editMetadataBtn) {
@@ -467,10 +516,11 @@ window.closeStoryModal = function() {
   }
 };
 
-function updateModalWithNewStory(story) {
+async function updateModalWithNewStory(story) {
   closeStoryModal();
+  await invalidateLibraryCache();
   setTimeout(() => {
-    window.location.reload();
+    refreshLibrary();
   }, 100);
 }
 
@@ -603,13 +653,23 @@ window.deleteStory = async function(storyId, storyTitle) {
       showToast(`"${storyTitle}" deleted successfully`, 'success');
       closeStoryModal();
       
-      removeStoryFromDOM(storyId);
+      const storyCards = document.querySelectorAll('[hx-get*="/api/story/' + storyId + '/modal"]');
+      storyCards.forEach(card => {
+        card.style.transition = 'opacity 200ms, transform 200ms';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+        setTimeout(() => card.remove(), 200);
+      });
       
       document.dispatchEvent(new CustomEvent('storyDeleted', { 
         detail: { storyId: storyId } 
       }));
       
-      checkIfLibraryEmpty();
+      await invalidateLibraryCache();
+      
+      setTimeout(() => {
+        refreshLibrary();
+      }, 300);
     } else {
       throw new Error(result.message || 'Failed to delete story');
     }
@@ -624,50 +684,6 @@ window.deleteStory = async function(storyId, storyTitle) {
   }
 };
 
-function removeStoryFromDOM(storyId) {
-  const storyCards = document.querySelectorAll('.story-card-cover');
-  
-  storyCards.forEach(card => {
-    try {
-      const storyData = card.getAttribute('data-story');
-      const story = JSON.parse(storyData);
-      
-      if (story.id === storyId) {
-        card.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.95)';
-        
-        setTimeout(() => {
-          card.remove();
-        }, 300);
-      }
-    } catch (error) {
-      console.error('Error parsing story data:', error);
-    }
-  });
-}
-
-function checkIfLibraryEmpty() {
-  setTimeout(() => {
-    const remainingCards = document.querySelectorAll('.story-card-cover');
-
-    if (remainingCards.length === 0) {
-      const libraryContainer = document.querySelector('#library-grid, .grid');
-
-      if (libraryContainer) {
-        libraryContainer.innerHTML = `
-          <div class="col-span-full text-center text-gray-500 dark:text-gray-400 py-12">
-            <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-            </svg>
-            <p class="text-lg font-medium">No stories in your library</p>
-            <p class="text-sm mt-1">Download a story to get started</p>
-          </div>
-        `;
-      }
-    }
-  }, 400);
-}
 
 window.toggleAutoUpdate = async function(storyId, _currentState, button) {
   const originalText = button.innerHTML;
@@ -853,13 +869,42 @@ async function saveMetadataChanges(storyId) {
       } else {
         showToast('Metadata updated successfully', 'success');
         closeStoryModal();
-        setTimeout(() => {
+        
+        const storyCards = document.querySelectorAll('[hx-get*="/api/story/' + storyId + '/modal"]');
+        storyCards.forEach(card => {
+          card.style.transition = 'opacity 200ms';
+          card.style.opacity = '0.5';
+        });
+        
+        setTimeout(async () => {
+          try {
+            const response = await fetch(`/api/story/${storyId}/card`);
+            if (response.ok) {
+              const newCardHtml = await response.text();
+              storyCards.forEach(card => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newCardHtml;
+                const newCard = tempDiv.firstElementChild;
+                
+                newCard.style.opacity = '0';
+                card.parentNode.replaceChild(newCard, card);
+                
+                setTimeout(() => {
+                  newCard.style.transition = 'opacity 300ms';
+                  newCard.style.opacity = '1';
+                }, 10);
+              });
+            }
+          } catch (error) {
+            console.error('Failed to update story card:', error);
+          }
+          
           if (typeof refreshLibrary === 'function') {
             refreshLibrary();
           } else {
             window.location.reload();
           }
-        }, 500);
+        }, 200);
       }
     } else {
       showToast(result.message || 'Failed to update metadata', 'error');

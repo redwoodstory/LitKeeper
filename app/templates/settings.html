@@ -123,26 +123,42 @@
 
     <hr class="border-gray-200 dark:border-gray-700">
 
-    <section>
+    <section id="offlineReadingSection">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M12 12h.01M6.343 17.657a9 9 0 010-12.728M9.172 14.828a5 5 0 010-7.072" />
         </svg>
         Offline Reading
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Cache all HTML stories for offline reading. This will download all stories to your browser's cache.
+        Cache all HTML stories in your browser for offline reading. Only stories not yet cached will be fetched —
+        subsequent syncs are fast.
       </p>
 
-      <button id="syncAllStories"
-        class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-        </svg>
-        Sync All Offline
-      </button>
+      <div class="flex items-center gap-3 mb-4">
+        <button id="syncAllStories" onclick="startOfflineSync()"
+          class="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          Sync All Offline
+        </button>
+        <button id="cancelSync" onclick="cancelOfflineSync()"
+          class="hidden px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 font-medium">
+          Cancel
+        </button>
+      </div>
+
+      <div id="syncProgress" class="hidden space-y-2">
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div id="syncProgressBar"
+            class="bg-purple-500 h-2 rounded-full transition-all duration-300 ease-out"
+            style="width: 0%"></div>
+        </div>
+        <p id="syncStatusText" class="text-sm text-gray-600 dark:text-gray-400"></p>
+      </div>
     </section>
 
     <hr class="border-gray-200 dark:border-gray-700">
@@ -467,6 +483,98 @@
       initializeThemeButtons();
     }
   });
+  async function startOfflineSync() {
+    if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
+      alert('Service Worker is not active yet. Please refresh the page and try again.');
+      return;
+    }
+
+    const syncBtn = document.getElementById('syncAllStories');
+    const cancelBtn = document.getElementById('cancelSync');
+    const progressDiv = document.getElementById('syncProgress');
+    const progressBar = document.getElementById('syncProgressBar');
+    const statusText = document.getElementById('syncStatusText');
+
+    syncBtn.disabled = true;
+    cancelBtn.classList.remove('hidden');
+    progressDiv.classList.remove('hidden');
+    progressBar.style.width = '0%';
+    statusText.textContent = 'Fetching story list…';
+
+    let urls = [];
+    try {
+      const res = await fetch('/api/offline/story-urls');
+      const data = await res.json();
+      const readerUrls = data.reader_urls || data.urls || [];
+      const epubUrls = data.epub_urls || [];
+      const totalItems = readerUrls.length + epubUrls.length;
+      if (!data.success || totalItems === 0) {
+        statusText.textContent = totalItems === 0 ? 'No stories found to cache.' : 'Failed to fetch story list.';
+        syncBtn.disabled = false;
+        cancelBtn.classList.add('hidden');
+        return;
+      }
+      urls = readerUrls; // keep for legacy compat
+      const epubNote = epubUrls.length ? ` + ${epubUrls.length} EPUB file${epubUrls.length === 1 ? '' : 's'}` : '';
+      statusText.textContent = `Starting sync of ${readerUrls.length} stor${readerUrls.length === 1 ? 'y' : 'ies'}${epubNote}…`;
+    } catch (err) {
+      statusText.textContent = `Error: ${err.message}`;
+      syncBtn.disabled = false;
+      cancelBtn.classList.add('hidden');
+      return;
+    }
+
+    const messageChannel = new MessageChannel();
+
+    messageChannel.port1.onmessage = (event) => {
+      const msg = event.data;
+
+      if (msg.cancelled) {
+        statusText.textContent = `Cancelled — ${msg.cached} cached, ${msg.skipped} already saved.`;
+        progressBar.style.width = '100%';
+        progressBar.classList.replace('bg-purple-500', 'bg-gray-400');
+        syncBtn.disabled = false;
+        cancelBtn.classList.add('hidden');
+        return;
+      }
+
+      if (msg.complete) {
+        progressBar.style.width = '100%';
+        progressBar.classList.replace('bg-purple-500', 'bg-green-500');
+        const parts = [];
+        if (msg.cached) parts.push(`${msg.cached} cached`);
+        if (msg.skipped) parts.push(`${msg.skipped} already saved`);
+        if (msg.failed) parts.push(`${msg.failed} failed`);
+        statusText.textContent = `✅ Done — ${parts.join(', ')}.`;
+        syncBtn.disabled = false;
+        cancelBtn.classList.add('hidden');
+        return;
+      }
+
+      if (msg.total > 0) {
+        const pct = Math.round((msg.done / msg.total) * 100);
+        progressBar.style.width = `${pct}%`;
+        const storyName = msg.url.split('/').pop().replace('.html', '').replace(/_/g, ' ');
+        statusText.textContent = msg.skipped
+          ? `Skipped ${msg.done}/${msg.total} — ${storyName} (already cached)`
+          : `Caching ${msg.done}/${msg.total} — ${storyName}`;
+      }
+    };
+
+    navigator.serviceWorker.controller.postMessage(
+      { type: 'SYNC_ALL_STORIES', reader_urls: readerUrls, epub_urls: epubUrls, urls: readerUrls },
+      [messageChannel.port2]
+    );
+  }
+
+  function cancelOfflineSync() {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_SYNC' });
+    }
+    document.getElementById('cancelSync').classList.add('hidden');
+    document.getElementById('syncStatusText').textContent = 'Cancelling…';
+  }
+
   async function resetAppCache() {
     if (!confirm('This will clear all offline data and reload the application. Continue?')) {
       return;

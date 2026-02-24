@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v12';
+const CACHE_VERSION = 'v15';
 const STATIC_CACHE = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 
@@ -114,6 +114,61 @@ class OPFSStorage {
       return [];
     }
   }
+
+  // ---- Binary helpers for EPUB files ----
+  async _getEpubDir() {
+    await this.init();
+    return this.root.getDirectoryHandle('epubs', { create: true });
+  }
+
+  async saveEpub(filename, arrayBuffer) {
+    try {
+      const dir = await this._getEpubDir();
+      const fileHandle = await dir.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(arrayBuffer);
+      await writable.close();
+      console.log('[OPFS] Saved epub:', filename);
+      return true;
+    } catch (error) {
+      console.error('[OPFS] Epub save failed:', error);
+      return false;
+    }
+  }
+
+  async hasEpub(filename) {
+    try {
+      const dir = await this._getEpubDir();
+      await dir.getFileHandle(filename);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async getEpubResponse(filename) {
+    try {
+      const dir = await this._getEpubDir();
+      const fileHandle = await dir.getFileHandle(filename);
+      const file = await fileHandle.getFile();
+      const buffer = await file.arrayBuffer();
+      return new Response(buffer, {
+        headers: { 'Content-Type': 'application/epub+zip' }
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async deleteEpub(filename) {
+    try {
+      const dir = await this._getEpubDir();
+      await dir.removeEntry(filename);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 const opfsStorage = new OPFSStorage();
@@ -190,6 +245,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // TEMPORARY: Bypass all caching (set to false to re-enable caching)
+  const DISABLE_CACHE = true;
+  if (DISABLE_CACHE) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
@@ -204,24 +266,23 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/read/') && url.pathname.endsWith('.html')) {
     event.respondWith(handleStoryRequest(request, url));
   }
-  // Homepage: Cache first for offline support
+  // Homepage: Network first (server-rendered HTML must always be fresh), cache fallback for offline
   else if (url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          console.log('[Cache] Serving homepage from cache');
-          return cachedResponse;
+      fetch(request).then((response) => {
+        if (response && response.status === 200) {
+          const responseToCache = response.clone();
+          caches.open(STATIC_CACHE).then((cache) => {
+            cache.put(request, responseToCache);
+          });
         }
-        return fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+        return response;
+      }).catch(() => {
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            console.log('[Cache] Serving homepage from cache (offline)');
+            return cachedResponse;
           }
-          return response;
-        }).catch(() => {
-          console.log('[Cache] Homepage not cached, offline unavailable');
           return new Response('Offline - Homepage not cached', {
             status: 503,
             statusText: 'Service Unavailable',
@@ -279,6 +340,59 @@ self.addEventListener('fetch', (event) => {
       })
     );
   }
+  // EPUB binary files: OPFS-first (persistent, not evictable)
+  // epub.js fetches /epub/file/<id> (the full binary) and individual
+  // /epub/file/<id>/<path> resources. We store the binary in OPFS;
+  // internal resources are served from the network (they're extracted
+  // on-the-fly by epub.js from the cached binary, no extra requests needed
+  // once the binary itself is cached at the reader level).
+  else if (url.pathname.startsWith('/epub/file/') && !url.pathname.split('/epub/file/')[1].includes('/')) {
+    // Top-level epub binary: OPFS-first
+    event.respondWith((async () => {
+      const storyId = url.pathname.split('/').pop();
+      const filename = `${storyId}.epub`;
+      const opfsResponse = await opfsStorage.getEpubResponse(filename);
+      if (opfsResponse) {
+        console.log('[OPFS] Serving epub from OPFS:', filename);
+        return opfsResponse;
+      }
+      // Not in OPFS — fetch and store
+      try {
+        const response = await fetch(request);
+        if (response && response.status === 200) {
+          const buffer = await response.arrayBuffer();
+          await opfsStorage.saveEpub(filename, buffer);
+          return new Response(buffer, {
+            headers: { 'Content-Type': 'application/epub+zip' }
+          });
+        }
+        return response;
+      } catch {
+        return new Response('EPUB not available offline', { status: 503 });
+      }
+    })());
+  }
+  // EPUB reader pages and internal resources: SW cache-first
+  else if (url.pathname.startsWith('/epub/')) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        }).catch(() => {
+          return new Response('EPUB not available offline', { status: 503 });
+        });
+      })
+    );
+  }
   // Sync banner: Always fetch fresh (never cache dynamic state)
   else if (url.pathname === '/sync-banner') {
     event.respondWith(
@@ -287,7 +401,33 @@ self.addEventListener('fetch', (event) => {
       })
     );
   }
-  // API calls: Network first with cache fallback
+  // Library filter: Network first, NO CACHING (always fresh data)
+  else if (url.pathname === '/library/filter') {
+    event.respondWith(
+      fetch(request).catch(() => {
+        console.log('[Cache] Library filter offline');
+        return new Response('Offline', { status: 503 });
+      })
+    );
+  }
+  // Story mutation APIs: Network only, invalidate cache on success
+  else if (url.pathname.match(/\/api\/story\/(delete|toggle-auto-update)\//) || 
+           url.pathname.match(/\/api\/(queue|save|format\/generate-)/) ||
+           request.method !== 'GET') {
+    event.respondWith(
+      fetch(request).then(async (response) => {
+        if (response && response.ok) {
+          const cache = await caches.open(DYNAMIC_CACHE);
+          const keys = await cache.keys();
+          const filterKeys = keys.filter(req => req.url.includes('/library/filter'));
+          await Promise.all(filterKeys.map(key => cache.delete(key)));
+          console.log('[Cache] Invalidated library filter cache after mutation');
+        }
+        return response;
+      })
+    );
+  }
+  // Other API calls: Network first with cache fallback
   else if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
@@ -431,6 +571,136 @@ self.addEventListener('message', async (event) => {
       await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
 
       console.log('[Service Worker] All storage cleared');
+      event.ports[0].postMessage({ success: true });
+    } catch (error) {
+      event.ports[0].postMessage({ success: false, error: error.message });
+    }
+  }
+
+  if (event.data && event.data.type === 'SYNC_ALL_STORIES') {
+    const readerUrls = event.data.reader_urls || event.data.urls || [];
+    const epubUrls = event.data.epub_urls || [];
+    const port = event.ports[0];
+    const BATCH_SIZE = 5;
+    const total = readerUrls.length + epubUrls.length;
+
+    // Mark this sync as active so CANCEL_SYNC can stop it
+    self._syncCancelled = false;
+
+    let cached = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    await opfsStorage.init();
+
+    // --- Phase 1: JSON reader pages → OPFS ---
+    for (let i = 0; i < readerUrls.length; i += BATCH_SIZE) {
+      if (self._syncCancelled) {
+        port.postMessage({ cancelled: true, cached, skipped, failed });
+        return;
+      }
+
+      const batch = readerUrls.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(batch.map(async (url) => {
+        const filename = url.split('/').pop();
+        try {
+          if (await opfsStorage.hasStory(filename)) {
+            skipped++;
+            port.postMessage({ done: cached + skipped + failed, total, url, skipped: true });
+            return;
+          }
+          const response = await fetch(url);
+          if (response && response.status === 200) {
+            const content = await response.text();
+            await opfsStorage.saveStory(filename, content);
+            cached++;
+          } else {
+            failed++;
+          }
+        } catch (err) {
+          console.error('[SW Sync] Failed to cache reader:', url, err);
+          failed++;
+        }
+        port.postMessage({ done: cached + skipped + failed, total, url, skipped: false });
+      }));
+    }
+
+    // --- Phase 2: EPUB binary files → OPFS ---
+    for (let i = 0; i < epubUrls.length; i += BATCH_SIZE) {
+      if (self._syncCancelled) {
+        port.postMessage({ cancelled: true, cached, skipped, failed });
+        return;
+      }
+
+      const batch = epubUrls.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(batch.map(async (url) => {
+        // Only cache /epub/file/<id> (the binary), skip the reader page
+        // The reader page is a dynamic Flask template — it's light and
+        // better served fresh; the binary is what matters for offline.
+        if (!url.startsWith('/epub/file/')) {
+          // Cache the reader page in the SW cache (it's tiny)
+          try {
+            const cache = await caches.open(DYNAMIC_CACHE);
+            const existing = await cache.match(url);
+            if (existing) {
+              skipped++;
+              port.postMessage({ done: cached + skipped + failed, total, url, skipped: true });
+              return;
+            }
+            const response = await fetch(url);
+            if (response && response.status === 200) {
+              await cache.put(url, response);
+              cached++;
+            } else { failed++; }
+          } catch (err) {
+            console.error('[SW Sync] Failed to cache epub reader page:', url, err);
+            failed++;
+          }
+          port.postMessage({ done: cached + skipped + failed, total, url, skipped: false });
+          return;
+        }
+
+        // EPUB binary → OPFS
+        const storyId = url.split('/').pop();
+        const filename = `${storyId}.epub`;
+        try {
+          if (await opfsStorage.hasEpub(filename)) {
+            skipped++;
+            port.postMessage({ done: cached + skipped + failed, total, url, skipped: true });
+            return;
+          }
+          const response = await fetch(url);
+          if (response && response.status === 200) {
+            const buffer = await response.arrayBuffer();
+            await opfsStorage.saveEpub(filename, buffer);
+            cached++;
+          } else {
+            failed++;
+          }
+        } catch (err) {
+          console.error('[SW Sync] Failed to cache epub binary in OPFS:', url, err);
+          failed++;
+        }
+        port.postMessage({ done: cached + skipped + failed, total, url, skipped: false });
+      }));
+    }
+
+    port.postMessage({ complete: true, cached, skipped, failed });
+  }
+
+  if (event.data && event.data.type === 'CANCEL_SYNC') {
+    self._syncCancelled = true;
+  }
+
+  if (event.data && event.data.type === 'INVALIDATE_LIBRARY_CACHE') {
+    try {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      const keys = await cache.keys();
+      const filterKeys = keys.filter(req => req.url.includes('/library/filter'));
+      await Promise.all(filterKeys.map(key => cache.delete(key)));
+      console.log('[Service Worker] Library cache invalidated');
       event.ports[0].postMessage({ success: true });
     } catch (error) {
       event.ports[0].postMessage({ success: false, error: error.message });

@@ -49,10 +49,8 @@ COPY app app/
 COPY migrations migrations/
 COPY run.py gunicorn.docker.conf.py startup.sh .
 
-# Create directories and a build-time marker file
-# The marker file is used to detect missing bind mounts at runtime
+# Create required directories
 RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
-    touch app/stories/.container_default && \
     chmod +x startup.sh
 
 # Set environment variables
