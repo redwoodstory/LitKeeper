@@ -194,57 +194,43 @@
   applyMobileVisibility();
   window.addEventListener('resize', applyMobileVisibility);
 
-  // Auto-hide controls on scroll (mobile only)
-  let lastScrollTop = 0;
-  let scrollTimeout;
-  const controlsLeft = document.querySelector('.controls-left');
-  const controlsRight = document.querySelector('.controls');
-
-  // Only enable auto-hide on mobile/tablet devices
+  // Auto-hide header on mobile: hides on scroll, reveals on tap
+  const readerHeader = document.querySelector('.reader-header');
   const isMobile = window.innerWidth <= 768;
 
-  if (isMobile && controlsLeft && controlsRight) {
+  if (isMobile && readerHeader) {
     let isHidden = false;
+    let hideTimeout;
 
-    window.addEventListener('scroll', () => {
-      // Clear existing timeout
-      clearTimeout(scrollTimeout);
-
-      const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-      // Ignore very small scroll movements (less than 5px)
-      if (Math.abs(currentScrollTop - lastScrollTop) < 5) {
-        return;
-      }
-
-      // Scrolling down - hide controls
-      if (currentScrollTop > lastScrollTop && currentScrollTop > 50) {
-        if (!isHidden) {
-          controlsLeft.classList.add('hidden');
-          controlsRight.classList.add('hidden');
-          settingsPanel.classList.remove('active'); // Close settings if open
+    function showHeader() {
+      readerHeader.classList.remove('hidden');
+      isHidden = false;
+      clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => {
+        if (!settingsPanel.classList.contains('active')) {
+          readerHeader.classList.add('hidden');
           isHidden = true;
         }
-      }
-      // Scrolling up - show controls
-      else if (currentScrollTop < lastScrollTop) {
-        if (isHidden) {
-          controlsLeft.classList.remove('hidden');
-          controlsRight.classList.remove('hidden');
-          isHidden = false;
-        }
+      }, 3000);
+    }
+
+    let lastScrollTop = 0;
+    window.addEventListener('scroll', () => {
+      const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if (Math.abs(currentScrollTop - lastScrollTop) < 5) return;
+
+      if (currentScrollTop > lastScrollTop && currentScrollTop > 50 && !isHidden) {
+        readerHeader.classList.add('hidden');
+        settingsPanel.classList.remove('active');
+        isHidden = true;
+        clearTimeout(hideTimeout);
       }
 
       lastScrollTop = currentScrollTop;
-
-      // Show controls after 2 seconds of no scrolling
-      scrollTimeout = setTimeout(() => {
-        if (isHidden) {
-          controlsLeft.classList.remove('hidden');
-          controlsRight.classList.remove('hidden');
-          isHidden = false;
-        }
-      }, 2000);
     }, { passive: true });
+
+    document.addEventListener('click', () => {
+      if (isHidden) showHeader();
+    });
   }
 })();

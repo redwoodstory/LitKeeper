@@ -58,51 +58,51 @@ body {
     --max-width: 100%;
     --mobile-margin: 16px;
   }
-
-  .story-container {
-    padding-left: var(--mobile-margin);
-    padding-right: var(--mobile-margin);
-  }
 }
 
-.controls {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 1000;
+.reader-header {
   display: flex;
-  gap: 0.5rem;
-  flex-direction: row;
   align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--separator-color);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-  transform: translateY(0);
-  opacity: 1;
 }
 
-.controls.hidden {
-  transform: translateY(-120%);
+.reader-header.hidden {
+  transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
 }
 
-.controls-left {
-  position: fixed;
-  top: 1rem;
-  left: 1rem;
-  z-index: 1000;
+.header-left,
+.header-right {
   display: flex;
   gap: 0.5rem;
-  flex-direction: row;
   align-items: center;
-  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-  transform: translateY(0);
-  opacity: 1;
 }
 
-.controls-left.hidden {
-  transform: translateY(-120%);
-  opacity: 0;
-  pointer-events: none;
+.header-center {
+  flex: 1;
+  text-align: center;
+  padding: 0 1rem;
+  overflow: hidden;
+}
+
+.reader-title {
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .control-btn {
@@ -143,7 +143,7 @@ body {
 .settings-panel {
   display: none;
   position: fixed;
-  top: 5rem;
+  top: 4rem;
   right: 1rem;
   background: var(--bg-color);
   border: 1px solid var(--separator-color);
@@ -298,8 +298,18 @@ body {
 .story-container {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding-top: 5rem;
+  padding-bottom: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   transition: max-width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .story-container {
+    padding-left: var(--mobile-margin);
+    padding-right: var(--mobile-margin);
+  }
 }
 
 .story-header {
