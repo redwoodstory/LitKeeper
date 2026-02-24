@@ -3,16 +3,17 @@
 {% block page_title %}Settings - LitKeeper{% endblock %}
 
 {% block main_content %}
-<div class="card mb-8">
-  <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Settings</h2>
-    <p class="text-sm text-gray-500 dark:text-gray-400">Manage your library and application settings</p>
-  </div>
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Settings</h2>
+  <p class="text-sm text-gray-500 dark:text-gray-400">Manage your library and application settings</p>
+</div>
 
-  <div class="space-y-8">
+<div class="space-y-4 mb-8">
+
+  <div class="card">
     <section>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
@@ -51,12 +52,12 @@
         </button>
       </div>
     </section>
+  </div>
 
-    <hr class="border-gray-200 dark:border-gray-700">
-
+  <div class="card">
     <section id="securitySection">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
@@ -85,7 +86,7 @@
           </div>
           <p id="pinSetupError" class="text-sm text-red-500 dark:text-red-400 mt-2 min-h-[1.25rem]"></p>
           <button type="submit"
-            class="mt-3 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+            class="mt-3 px-4 py-2 w-full sm:w-auto bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
@@ -104,10 +105,13 @@
           </span>
         </div>
 
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Auto-lock</label>
+        <div class="flex items-center justify-between gap-4 py-3 border-t border-b border-slate-100 dark:border-gray-700/60">
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">Auto-lock</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Lock the app after a period of inactivity</p>
+          </div>
           <select id="lockTimeoutSelect" onchange="updateLockTimeout(this.value)"
-            class="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            class="flex-shrink-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
             <option value="0" {% if auto_lock_timeout == 0 %}selected{% endif %}>When backgrounded</option>
             <option value="5" {% if auto_lock_timeout == 5 %}selected{% endif %}>After 5 minutes</option>
             <option value="15" {% if auto_lock_timeout == 15 %}selected{% endif %}>After 15 minutes</option>
@@ -115,18 +119,26 @@
           </select>
         </div>
 
-        <div class="mb-4">
+        <div class="flex flex-wrap gap-3 mt-4">
           <button onclick="toggleChangePinForm()" id="changePinToggle"
-            class="px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 text-sm font-medium inline-flex items-center gap-2">
+            class="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 text-sm font-medium inline-flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            Change PIN
+            <span>Change PIN</span>
+          </button>
+          <button onclick="removePin()"
+            class="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+            </svg>
+            Remove PIN Lock
           </button>
         </div>
 
-        <div id="changePinForm" class="hidden mb-4">
+        <div id="changePinForm" class="hidden mt-4 pt-4 border-t border-slate-100 dark:border-gray-700/60">
           <form onsubmit="saveChangedPin(); return false;" autocomplete="new-password">
             <div class="grid sm:grid-cols-2 gap-4 max-w-sm">
               <div>
@@ -144,7 +156,7 @@
             </div>
             <p id="changePinError" class="text-sm text-red-500 dark:text-red-400 mt-2 min-h-[1.25rem]"></p>
             <button type="submit"
-              class="mt-3 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
+              class="mt-3 w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -152,24 +164,15 @@
             </button>
           </form>
         </div>
-
-        <button onclick="removePin()"
-          class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-          </svg>
-          Remove PIN Lock
-        </button>
       </div>
       {% endif %}
     </section>
+  </div>
 
-    <hr class="border-gray-200 dark:border-gray-700">
-
+  <div class="card">
     <section>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
@@ -220,12 +223,12 @@
 
       <div id="generationStatus"></div>
     </section>
+  </div>
 
-    <hr class="border-gray-200 dark:border-gray-700">
-
+  <div class="card">
     <section id="offlineReadingSection">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M12 12h.01M6.343 17.657a9 9 0 010-12.728M9.172 14.828a5 5 0 010-7.072" />
         </svg>
@@ -236,9 +239,9 @@
         subsequent syncs are fast.
       </p>
 
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex flex-wrap gap-3 mb-4">
         <button id="syncAllStories" onclick="startOfflineSync()"
-          class="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+          class="w-full sm:w-auto px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
@@ -246,7 +249,7 @@
           Sync All Offline
         </button>
         <button id="cancelSync" onclick="cancelOfflineSync()"
-          class="hidden px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 font-medium">
+          class="hidden w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 font-medium">
           Cancel
         </button>
       </div>
@@ -260,12 +263,12 @@
         <p id="syncStatusText" class="text-sm text-gray-600 dark:text-gray-400"></p>
       </div>
     </section>
+  </div>
 
-    <hr class="border-gray-200 dark:border-gray-700">
-
+  <div class="card">
     <section>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
@@ -276,7 +279,7 @@
       </p>
 
       <button id="resetAppCache" onclick="resetAppCache()"
-        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+        class="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -284,20 +287,20 @@
         Clear Cache & Reset
       </button>
     </section>
+  </div>
 
-    <hr class="border-gray-200 dark:border-gray-700">
-
+  <div class="card">
     <section>
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           Auto-Refresh Exclusions
         </h3>
         <button id="resetAllExclusionsBtn" onclick="resetAllExclusions()"
-          class="hidden px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">
+          class="hidden w-full sm:w-auto px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 flex-shrink-0">
           Reset All Exclusions
         </button>
       </div>
@@ -313,12 +316,12 @@
         </div>
       </div>
     </section>
+  </div>
 
-    <hr class="border-gray-200 dark:border-gray-700">
-
+  <div class="card">
     <section>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
           </path>
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -332,7 +335,7 @@
       </p>
 
       <button onclick="showHiddenWarnings()"
-        class="px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 inline-flex items-center gap-2">
+        class="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 inline-flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
           </path>
@@ -344,6 +347,7 @@
       </button>
     </section>
   </div>
+
 </div>
 
 <script>
@@ -399,12 +403,12 @@
               </div>
               <div class="flex items-center">
                 ${story.exclusion_type === 'duplicate' ? `
-                  <button onclick="openStoryModalById(${story.id})" 
+                  <button onclick="openStoryModalById(${story.id})"
                           class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
                     View Story
                   </button>
                 ` : `
-                  <button onclick="linkExcludedStory(${story.id}, '${story.title.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${story.author.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" 
+                  <button onclick="linkExcludedStory(${story.id}, '${story.title.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${story.author.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')"
                           class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
                     Link Story
                   </button>
@@ -771,24 +775,18 @@
     btn.innerHTML = 'Clearing...';
 
     try {
-      // 1. Unregister Service Workers
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
         for (const registration of registrations) {
           await registration.unregister();
-          console.log('Service Worker unregistered');
         }
       }
 
-      // 2. Clear Caches
       if ('caches' in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map(key => caches.delete(key)));
-        console.log('Caches cleared');
       }
 
-      // 3. Reload
-      console.log('Reloading...');
       window.location.reload(true);
     } catch (error) {
       console.error('Error resetting cache:', error);
