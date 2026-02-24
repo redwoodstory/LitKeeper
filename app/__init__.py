@@ -211,7 +211,7 @@ def create_app() -> Flask:
     @app.before_request
     def enforce_pin_lock():
         from flask import make_response as _make_response
-        exempt_prefixes = ('/auth/', '/static/', '/favicon')
+        exempt_prefixes = ('/auth/', '/static/', '/favicon', '/settings/theme-preference')
         if request.path.startswith(exempt_prefixes):
             return
         pin_cfg = AppConfig.query.filter_by(key='pin_enabled').first()
