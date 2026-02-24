@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}LitKeeper — Locked{% endblock %}
+
+{% block html_class %}h-full{% endblock %}
+
+{% block meta_tags %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#4a90e2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="LitKeeper">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+{% endblock %}
+
+{% block theme_toggle %}{% endblock %}
+
+{% block body_class %}bg-gray-50 dark:bg-gray-900 h-full{% endblock %}
+
+{% block content %}
+<main class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-xs">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 mb-4">
+        <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">LitKeeper</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Enter your PIN to continue</p>
+    </div>
+
+    <div id="pinDots" class="flex justify-center gap-4 mb-8">
+      <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-150"></div>
+      <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-150"></div>
+      <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-150"></div>
+      <div class="pin-dot w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-150"></div>
+    </div>
+
+    <p id="errorMsg" class="text-center text-sm text-red-500 dark:text-red-400 mb-4 min-h-[1.25rem]"></p>
+
+    <form class="hidden sm:flex justify-center mb-6" onsubmit="return false;" autocomplete="current-password">
+      <input type="password" id="pinTextInput" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+        placeholder="····" autocomplete="current-password"
+        class="w-36 px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-primary transition-all duration-200">
+    </form>
+
+    <div class="grid grid-cols-3 gap-3 sm:hidden">
+      {% for n in [1,2,3,4,5,6,7,8,9] %}
+      <button type="button" data-digit="{{ n }}"
+        class="pin-key aspect-square rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-slate-200 dark:border-gray-700 text-xl font-semibold text-gray-900 dark:text-white hover:bg-slate-50 dark:hover:bg-gray-700 active:scale-95 transition-all duration-100 flex items-center justify-center">
+        {{ n }}
+      </button>
+      {% endfor %}
+
+      <button type="button" id="clearBtn"
+        class="aspect-square rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-slate-200 dark:border-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700 active:scale-95 transition-all duration-100 flex items-center justify-center">
+        Clear
+      </button>
+
+      <button type="button" data-digit="0"
+        class="pin-key aspect-square rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-slate-200 dark:border-gray-700 text-xl font-semibold text-gray-900 dark:text-white hover:bg-slate-50 dark:hover:bg-gray-700 active:scale-95 transition-all duration-100 flex items-center justify-center">
+        0
+      </button>
+
+      <button type="button" id="backspaceBtn"
+        class="aspect-square rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-slate-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700 active:scale-95 transition-all duration-100 flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</main>
+
+<style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15%       { transform: translateX(-8px); }
+    30%       { transform: translateX(8px); }
+    45%       { transform: translateX(-6px); }
+    60%       { transform: translateX(6px); }
+    75%       { transform: translateX(-3px); }
+    90%       { transform: translateX(3px); }
+  }
+  .shake { animation: shake 0.45s ease-in-out; }
+  .pin-dot.filled {
+    background-color: #4a90e2;
+    border-color: #4a90e2;
+  }
+  .pin-dot.error {
+    background-color: #ef4444;
+    border-color: #ef4444;
+  }
+</style>
+
+<script>
+  const NEXT_URL = {{ next_url | tojson }};
+  let pin = '';
+  const dots = document.querySelectorAll('.pin-dot');
+  const errorMsg = document.getElementById('errorMsg');
+  const textInput = document.getElementById('pinTextInput');
+
+  function updateDots() {
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('filled', i < pin.length);
+      dot.classList.remove('error');
+    });
+  }
+
+  function syncTextInput() {
+    if (textInput) textInput.value = pin;
+  }
+
+  function clearError() {
+    errorMsg.textContent = '';
+  }
+
+  function appendDigit(d) {
+    if (pin.length >= 4) return;
+    pin += d;
+    updateDots();
+    syncTextInput();
+    clearError();
+    if (pin.length === 4) submitPin();
+  }
+
+  function backspace() {
+    pin = pin.slice(0, -1);
+    updateDots();
+    syncTextInput();
+    clearError();
+  }
+
+  function clearPin() {
+    pin = '';
+    updateDots();
+    syncTextInput();
+    clearError();
+  }
+
+  async function submitPin() {
+    if (textInput) textInput.disabled = true;
+    try {
+      const res = await fetch('/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, next: NEXT_URL })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        window.location.replace(data.redirect || '/');
+      } else {
+        dots.forEach(d => d.classList.add('error'));
+        if (textInput) textInput.classList.add('border-red-400', 'dark:border-red-500');
+        const pinDots = document.getElementById('pinDots');
+        pinDots.classList.add('shake');
+        errorMsg.textContent = 'Incorrect PIN';
+        setTimeout(() => {
+          pinDots.classList.remove('shake');
+          pin = '';
+          updateDots();
+          syncTextInput();
+          if (textInput) {
+            textInput.disabled = false;
+            textInput.classList.remove('border-red-400', 'dark:border-red-500');
+            textInput.focus();
+          }
+        }, 500);
+      }
+    } catch (_) {
+      errorMsg.textContent = 'Connection error. Try again.';
+      pin = '';
+      updateDots();
+      syncTextInput();
+      if (textInput) { textInput.disabled = false; textInput.focus(); }
+    }
+  }
+
+  // Keypad buttons (mobile)
+  document.querySelectorAll('.pin-key').forEach(btn => {
+    btn.addEventListener('click', () => appendDigit(btn.dataset.digit));
+  });
+  document.getElementById('backspaceBtn').addEventListener('click', backspace);
+  document.getElementById('clearBtn').addEventListener('click', clearPin);
+
+  // Desktop text input
+  if (textInput) {
+    textInput.addEventListener('input', () => {
+      const numeric = textInput.value.replace(/\D/g, '').slice(0, 4);
+      pin = numeric;
+      textInput.value = numeric;
+      updateDots();
+      clearError();
+      if (pin.length === 4) submitPin();
+    });
+
+    textInput.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { clearPin(); }
+    });
+
+    // Focus only if the input is actually visible (desktop breakpoint)
+    if (window.matchMedia('(min-width: 640px)').matches) {
+      textInput.focus();
+    }
+  }
+</script>
+{% endblock %}

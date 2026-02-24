@@ -54,6 +54,119 @@
 
     <hr class="border-gray-200 dark:border-gray-700">
 
+    <section id="securitySection">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        Security
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Protect the app with a 4-digit PIN. Useful when installed as a PWA on a shared device.
+      </p>
+
+      {% if not pin_enabled %}
+      <div id="pinSetupForm">
+        <form onsubmit="enablePin(); return false;" autocomplete="new-password">
+          <div class="grid sm:grid-cols-2 gap-4 max-w-sm">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="newPin">New PIN</label>
+              <input type="password" id="newPin" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                placeholder="4 digits" autocomplete="new-password"
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="confirmPin">Confirm PIN</label>
+              <input type="password" id="confirmPin" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                placeholder="4 digits" autocomplete="new-password"
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            </div>
+          </div>
+          <p id="pinSetupError" class="text-sm text-red-500 dark:text-red-400 mt-2 min-h-[1.25rem]"></p>
+          <button type="submit"
+            class="mt-3 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Enable PIN Lock
+          </button>
+        </form>
+      </div>
+      {% else %}
+      <div id="pinActiveView">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            PIN lock active
+          </span>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Auto-lock</label>
+          <select id="lockTimeoutSelect" onchange="updateLockTimeout(this.value)"
+            class="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            <option value="0" {% if auto_lock_timeout == 0 %}selected{% endif %}>When backgrounded</option>
+            <option value="5" {% if auto_lock_timeout == 5 %}selected{% endif %}>After 5 minutes</option>
+            <option value="15" {% if auto_lock_timeout == 15 %}selected{% endif %}>After 15 minutes</option>
+            <option value="30" {% if auto_lock_timeout == 30 %}selected{% endif %}>After 30 minutes</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <button onclick="toggleChangePinForm()" id="changePinToggle"
+            class="px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 text-sm font-medium inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Change PIN
+          </button>
+        </div>
+
+        <div id="changePinForm" class="hidden mb-4">
+          <form onsubmit="saveChangedPin(); return false;" autocomplete="new-password">
+            <div class="grid sm:grid-cols-2 gap-4 max-w-sm">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="changePinNew">New PIN</label>
+                <input type="password" id="changePinNew" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                  placeholder="4 digits" autocomplete="new-password"
+                  class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="changePinConfirm">Confirm PIN</label>
+                <input type="password" id="changePinConfirm" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                  placeholder="4 digits" autocomplete="new-password"
+                  class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+              </div>
+            </div>
+            <p id="changePinError" class="text-sm text-red-500 dark:text-red-400 mt-2 min-h-[1.25rem]"></p>
+            <button type="submit"
+              class="mt-3 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Save New PIN
+            </button>
+          </form>
+        </div>
+
+        <button onclick="removePin()"
+          class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+          </svg>
+          Remove PIN Lock
+        </button>
+      </div>
+      {% endif %}
+    </section>
+
+    <hr class="border-gray-200 dark:border-gray-700">
+
     <section>
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -560,6 +673,91 @@
     }
     document.getElementById('cancelSync').classList.add('hidden');
     document.getElementById('syncStatusText').textContent = 'Cancelling…';
+  }
+
+  function validatePinInput(pin, confirm, errorEl) {
+    if (!/^\d{4}$/.test(pin)) {
+      errorEl.textContent = 'PIN must be exactly 4 digits (0–9)';
+      return false;
+    }
+    if (pin !== confirm) {
+      errorEl.textContent = 'PINs do not match';
+      return false;
+    }
+    errorEl.textContent = '';
+    return true;
+  }
+
+  async function enablePin() {
+    const pin = document.getElementById('newPin').value;
+    const confirm = document.getElementById('confirmPin').value;
+    const errorEl = document.getElementById('pinSetupError');
+    if (!validatePinInput(pin, confirm, errorEl)) return;
+
+    const res = await fetch('/auth/set-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.reload();
+    } else {
+      errorEl.textContent = data.message || 'Failed to enable PIN';
+    }
+  }
+
+  async function removePin() {
+    if (!confirm('Remove PIN lock? The app will be accessible without authentication.')) return;
+
+    const res = await fetch('/auth/remove-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert(data.message || 'Failed to remove PIN');
+    }
+  }
+
+  function toggleChangePinForm() {
+    const form = document.getElementById('changePinForm');
+    const btn = document.getElementById('changePinToggle');
+    const hidden = form.classList.toggle('hidden');
+    btn.querySelector('span') && (btn.querySelector('span').textContent = hidden ? 'Change PIN' : 'Cancel');
+    if (!hidden) document.getElementById('changePinNew').focus();
+  }
+
+  async function saveChangedPin() {
+    const pin = document.getElementById('changePinNew').value;
+    const confirm = document.getElementById('changePinConfirm').value;
+    const errorEl = document.getElementById('changePinError');
+    if (!validatePinInput(pin, confirm, errorEl)) return;
+
+    const res = await fetch('/auth/set-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.reload();
+    } else {
+      errorEl.textContent = data.message || 'Failed to update PIN';
+    }
+  }
+
+  async function updateLockTimeout(value) {
+    await fetch('/auth/update-timeout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes: parseInt(value, 10) })
+    });
   }
 
   async function resetAppCache() {

@@ -8,7 +8,8 @@ let headerVisible = true;
 let headerTimeout = null;
 
 const html = document.documentElement;
-const themeToggle = document.getElementById('themeToggle');
+const themeLightBtn = document.getElementById('themeLightBtn');
+const themeDarkBtn = document.getElementById('themeDarkBtn');
 const settingsToggle = document.getElementById('settingsToggle');
 const settingsPanel = document.getElementById('settingsPanel');
 const tocToggle = document.getElementById('tocToggle');
@@ -75,17 +76,10 @@ function getSystemTheme() {
 }
 
 function setTheme(theme) {
-  html.setAttribute('data-theme', theme);
-  const sunIcon = themeToggle.querySelector('.sun-icon');
-  const moonIcon = themeToggle.querySelector('.moon-icon');
-  if (theme === 'dark') {
-    sunIcon.style.display = 'block';
-    moonIcon.style.display = 'none';
-  } else {
-    sunIcon.style.display = 'none';
-    moonIcon.style.display = 'block';
-  }
-  
+  html.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+  if (themeLightBtn) themeLightBtn.classList.toggle('active', theme !== 'dark');
+  if (themeDarkBtn) themeDarkBtn.classList.toggle('active', theme === 'dark');
+
   if (view?.renderer) {
     updateReaderStyles();
   }
@@ -105,25 +99,15 @@ async function initTheme() {
   applyThemePreference(preference);
 }
 
-async function toggleTheme() {
-  let newPreference;
-  if (savedThemePreference === 'system') {
-    const currentTheme = html.getAttribute('data-theme');
-    newPreference = currentTheme === 'dark' ? 'light' : 'dark';
-  } else if (savedThemePreference === 'dark') {
-    newPreference = 'light';
-  } else {
-    newPreference = 'dark';
-  }
-
+async function saveAndApplyTheme(preference) {
   try {
     const response = await fetch('/settings/theme-preference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme: newPreference })
+      body: JSON.stringify({ theme: preference })
     });
     if (response.ok) {
-      applyThemePreference(newPreference);
+      applyThemePreference(preference);
     }
   } catch (error) {
     console.error('Error saving theme preference:', error);
@@ -131,7 +115,8 @@ async function toggleTheme() {
 }
 
 initTheme();
-themeToggle.addEventListener('click', toggleTheme);
+if (themeLightBtn) themeLightBtn.addEventListener('click', () => saveAndApplyTheme('light'));
+if (themeDarkBtn) themeDarkBtn.addEventListener('click', () => saveAndApplyTheme('dark'));
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
   if (savedThemePreference === 'system') {

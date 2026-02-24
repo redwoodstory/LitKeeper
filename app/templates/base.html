@@ -160,5 +160,36 @@
   {% block scripts %}
   <script src="/static/js/theme.js" defer></script>
   {% endblock %}
+
+  {% if pin_enabled %}
+  <script>
+    (function () {
+      // Threshold in ms before locking. For 'when backgrounded' (timeout=0) we use
+      // 2 seconds so that normal page navigations (which briefly hide the page but
+      // resolve in <500 ms) never trigger a lock.
+      var lockMs = {{ auto_lock_timeout }} > 0 ? {{ auto_lock_timeout }} * 60000 : 2000;
+      var hiddenAt = 0;
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+          if (!window.location.pathname.startsWith('/auth/')) {
+            hiddenAt = Date.now();
+          }
+        } else if (document.visibilityState === 'visible') {
+          if (!window.location.pathname.startsWith('/auth/') && hiddenAt > 0) {
+            var elapsed = Date.now() - hiddenAt;
+            hiddenAt = 0;
+            if (elapsed >= lockMs) {
+              navigator.sendBeacon('/auth/lock-now');
+              window.location.replace('/auth/lock');
+            }
+          } else {
+            hiddenAt = 0;
+          }
+        }
+      });
+    })();
+  </script>
+  {% endif %}
 </body>
 </html>

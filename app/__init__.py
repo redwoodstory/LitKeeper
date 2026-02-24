@@ -1,6 +1,7 @@
 from __future__ import annotations
 from flask import Flask
 import os
+import time
 import atexit
 from datetime import datetime
 from dotenv import load_dotenv
@@ -125,6 +126,9 @@ def create_app() -> Flask:
             ('migration_completed', 'false', 'bool', 'Whether initial migration has completed'),
             ('migration_version', '1', 'int', 'Database schema version'),
             ('auto_refresh_metadata', 'false', 'bool', 'Auto-refresh missing metadata on startup'),
+            ('pin_enabled', 'false', 'bool', 'Whether PIN lock is enabled'),
+            ('pin_hash', '', 'string', 'Hashed PIN for lock screen'),
+            ('auto_lock_timeout', '0', 'int', 'Lock timeout minutes (0=on background)'),
         ]
 
         for key, value, value_type, description in config_defaults:
@@ -190,6 +194,7 @@ def create_app() -> Flask:
     from .blueprints import api, library, downloads, errors, settings
     from .blueprints.admin import admin
     from .blueprints.epub import epub
+    from .blueprints.auth import auth
 
     app.register_blueprint(api)
     app.register_blueprint(library)
@@ -198,6 +203,53 @@ def create_app() -> Flask:
     app.register_blueprint(admin)
     app.register_blueprint(settings)
     app.register_blueprint(epub)
+    app.register_blueprint(auth)
+
+    from flask import request, redirect, url_for, session
+    from app.models import AppConfig
+
+    @app.before_request
+    def enforce_pin_lock():
+        from flask import make_response as _make_response
+        exempt_prefixes = ('/auth/', '/static/', '/favicon')
+        if request.path.startswith(exempt_prefixes):
+            return
+        pin_cfg = AppConfig.query.filter_by(key='pin_enabled').first()
+        if not pin_cfg or not pin_cfg.get_value():
+            return
+        lock_url = url_for('auth.lock', next=request.full_path)
+        def _lock_response():
+            # HTMX injects responses into swap targets, so a plain 302 would cause
+            # the lock page HTML to be injected into a partial div instead of
+            # replacing the full page. HX-Redirect triggers a proper navigation.
+            if request.headers.get('HX-Request'):
+                resp = _make_response('', 200)
+                resp.headers['HX-Redirect'] = lock_url
+                return resp
+            return redirect(lock_url)
+        if not session.get('pin_unlocked'):
+            return _lock_response()
+        timeout_cfg = AppConfig.query.filter_by(key='auto_lock_timeout').first()
+        minutes = int(timeout_cfg.value) if timeout_cfg else 0
+        # For background-only locking (minutes=0), use a 30-min server fallback
+        # to catch cases where the JS beacon failed (e.g. no connectivity)
+        threshold = minutes * 60 if minutes > 0 else 1800
+        if time.time() - session.get('last_activity', 0) > threshold:
+            session['pin_unlocked'] = False
+            return _lock_response()
+        session['last_activity'] = time.time()
+
+    @app.context_processor
+    def inject_auth_state():
+        try:
+            cfg = AppConfig.query.filter_by(key='pin_enabled').first()
+            timeout_cfg = AppConfig.query.filter_by(key='auto_lock_timeout').first()
+            return {
+                'pin_enabled': bool(cfg and cfg.get_value()),
+                'auto_lock_timeout': int(timeout_cfg.value) if timeout_cfg else 0,
+            }
+        except Exception:
+            return {'pin_enabled': False, 'auto_lock_timeout': 0}
 
     from app.scheduler import init_scheduler, shutdown_scheduler
     init_scheduler(app)
