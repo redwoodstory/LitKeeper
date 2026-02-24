@@ -118,7 +118,7 @@
   });
 
   // Font family selection
-  const savedFont = localStorage.getItem('fontFamily') || "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif";
+  const savedFont = localStorage.getItem('fontFamily') || "ProximaNovaMedium, system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', Helvetica, Arial, sans-serif";
   fontSelect.value = savedFont;
   root.style.setProperty('--font-family', savedFont);
 
@@ -129,7 +129,7 @@
   });
 
   // Font size adjustment
-  const savedFontSize = localStorage.getItem('fontSize') || '18';
+  const savedFontSize = localStorage.getItem('fontSize') || '16';
   fontSizeRange.value = savedFontSize;
   fontSizeValue.textContent = savedFontSize + 'px';
   root.style.setProperty('--font-size', savedFontSize + 'px');
@@ -142,7 +142,7 @@
   });
 
   // Line height adjustment
-  const savedLineHeight = localStorage.getItem('lineHeight') || '1.8';
+  const savedLineHeight = localStorage.getItem('lineHeight') || '1.58';
   lineHeightRange.value = savedLineHeight;
   lineHeightValue.textContent = savedLineHeight;
   root.style.setProperty('--line-height', savedLineHeight);
