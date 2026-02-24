@@ -28,7 +28,6 @@ function toggleHeader() {
   
   if (headerVisible) {
     readerHeader.style.transform = 'translateY(0)';
-    readerFooter.style.transform = 'translateY(0)';
     
     if (headerTimeout) clearTimeout(headerTimeout);
     headerTimeout = setTimeout(() => {
@@ -36,7 +35,6 @@ function toggleHeader() {
     }, 3000);
   } else {
     readerHeader.style.transform = 'translateY(-100%)';
-    readerFooter.style.transform = 'translateY(100%)';
     if (headerTimeout) clearTimeout(headerTimeout);
   }
 }
@@ -48,7 +46,6 @@ function showHeaderTemporarily() {
   if (!headerVisible) {
     headerVisible = true;
     readerHeader.style.transform = 'translateY(0)';
-    readerFooter.style.transform = 'translateY(0)';
   }
   
   if (headerTimeout) clearTimeout(headerTimeout);

@@ -408,14 +408,14 @@ body {
     padding: 0;
   }
   
-  .reader-header,
-  .reader-footer {
+  .reader-header {
     transition: transform 0.3s ease;
   }
   
   #reader-main {
     top: 0;
-    bottom: 0;
+    bottom: 60px;
+    padding: 1rem 0 0 0;
   }
 }
 
@@ -442,6 +442,7 @@ foliate-view > * {
 
 @media (max-width: 768px) {
   foliate-view {
-    min-height: calc(100vh - 120px);
+    height: 100%;
+    max-height: 100%;
   }
 }
