@@ -41,7 +41,10 @@
           colors: {
             primary: '#4a90e2',
             'primary-dark': '#357abd',
-          }
+          },
+          fontFamily: {
+            playfair: ['Playfair Display', 'Georgia', 'serif'],
+          },
         }
       },
       safelist: [
@@ -63,6 +66,21 @@
   </script>
 
   <style type="text/tailwindcss">
+    @font-face {
+      font-family: 'Playfair Display';
+      font-style: normal;
+      font-weight: 400;
+      src: url('/static/fonts/PlayfairDisplay-Regular.ttf') format('truetype');
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Playfair Display';
+      font-style: normal;
+      font-weight: 500;
+      src: url('/static/fonts/PlayfairDisplay-Bold.ttf') format('truetype');
+      font-display: swap;
+    }
+
     @layer components {
       .btn-primary {
         @apply bg-primary hover:bg-primary-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
