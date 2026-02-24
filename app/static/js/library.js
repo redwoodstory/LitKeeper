@@ -25,6 +25,12 @@ function initializeLibraryFilters() {
                                localStorage.getItem('library_sort_order');
   
   if (hasSavedPreferences) {
+    document.body.addEventListener('htmx:afterSwap', function onSwap(e) {
+      if (e.detail.target.id === 'library-content') {
+        e.detail.target.style.visibility = '';
+        document.body.removeEventListener('htmx:afterSwap', onSwap);
+      }
+    });
     triggerLibraryFilter();
   }
 }

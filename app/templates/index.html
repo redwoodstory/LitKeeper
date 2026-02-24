@@ -177,6 +177,11 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
 
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
     <div id="library-content">
+    <script>
+      if (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_sort_order')) {
+        document.getElementById('library-content').style.visibility = 'hidden';
+      }
+    </script>
     {% if stories|length == 0 %}
       <div class="text-center text-gray-500 dark:text-gray-400 py-12">
         <svg class="w-20 h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
