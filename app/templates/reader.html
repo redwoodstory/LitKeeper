@@ -36,7 +36,7 @@
       <h2 class="chapter-title">{{ chapter.title }}</h2>
       <div class="chapter-content">
         {% for paragraph in chapter.paragraphs %}
-        <p>{{ paragraph }}</p>
+        <p data-chapter="{{ chapter.number }}" data-para="{{ loop.index0 }}">{{ paragraph }}</p>
         {% endfor %}
       </div>
     </section>
@@ -49,4 +49,10 @@
     {% endfor %}
   </div>
 </article>
+{% if story_id %}
+<script>
+  window.STORY_ID = {{ story_id }};
+  window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'percentage': progress.percentage} | tojson | safe }}{% else %}null{% endif %};
+</script>
+{% endif %}
 {% endblock %}

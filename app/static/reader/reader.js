@@ -233,4 +233,158 @@
       if (isHidden) showHeader();
     });
   }
+
+  if (window.STORY_ID) {
+    const storyId = window.STORY_ID;
+    const initialProgress = window.INITIAL_PROGRESS;
+
+    // Lightweight IndexedDB wrapper — mirrors epub_reader.js ProgressDB,
+    // uses the same db/store so both readers share local cache.
+    const progressDB = {
+      dbName: 'LitKeeperProgress',
+      storeName: 'reading_progress',
+      _db: null,
+
+      async open() {
+        if (this._db) return this._db;
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(this.dbName, 1);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(this.storeName)) {
+              db.createObjectStore(this.storeName, { keyPath: 'story_id' });
+            }
+          };
+          req.onsuccess = (e) => { this._db = e.target.result; resolve(this._db); };
+          req.onerror = () => reject(req.error);
+        });
+      },
+
+      async save(data) {
+        try {
+          const db = await this.open();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(this.storeName, 'readwrite');
+            tx.objectStore(this.storeName).put(data);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+          });
+        } catch (_) {}
+      }
+    };
+
+    let pendingSync = false;
+
+    async function saveProgress(chapter, para, scrollPos, pct) {
+      const payload = {
+        current_chapter: chapter,
+        current_paragraph: para,
+        scroll_position: scrollPos,
+        percentage: pct
+      };
+
+      // Save locally first (offline resilience)
+      await progressDB.save({
+        story_id: storyId,
+        ...payload,
+        timestamp: new Date().toISOString(),
+        synced: false
+      });
+
+      try {
+        const res = await fetch(`/epub/api/progress/${storyId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          pendingSync = false;
+        } else {
+          pendingSync = true;
+        }
+      } catch (_) {
+        pendingSync = true;
+      }
+    }
+
+    async function syncPending() {
+      if (!pendingSync) return;
+      const db = await progressDB.open().catch(() => null);
+      if (!db) return;
+      const record = await new Promise((resolve) => {
+        const tx = db.transaction(progressDB.storeName, 'readonly');
+        const req = tx.objectStore(progressDB.storeName).get(storyId);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+      if (!record) return;
+      try {
+        await fetch(`/epub/api/progress/${storyId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            current_chapter: record.current_chapter,
+            current_paragraph: record.current_paragraph,
+            scroll_position: record.scroll_position,
+            percentage: record.percentage
+          })
+        });
+        pendingSync = false;
+      } catch (_) {}
+    }
+
+    window.addEventListener('online', syncPending);
+
+    // --- Scroll tracking ---
+    function getTopVisibleParagraph() {
+      const paras = document.querySelectorAll('p[data-chapter]');
+      for (const p of paras) {
+        const rect = p.getBoundingClientRect();
+        if (rect.top >= -10) return p;
+      }
+      return paras[paras.length - 1] || null;
+    }
+
+    let scrollTimer = null;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = scrollable > 0 ? Math.min(1, window.scrollY / scrollable) : 0;
+        const p = getTopVisibleParagraph();
+        const chapter = p ? parseInt(p.dataset.chapter, 10) : 1;
+        const para = p ? parseInt(p.dataset.para, 10) : 0;
+        saveProgress(chapter, para, Math.round(window.scrollY), pct);
+      }, 1500);
+    }, { passive: true });
+
+    // --- Restore position on load ---
+    function restorePosition() {
+      if (!initialProgress) return;
+
+      const { current_chapter: chapter, current_paragraph: para, percentage: pct } = initialProgress;
+
+      // If we have valid chapter-level data (HTML reader saved it), jump to that paragraph.
+      // chapter === 0 means the progress came from the EPUB reader which always writes 0.
+      if (chapter && chapter > 0) {
+        const target = document.querySelector(`[data-chapter="${chapter}"][data-para="${para}"]`);
+        if (target) {
+          target.scrollIntoView({ behavior: 'instant', block: 'start' });
+          return;
+        }
+      }
+
+      // Fallback: use percentage (works cross-format)
+      if (pct && pct > 0) {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        if (scrollable > 0) {
+          window.scrollTo({ top: scrollable * pct, behavior: 'instant' });
+        }
+      }
+    }
+
+    // Wait for layout to settle before restoring
+    requestAnimationFrame(() => requestAnimationFrame(restorePosition));
+  }
+
 })();

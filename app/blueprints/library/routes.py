@@ -1,7 +1,9 @@
 from __future__ import annotations
 from flask import Blueprint, render_template, request, send_from_directory, jsonify, abort, make_response
 from flask.typing import ResponseReturnValue
+from app.models import Story
 from app.services import download_story_and_create_files, log_error, log_action, get_library_data
+from app.services.epub_service import EpubService
 from app.services.system_checks import check_mount_warning
 from app.utils import get_html_directory, get_epub_directory
 from app.utils.security import validate_file_in_directory
@@ -211,7 +213,12 @@ def read_story(filename: str) -> ResponseReturnValue:
             with open(json_path, 'r', encoding='utf-8') as f:
                 story_data = json.load(f)
 
-            return render_template('reader.html', story=story_data)
+            filename_base = json_filename[:-5]
+            story_db = Story.query.filter_by(filename_base=filename_base).first()
+            story_id = story_db.id if story_db else None
+            progress = EpubService.get_reading_progress(story_id) if story_id else None
+
+            return render_template('reader.html', story=story_data, story_id=story_id, progress=progress)
 
         except Exception as e:
             log_error(f"Error loading story {json_filename}: {str(e)}\n{traceback.format_exc()}")
