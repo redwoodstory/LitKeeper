@@ -6,7 +6,7 @@ class StoryDownloadRequest(BaseModel):
     """Validation schema for story download requests."""
     url: str
     wait: bool = True
-    format: list[Literal["epub", "html"]] = Field(default=["epub"], min_length=1)
+    format: list[Literal["epub", "html"]] = Field(default=["epub", "html"], min_length=1)
     
     @field_validator('url')
     @classmethod

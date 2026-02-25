@@ -20,9 +20,7 @@ def index() -> ResponseReturnValue:
     if request.method == "POST":
         try:
             url = request.form.get("url", "")
-            formats = request.form.getlist("format")
-            if not formats:
-                formats = ["epub"]
+            formats = ["epub", "html"]
 
             validated = StoryDownloadRequest(url=url, wait=True, format=formats)
             result = download_story_and_create_files(validated.url, validated.format)

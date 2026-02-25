@@ -23,11 +23,10 @@ def queue_download() -> ResponseReturnValue:
         if request.is_json:
             data = request.get_json()
             url = data.get('url', '')
-            formats = data.get('format', ['epub', 'html'])
         else:
             url = request.form.get('url', '')
-            formats = request.form.getlist('format') or ['epub', 'html']
-
+        
+        formats = ['epub', 'html']
         validated = StoryDownloadRequest(url=url, format=formats)
 
     except ValidationError as e:
