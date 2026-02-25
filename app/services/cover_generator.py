@@ -62,14 +62,14 @@ def generate_cover_image(title: str, author: str, cover_path: str) -> None:
         draw.rectangle([(0, 0), (spine_width, height)], fill=spine_color)
 
         try:
-            title_font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "fonts", "PlayfairDisplay-Bold.ttf")
+            title_font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "fonts", "PlayfairDisplay-Regular.ttf")
             author_font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "fonts", "PlayfairDisplay-Regular.ttf")
             
             if not os.path.exists(title_font_path) or not os.path.exists(author_font_path):
                 raise Exception(f"Playfair Display fonts not found")
 
-            title_font = ImageFont.truetype(title_font_path, 128)
-            author_font = ImageFont.truetype(author_font_path, 72)
+            title_font = ImageFont.truetype(title_font_path, 164)
+            author_font = ImageFont.truetype(author_font_path, 96)
         except Exception:
             title_font = ImageFont.load_default()
             author_font = ImageFont.load_default()
@@ -116,7 +116,7 @@ def generate_cover_image(title: str, author: str, cover_path: str) -> None:
 
         author_bbox = draw.textbbox((0, 0), author, font=author_font)
         author_width = author_bbox[2] - author_bbox[0]
-        author_position = ((width - author_width) // 2, height - 200)
+        author_position = ((width - author_width) // 2, height - 300)
         draw.text(author_position, author, fill=(255, 255, 255), font=author_font)
 
         image = image.resize((600, 800), Image.Resampling.LANCZOS)
