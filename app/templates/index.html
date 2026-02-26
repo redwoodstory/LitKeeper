@@ -183,4 +183,10 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   </div>
 </div>
 {% endif %}
+
+{% if open_modal_story %}
+{% with story = open_modal_story %}
+{% include 'components/story_modal.html' %}
+{% endwith %}
+{% endif %}
 {% endblock %}

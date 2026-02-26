@@ -341,6 +341,60 @@ class ProgressDB {
 
 const progressDB = new ProgressDB();
 
+function cleanupReader() {
+  console.log('[Cleanup] Starting reader cleanup...');
+  
+  if (headerTimeout) {
+    clearTimeout(headerTimeout);
+    headerTimeout = null;
+  }
+  
+  if (view) {
+    try {
+      view.remove();
+    } catch (e) {
+      console.log('[Cleanup] Error removing view:', e);
+    }
+    view = null;
+  }
+  
+  if (progressDB.db) {
+    try {
+      progressDB.db.close();
+      progressDB.db = null;
+    } catch (e) {
+      console.log('[Cleanup] Error closing IndexedDB:', e);
+    }
+  }
+  
+  console.log('[Cleanup] Cleanup complete');
+}
+
+window.cleanupAndGoBack = async function() {
+  console.log('[Navigation] Preparing to go back...');
+  
+  if (currentFraction > 0) {
+    try {
+      const cfi = view?.getCFI?.() || '';
+      await saveProgress(currentFraction, cfi);
+    } catch (e) {
+      console.log('[Navigation] Could not get CFI, saving progress with percentage only:', e);
+      await saveProgress(currentFraction, '');
+    }
+  }
+  
+  cleanupReader();
+  
+  setTimeout(() => {
+    const storyId = window.STORY_ID;
+    if (storyId) {
+      window.location.href = `/?open_modal=${storyId}`;
+    } else {
+      window.location.href = '/';
+    }
+  }, 100);
+};
+
 async function syncProgressToServer() {
   try {
     const localProgress = await progressDB.getProgress(storyId);
@@ -605,7 +659,26 @@ async function initializeReader() {
     }
 
     console.log('[Foliate] Initializing view with lastLocation:', lastLocation);
-    await view.init({ lastLocation });
+    try {
+      await view.init({ lastLocation });
+    } catch (initError) {
+      console.error('[Foliate] Error initializing with saved position:', initError);
+      console.log('[Foliate] Retrying from beginning...');
+      try {
+        await view.init({ lastLocation: null });
+        await progressDB.saveProgress(storyId, {
+          current_chapter: 0,
+          scroll_position: 0,
+          cfi: '',
+          percentage: 0,
+          timestamp: new Date().toISOString(),
+          synced: false
+        });
+      } catch (retryError) {
+        console.error('[Foliate] Failed to initialize even from beginning:', retryError);
+        throw retryError;
+      }
+    }
     setTimeout(() => { isInitialLoad = false; }, 500);
 
     prevBtn.addEventListener('click', () => view.goLeft());

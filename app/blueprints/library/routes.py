@@ -70,7 +70,34 @@ def index() -> ResponseReturnValue:
         stories = get_library_data() if enable_library else []
         categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
 
-        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, enable_library=enable_library, sync_status=sync_status)
+        open_modal_story = None
+        open_modal_id = request.args.get('open_modal', type=int)
+        if open_modal_id and enable_library:
+            _s = Story.query.get(open_modal_id)
+            if _s:
+                open_modal_story = {
+                    'id': _s.id,
+                    'title': _s.title,
+                    'author': {'name': _s.author.name, 'literotica_url': _s.author.literotica_url} if _s.author else None,
+                    'author_url': _s.author.literotica_url if _s.author else None,
+                    'category': {'name': _s.category.name} if _s.category else None,
+                    'tags': [tag.name for tag in _s.tags],
+                    'cover': _s.cover_filename,
+                    'formats': [fmt.format_type for fmt in _s.formats],
+                    'html_file': f"{_s.filename_base}.html",
+                    'epub_file': f"{_s.filename_base}.epub",
+                    'source_url': _s.literotica_url,
+                    'series_url': _s.literotica_series_url,
+                    'page_count': _s.literotica_page_count,
+                    'word_count': _s.word_count,
+                    'chapter_count': _s.chapter_count,
+                    'size': next((f.file_size for f in _s.formats if f.format_type == 'epub'), None),
+                    'created_at': _s.created_at,
+                    'auto_update_enabled': _s.auto_update_enabled,
+                    'is_series': bool(_s.literotica_series_url and _s.chapter_count > 1),
+                }
+
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story)
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
         return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, enable_library=enable_library)

@@ -68,8 +68,8 @@ def generate_cover_image(title: str, author: str, cover_path: str) -> None:
             if not os.path.exists(title_font_path) or not os.path.exists(author_font_path):
                 raise Exception(f"Playfair Display fonts not found")
 
-            title_font = ImageFont.truetype(title_font_path, 164)
-            author_font = ImageFont.truetype(author_font_path, 96)
+            title_font = ImageFont.truetype(title_font_path, 154)
+            author_font = ImageFont.truetype(author_font_path, 116)
         except Exception:
             title_font = ImageFont.load_default()
             author_font = ImageFont.load_default()

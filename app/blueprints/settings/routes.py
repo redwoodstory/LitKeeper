@@ -4,7 +4,7 @@ from flask.typing import ResponseReturnValue
 from . import settings
 from app.services.bulk_format_generator import BulkFormatGeneratorService
 from app.services.logger import log_error, log_action
-from app.models import Story, AppConfig, db
+from app.models import Story, AppConfig, ReadingProgress, db
 import traceback
 
 
@@ -258,4 +258,29 @@ def reset_all_exclusions() -> ResponseReturnValue:
         return jsonify({
             "success": False,
             "message": "An error occurred while resetting exclusions"
+        }), 500
+
+
+@settings.route('/clear-all-reading-progress', methods=['POST'])
+def clear_all_reading_progress() -> ResponseReturnValue:
+    try:
+        count = ReadingProgress.query.count()
+        
+        ReadingProgress.query.delete()
+        db.session.commit()
+        
+        log_action(f"Cleared reading progress for {count} stories")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Cleared reading progress for {count} {'story' if count == 1 else 'stories'}. All stories will start from the beginning.",
+            "count": count
+        })
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"Error clearing reading progress: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while clearing reading progress"
         }), 500
