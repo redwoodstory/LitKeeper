@@ -111,21 +111,7 @@
           </span>
         </div>
 
-        <div class="flex items-center justify-between gap-4 py-3 border-t border-b border-slate-100 dark:border-gray-700/60">
-          <div>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">Auto-lock</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Lock the app after a period of inactivity</p>
-          </div>
-          <select id="lockTimeoutSelect" onchange="updateLockTimeout(this.value)"
-            class="flex-shrink-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
-            <option value="0" {% if auto_lock_timeout == 0 %}selected{% endif %}>When backgrounded</option>
-            <option value="5" {% if auto_lock_timeout == 5 %}selected{% endif %}>After 5 minutes</option>
-            <option value="15" {% if auto_lock_timeout == 15 %}selected{% endif %}>After 15 minutes</option>
-            <option value="30" {% if auto_lock_timeout == 30 %}selected{% endif %}>After 30 minutes</option>
-          </select>
-        </div>
-
-        <div class="flex flex-wrap gap-3 mt-4">
+        <div class="flex flex-wrap gap-3">
           <button onclick="toggleChangePinForm()" id="changePinToggle"
             class="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 text-sm font-medium inline-flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,54 +166,29 @@
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
         <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        Bulk Format Generation
+        Automation
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Generate missing file formats for all stories in your library. For HTML generation, stories with 100% match
-        confidence will be processed automatically.
+        Enable automatic updates for stories with linked metadata. Stories will be checked for new chapters when the automation runs.
       </p>
 
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
-          <h4 class="font-medium text-gray-900 dark:text-white mb-2">Generate Missing EPUBs</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Create EPUB files for stories that only have HTML format.
-          </p>
-          <button hx-post="/settings/generate-missing-epubs" hx-target="#generationStatus" hx-swap="innerHTML"
-            hx-indicator="#btnGenerateEpubs" id="btnGenerateEpubs" class="btn-primary w-full">
-            <span class="htmx-indicator">Generating...</span>
-            <span class="htmx-not-indicator">Generate EPUBs</span>
-          </button>
+      <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4">
+        <div>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Auto-Update Stories</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Automatically check for and download new chapters</p>
         </div>
-
-        <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
-          <h4 class="font-medium text-gray-900 dark:text-white mb-2">Generate Missing HTML</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Create HTML files for stories that only have EPUB format (auto-match only).
-          </p>
-          <button hx-post="/settings/generate-missing-html" hx-target="#generationStatus" hx-swap="innerHTML"
-            hx-indicator="#btnGenerateHtml" id="btnGenerateHtml" class="btn-primary w-full">
-            <span class="htmx-indicator">Generating...</span>
-            <span class="htmx-not-indicator">Generate HTML</span>
-          </button>
-        </div>
-
-        <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
-          <h4 class="font-medium text-gray-900 dark:text-white mb-2">Generate All Missing</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Generate all missing formats for all stories in your library.
-          </p>
-          <button hx-post="/settings/generate-all-missing-formats" hx-target="#generationStatus" hx-swap="innerHTML"
-            hx-indicator="#btnGenerateAll" id="btnGenerateAll" class="btn-primary w-full">
-            <span class="htmx-indicator">Generating...</span>
-            <span class="htmx-not-indicator">Generate All</span>
-          </button>
-        </div>
+        <button id="autoUpdateToggle" onclick="toggleGlobalAutoUpdate()"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-gray-200 dark:bg-gray-700"
+          role="switch" aria-checked="false">
+          <span class="sr-only">Enable auto-update</span>
+          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+        </button>
       </div>
-
-      <div id="generationStatus"></div>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
+        Configure the automation schedule in your Docker Compose file. This toggle enables/disables the automation globally.
+      </p>
     </section>
   </div>
 
@@ -244,17 +205,11 @@
         Regenerate all cover images using the latest templates and update all EPUBs.
       </p>
 
-      <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
-        <h4 class="font-medium text-gray-900 dark:text-white mb-2">Regenerate All Covers</h4>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Generate fresh covers for all stories using the latest templates, then update all EPUBs.
-        </p>
-        <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
-          hx-indicator="#btnCoversNew" id="btnCoversNew" class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
-          <span class="htmx-indicator">Regenerating...</span>
-          <span class="htmx-not-indicator">Regenerate All Covers</span>
-        </button>
-      </div>
+      <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
+        hx-indicator="#btnCoversNew" id="btnCoversNew" class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+        <span class="htmx-indicator">Regenerating...</span>
+        <span class="htmx-not-indicator">Regenerate All Covers</span>
+      </button>
 
       <div id="coverStatus"></div>
     </section>
@@ -297,99 +252,6 @@
         </div>
         <p id="syncStatusText" class="text-sm text-gray-600 dark:text-gray-400"></p>
       </div>
-    </section>
-  </div>
-
-  <div class="card">
-    <section>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        Troubleshooting
-      </h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        If you're experiencing issues with the app, try clearing the cache and resetting the application state.
-      </p>
-
-      <div class="flex flex-wrap gap-3">
-        <button id="resetAppCache" onclick="resetAppCache()"
-          class="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Clear Cache & Reset
-        </button>
-        <button id="clearReadingProgress" onclick="clearAllReadingProgress()"
-          class="w-full sm:w-auto px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-          Clear All Reading Progress
-        </button>
-      </div>
-    </section>
-  </div>
-
-  <div class="card">
-    <section>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          Auto-Refresh Exclusions
-        </h3>
-        <button id="resetAllExclusionsBtn" onclick="resetAllExclusions()"
-          class="hidden w-full sm:w-auto px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 flex-shrink-0">
-          Reset All Exclusions
-        </button>
-      </div>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Stories excluded from automatic metadata refresh due to conflicts or errors. These stories will not be checked
-        during automation cycles.
-      </p>
-
-      <div id="excludedStoriesContainer" hx-get="/settings/get-excluded-stories-html" hx-trigger="load"
-        hx-swap="innerHTML">
-        <div class="flex items-center justify-center py-8">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="card">
-    <section>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
-          </path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-          </path>
-        </svg>
-        Warnings & Notifications
-      </h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Manage dismissed warnings and notifications.
-      </p>
-
-      <button onclick="showHiddenWarnings()"
-        class="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 inline-flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
-          </path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-          </path>
-        </svg>
-        Show Hidden Warnings
-      </button>
     </section>
   </div>
 
@@ -648,15 +510,67 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    loadExcludedStories();
     initializeThemeButtons();
-
-    document.addEventListener('storyDeleted', (event) => {
-      if (event.detail && event.detail.storyId) {
-        removeExclusionCard(event.detail.storyId);
-      }
-    });
+    loadAutoUpdateSetting();
   });
+
+  async function loadAutoUpdateSetting() {
+    try {
+      const response = await fetch('/settings/auto-update-enabled');
+      const data = await response.json();
+      
+      if (data.success) {
+        updateAutoUpdateToggle(data.enabled);
+      }
+    } catch (error) {
+      console.error('Error loading auto-update setting:', error);
+    }
+  }
+
+  function updateAutoUpdateToggle(enabled) {
+    const toggle = document.getElementById('autoUpdateToggle');
+    if (!toggle) return;
+    
+    const span = toggle.querySelector('span:last-child');
+    
+    if (enabled) {
+      toggle.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+      toggle.classList.add('bg-green-600', 'dark:bg-green-600');
+      toggle.setAttribute('aria-checked', 'true');
+      span.classList.remove('translate-x-0');
+      span.classList.add('translate-x-5');
+    } else {
+      toggle.classList.remove('bg-green-600', 'dark:bg-green-600');
+      toggle.classList.add('bg-gray-200', 'dark:bg-gray-700');
+      toggle.setAttribute('aria-checked', 'false');
+      span.classList.remove('translate-x-5');
+      span.classList.add('translate-x-0');
+    }
+  }
+
+  async function toggleGlobalAutoUpdate() {
+    const toggle = document.getElementById('autoUpdateToggle');
+    const currentState = toggle.getAttribute('aria-checked') === 'true';
+    
+    try {
+      const response = await fetch('/settings/toggle-auto-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !currentState })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        updateAutoUpdateToggle(data.enabled);
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error toggling auto-update:', error);
+      alert('Failed to update auto-update setting');
+    }
+  }
 
   document.body.addEventListener('htmx:afterSwap', (event) => {
     if (event.detail.target === document.body) {
@@ -832,44 +746,5 @@
     }
   }
 
-  async function updateLockTimeout(value) {
-    await fetch('/auth/update-timeout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ minutes: parseInt(value, 10) })
-    });
-  }
-
-  async function resetAppCache() {
-    if (!confirm('This will clear all offline data and reload the application. Continue?')) {
-      return;
-    }
-
-    const btn = document.getElementById('resetAppCache');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = 'Clearing...';
-
-    try {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const registration of registrations) {
-          await registration.unregister();
-        }
-      }
-
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(key => caches.delete(key)));
-      }
-
-      window.location.reload(true);
-    } catch (error) {
-      console.error('Error resetting cache:', error);
-      alert('Error resetting cache. Please try manually clearing your browser data.');
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
-  }
 </script>
 {% endblock %}
