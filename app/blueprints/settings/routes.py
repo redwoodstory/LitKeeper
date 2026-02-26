@@ -115,20 +115,6 @@ def regenerate_covers_new() -> ResponseReturnValue:
                              generation_type='covers_new'), 500
 
 
-@settings.route('/regenerate-covers-same', methods=['POST'])
-def regenerate_covers_same() -> ResponseReturnValue:
-    try:
-        service = BulkFormatGeneratorService()
-        result = service.reembed_existing_covers()
-        return render_template('partials/generation_status.html', result=result, generation_type='covers_same')
-    except Exception as e:
-        error_msg = f"Error re-embedding covers: {str(e)}\n{traceback.format_exc()}"
-        log_error(error_msg)
-        return render_template('partials/generation_status.html',
-                             result={"success": False, "message": "An error occurred while re-embedding covers"},
-                             generation_type='covers_same'), 500
-
-
 @settings.route('/get-generation-log')
 def get_generation_log() -> ResponseReturnValue:
     try:

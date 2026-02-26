@@ -241,36 +241,19 @@
         Cover Art
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Manage cover images across your library. <strong class="font-medium text-gray-800 dark:text-gray-200">New Designs</strong>
-        regenerates all cover images using the current template engine and updates your EPUBs.
-        <strong class="font-medium text-gray-800 dark:text-gray-200">Re-embed Existing</strong>
-        re-embeds your current cover images into EPUBs without generating new ones.
+        Regenerate all cover images using the latest templates and update all EPUBs.
       </p>
 
-      <div class="grid md:grid-cols-2 gap-4">
-        <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
-          <h4 class="font-medium text-gray-900 dark:text-white mb-2">New Designs</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Generate fresh covers for all stories using the latest templates, then update all EPUBs.
-          </p>
-          <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
-            hx-indicator="#btnCoversNew" id="btnCoversNew" class="btn-primary w-full">
-            <span class="htmx-indicator">Regenerating...</span>
-            <span class="htmx-not-indicator">Regenerate All Covers</span>
-          </button>
-        </div>
-
-        <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
-          <h4 class="font-medium text-gray-900 dark:text-white mb-2">Re-embed Existing</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Re-embed your current cover images into all EPUBs without generating new ones.
-          </p>
-          <button hx-post="/settings/regenerate-covers-same" hx-target="#coverStatus" hx-swap="innerHTML"
-            hx-indicator="#btnCoversSame" id="btnCoversSame" class="btn-secondary w-full">
-            <span class="htmx-indicator">Re-embedding...</span>
-            <span class="htmx-not-indicator">Re-embed Covers</span>
-          </button>
-        </div>
+      <div class="border border-slate-200 dark:border-gray-700 rounded-lg p-4">
+        <h4 class="font-medium text-gray-900 dark:text-white mb-2">Regenerate All Covers</h4>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Generate fresh covers for all stories using the latest templates, then update all EPUBs.
+        </p>
+        <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
+          hx-indicator="#btnCoversNew" id="btnCoversNew" class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+          <span class="htmx-indicator">Regenerating...</span>
+          <span class="htmx-not-indicator">Regenerate All Covers</span>
+        </button>
       </div>
 
       <div id="coverStatus"></div>
