@@ -24,7 +24,9 @@ window.syncStory = async function(filename, button) {
   }
 };
 
-document.getElementById('syncAllStories').addEventListener('click', async function() {
+const syncAllButton = document.getElementById('syncAllStories');
+if (syncAllButton) {
+  syncAllButton.addEventListener('click', async function() {
   const button = this;
   const originalText = button.innerHTML;
   button.disabled = true;
@@ -86,4 +88,5 @@ document.getElementById('syncAllStories').addEventListener('click', async functi
       button.disabled = false;
     }, 2000);
   }
-});
+  });
+}

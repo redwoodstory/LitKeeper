@@ -2,6 +2,12 @@
 
 {% block page_title %}Settings - LitKeeper{% endblock %}
 
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/sync.js" defer></script>
+<script src="/static/js/sw-status.js" defer></script>
+{% endblock %}
+
 {% block main_content %}
 <div class="mb-6">
   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Settings</h2>

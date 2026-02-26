@@ -1,5 +1,6 @@
 function updateSWStatus() {
   const statusDiv = document.getElementById('swStatus');
+  if (!statusDiv) return;
 
   if (!('serviceWorker' in navigator)) {
     statusDiv.innerHTML = '<p class="text-red-600 dark:text-red-400">❌ Service Workers not supported in this browser</p>';
@@ -76,8 +77,11 @@ if ('serviceWorker' in navigator) {
       })
       .catch((error) => {
         console.log('Service Worker registration failed:', error);
-        document.getElementById('swStatus').innerHTML =
-          `<p class="text-red-600 dark:text-red-400">❌ Registration failed: ${error.message}</p>`;
+        const statusDiv = document.getElementById('swStatus');
+        if (statusDiv) {
+          statusDiv.innerHTML =
+            `<p class="text-red-600 dark:text-red-400">❌ Registration failed: ${error.message}</p>`;
+        }
       });
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -92,7 +96,9 @@ if ('serviceWorker' in navigator) {
   updateSWStatus();
 }
 
-document.getElementById('forceUpdate').addEventListener('click', async () => {
+const forceUpdateBtn = document.getElementById('forceUpdate');
+if (forceUpdateBtn) {
+  forceUpdateBtn.addEventListener('click', async () => {
   if (!swRegistration) {
     alert('No service worker registered yet');
     return;
@@ -117,7 +123,8 @@ document.getElementById('forceUpdate').addEventListener('click', async () => {
     button.disabled = false;
     alert('Update failed: ' + error.message);
   }
-});
+  });
+}
 
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -128,6 +135,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 async function loadStorageInfo() {
   const storageInfoDiv = document.getElementById('storageInfo');
+  if (!storageInfoDiv) return;
 
   if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
     storageInfoDiv.innerHTML = '<p class="text-yellow-600 dark:text-yellow-400">Service Worker not active yet. Refresh the page.</p>';
@@ -211,4 +219,7 @@ async function loadStorageInfo() {
   }
 }
 
-document.getElementById('refreshStorage').addEventListener('click', loadStorageInfo);
+const refreshStorageBtn = document.getElementById('refreshStorage');
+if (refreshStorageBtn) {
+  refreshStorageBtn.addEventListener('click', loadStorageInfo);
+}
