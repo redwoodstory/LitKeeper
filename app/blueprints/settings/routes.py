@@ -62,12 +62,73 @@ def save_theme_preference() -> ResponseReturnValue:
 def get_auto_update_enabled() -> ResponseReturnValue:
     try:
         auto_update_config = AppConfig.query.filter_by(key='auto_update_enabled').first()
-        enabled = auto_update_config.get_value() if auto_update_config else True
+        enabled = auto_update_config.get_value() if auto_update_config else False
         return jsonify({"success": True, "enabled": enabled})
     except Exception as e:
         error_msg = f"Error getting auto-update setting: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
         return jsonify({"success": False, "message": "Error loading auto-update setting"}), 500
+
+
+def _cron_to_readable(cron_schedule: str) -> str:
+    """Convert cron schedule to human-readable format (UTC time)."""
+    try:
+        parts = cron_schedule.strip().split()
+        if len(parts) != 5:
+            return cron_schedule
+        
+        minute = parts[0]
+        hour = parts[1]
+        day_of_week = parts[4]
+        
+        day_names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        day_name = day_names[int(day_of_week)] if day_of_week.isdigit() and 0 <= int(day_of_week) <= 6 else f"day {day_of_week}"
+        
+        hour_int = int(hour) if hour.isdigit() else 0
+        minute_int = int(minute) if minute.isdigit() else 0
+        
+        time_str = f"{hour_int:02d}:{minute_int:02d} UTC"
+        
+        return f"Weekly on {day_name} at {time_str}"
+    except Exception:
+        return cron_schedule
+
+
+@settings.route('/auto-update-schedule', methods=['GET'])
+def get_auto_update_schedule() -> ResponseReturnValue:
+    try:
+        from flask import current_app
+        
+        schedule_config = AppConfig.query.filter_by(key='auto_update_cron_schedule').first()
+        if schedule_config:
+            schedule = schedule_config.get_value()
+            return jsonify({
+                "success": True,
+                "schedule": schedule,
+                "schedule_readable": _cron_to_readable(schedule),
+                "source": "database"
+            })
+        
+        active_cron = current_app.config.get('ACTIVE_CRON')
+        if active_cron:
+            return jsonify({
+                "success": True,
+                "schedule": active_cron,
+                "schedule_readable": _cron_to_readable(active_cron),
+                "source": "app_config"
+            })
+        
+        return jsonify({
+            "success": True,
+            "schedule": None,
+            "schedule_readable": None,
+            "source": None,
+            "message": "No schedule configured yet. Will be generated on first startup."
+        })
+    except Exception as e:
+        error_msg = f"Error getting auto-update schedule: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({"success": False, "message": "Error loading schedule"}), 500
 
 
 @settings.route('/toggle-auto-update', methods=['POST'])

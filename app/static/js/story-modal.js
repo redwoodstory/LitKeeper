@@ -45,6 +45,10 @@ function refreshLibrary() {
         .then(response => response.text())
         .then(html => {
           libraryContent.outerHTML = html;
+          const newLibraryContent = document.getElementById('library-content');
+          if (newLibraryContent) {
+            htmx.process(newLibraryContent);
+          }
         })
         .catch(error => {
           console.error('[Library] Failed to refresh:', error);

@@ -16,7 +16,7 @@ This started as a tool to download stories as EPUBs to use on an e-reader. It ha
 - Table of contents for easy navigation in multi-chapter stories
 - Provides an API to download stories directly from iOS shortcuts (see example below)
 - Sends notifications when stories are downloaded
-- Checks for new chapters or updates to stories in your library and automatically downloads them on a schedule
+- Checks for new chapters or updates to stories in your library and automatically downloads them on a schedule (randomly-generated in the app code to avoid all users querying the source servers at the same time)
 
 ### Progressive Web App (PWA) Features
 Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection. PWA features (offline reading, app installation, OPFS storage) require HTTPS.
@@ -58,17 +58,7 @@ services:
       # External EPUB path (optional)
       # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
       # Example: /path/to/calibre-web/auto-import
-      - EXTERNAL_EPUB_PATH=/external/path
-
-      # Automatic story update checking (optional)
-      # Set a cron schedule to enable automatic checks for story updates
-      # Leave commented out to disable auto-updates
-      # Format: minute hour day month day_of_week
-      # Examples:
-      # - Daily at 2 AM: 0 2 * * *
-      # - Every 6 hours: 0 */6 * * *
-      # - Weekly on Sunday at 3 AM: 0 3 * * 0
-      - AUTO_UPDATE_SCHEDULE=0 2 * * *
+      - EXTERNAL_EPUB_PATH=
 ```
 
 2. Run the following command:
@@ -86,7 +76,6 @@ services:
 | `ENABLE_LIBRARY` | `true` | Show library UI with story management. Set to `false` for download-only mode (hides library, search, and reader features) |
 | `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Telegram, Discord, Slack, Email, Pushover, etc.) |
 | `EXTERNAL_EPUB_PATH` | - | Optional path to copy EPUBs for external app integration (e.g., Calibre-Web auto-import) |
-| `AUTO_UPDATE_SCHEDULE` | - | Cron schedule for automatic story update checks. Setting this enables auto-updates. Format: `minute hour day month day_of_week`. Example: `0 2 * * *` (daily at 2 AM) |
 
 ### Volume Mounts
 

@@ -186,8 +186,22 @@
           <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
         </button>
       </div>
+      
+      <div id="scheduleInfo" class="mt-3 p-3 bg-slate-50 dark:bg-gray-800/50 rounded-lg border border-slate-200 dark:border-gray-700">
+        <div class="flex items-start gap-2">
+          <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium text-gray-700 dark:text-gray-300">Schedule</p>
+            <p id="scheduleValue" class="text-sm text-gray-900 dark:text-white mt-0.5 font-medium">Loading...</p>
+            <p id="scheduleSource" class="text-xs text-gray-500 dark:text-gray-500 mt-1"></p>
+          </div>
+        </div>
+      </div>
+      
       <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-        Configure the automation schedule in your Docker Compose file. This toggle enables/disables the automation globally.
+        A unique random weekly schedule is generated on first startup and persisted in the database.
       </p>
     </section>
   </div>
@@ -512,6 +526,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     initializeThemeButtons();
     loadAutoUpdateSetting();
+    loadAutoUpdateSchedule();
   });
 
   async function loadAutoUpdateSetting() {
@@ -524,6 +539,27 @@
       }
     } catch (error) {
       console.error('Error loading auto-update setting:', error);
+    }
+  }
+
+  async function loadAutoUpdateSchedule() {
+    try {
+      const response = await fetch('/settings/auto-update-schedule');
+      const data = await response.json();
+      
+      const scheduleValue = document.getElementById('scheduleValue');
+      const scheduleSource = document.getElementById('scheduleSource');
+      
+      if (data.success && data.schedule_readable) {
+        scheduleValue.textContent = data.schedule_readable;
+        scheduleSource.textContent = 'Auto-generated and persisted in database';
+      } else {
+        scheduleValue.textContent = 'Not configured';
+        scheduleSource.textContent = data.message || 'Schedule will be generated on first startup';
+      }
+    } catch (error) {
+      console.error('Error loading auto-update schedule:', error);
+      document.getElementById('scheduleValue').textContent = 'Error loading schedule';
     }
   }
 

@@ -299,6 +299,10 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
     """Download and extract the full story content and metadata from the given Literotica URL."""
     try:
         session = get_session()
+        
+        url = url.split('?')[0]
+        from .logger import log_action
+        log_action(f"Normalized URL to start from page 1: {url}")
 
         url_type, series_url = detect_url_type(url)
         log_url(f"URL type detected: {url_type}")

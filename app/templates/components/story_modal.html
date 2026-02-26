@@ -139,14 +139,13 @@
 
     <div class="p-6 md:p-8">
       <div class="flex flex-col md:flex-row gap-6">
-        {% if story.cover %}
         <div class="flex-shrink-0 mx-auto md:mx-0">
-          <img src="/api/cover/{{ story.cover }}"
+          {% set cover_filename = story.cover if story.cover else (story.html_file.replace('.html', '.jpg') if story.html_file else story.epub_file.replace('.epub', '.jpg')) %}
+          <img src="/api/cover/{{ cover_filename }}"
                alt="{{ story.title }} cover"
                class="w-48 h-64 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
                style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
         </div>
-        {% endif %}
 
         <div class="flex-1 min-w-0">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 pr-12">{{ story.title }}</h2>

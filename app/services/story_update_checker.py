@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Optional, Dict, List
 from datetime import datetime
 import time
+import random
 import traceback
 import hashlib
 import os
@@ -14,12 +15,13 @@ from app.services.epub_generator import create_epub_file
 from app.services.html_generator import create_html_file
 from app.utils import get_epub_directory, get_html_directory
 
-UPDATE_CHECK_DELAY_SECONDS = 10
+UPDATE_CHECK_DELAY_MIN_SECONDS = 30
+UPDATE_CHECK_DELAY_MAX_SECONDS = 60
 
 class StoryUpdateChecker:
 
     def __init__(self):
-        self.rate_limit_delay = UPDATE_CHECK_DELAY_SECONDS
+        pass
 
     def check_for_updates(self, story: Story) -> Optional[Dict]:
         """
@@ -249,7 +251,9 @@ def check_all_stories_for_updates(app: Flask) -> None:
 
             for i, story in enumerate(stories):
                 if i > 0:
-                    time.sleep(checker.rate_limit_delay)
+                    delay = random.randint(UPDATE_CHECK_DELAY_MIN_SECONDS, UPDATE_CHECK_DELAY_MAX_SECONDS)
+                    log_action(f"Waiting {delay} seconds before next check (rate limiting)...")
+                    time.sleep(delay)
 
                 update_info = checker.check_for_updates_via_series(story)
 

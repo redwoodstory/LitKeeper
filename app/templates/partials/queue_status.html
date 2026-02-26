@@ -73,6 +73,9 @@
                 newCard.style.transition = 'opacity 300ms, transform 300ms';
                 newCard.style.opacity = '1';
                 newCard.style.transform = 'scale(1)';
+                if (typeof htmx !== 'undefined') {
+                  htmx.process(newCard);
+                }
               }, 10);
               
               const countElement = document.getElementById('libraryCount');

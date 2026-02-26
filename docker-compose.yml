@@ -21,11 +21,7 @@ services:
       - ENABLE_LIBRARY=true
 
       # Configure notification services based on Apprise: https://github.com/caronc/apprise#supported-notifications
-      - NOTIFICATION_URLS=
+      #- NOTIFICATION_URLS=
 
       # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
-      # Example: /path/to/calibre-web/auto-import
-      - EXTERNAL_EPUB_PATH=
-
-      # Set a cron schedule to check for new chapters of stories you have downloaded
-      - AUTO_UPDATE_SCHEDULE=
+      #- EXTERNAL_EPUB_PATH=/path/to/calibre-web/auto-import
