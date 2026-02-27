@@ -4,7 +4,7 @@ from flask.typing import ResponseReturnValue
 from app.models import Story
 from app.services import download_story_and_create_files, log_error, log_action, get_library_data
 from app.services.epub_service import EpubService
-from app.services.system_checks import check_mount_warning
+from app.services.system_checks import check_mount_warning, check_legacy_mounts
 from app.utils import get_html_directory, get_epub_directory
 from app.utils.security import validate_file_in_directory
 from app.validators import StoryDownloadRequest, LibraryFilterRequest
@@ -34,7 +34,8 @@ def index() -> ResponseReturnValue:
             stories = get_library_data() if enable_library else []
             categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
             mount_warning = check_mount_warning()
-            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, enable_library=enable_library)
+            legacy_info = check_legacy_mounts()
+            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library)
 
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
@@ -45,6 +46,7 @@ def index() -> ResponseReturnValue:
         from flask import current_app
 
         mount_warning = check_mount_warning()
+        legacy_info = check_legacy_mounts()
 
         sync_status = None
 
@@ -97,10 +99,10 @@ def index() -> ResponseReturnValue:
                     'is_series': bool(_s.literotica_series_url and _s.chapter_count > 1),
                 }
 
-        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story)
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story)
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
-        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, enable_library=enable_library)
+        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, legacy_info={"has_legacy_mounts": False}, enable_library=enable_library)
 
 @library.route('/sync-banner')
 def sync_banner():

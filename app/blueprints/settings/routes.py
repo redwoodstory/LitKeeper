@@ -5,13 +5,15 @@ from . import settings
 from app.services.logger import log_error, log_action
 from app.models import AppConfig, Story, db
 import traceback
+import os
 
 
 @settings.route('/')
 def index() -> ResponseReturnValue:
     theme_config = AppConfig.query.filter_by(key='theme_preference').first()
     theme_preference = theme_config.get_value() if theme_config else 'system'
-    return render_template('settings.html', theme_preference=theme_preference)
+    enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
+    return render_template('settings.html', theme_preference=theme_preference, enable_library=enable_library)
 
 
 @settings.route('/theme-preference', methods=['GET'])

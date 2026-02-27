@@ -22,6 +22,11 @@ This started as a tool to download stories as EPUBs to use on an e-reader. It ha
 Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection. PWA features (offline reading, app installation, OPFS storage) require HTTPS.
 
 
+## ⚠️ Migrating from V1
+
+If you are migrating from an older V1 instance of LitKeeper, please refer to the [V1 to V2 Migration Guide](MIGRATION.md) for detailed instructions on updating your configuration and importing your existing stories.
+
+
 ## Installation
 
 1. Create a docker-compose.yml file:
@@ -106,8 +111,3 @@ Without these bind mounts, your stories and database will be lost when the conta
 LitKeeper provides a REST API for external integrations like iOS Shortcuts, automation tools, or custom scripts. 
 
 Please see the [API Reference & Integrations documentation](API.md) for more details.
-
-
-## Migrating from V1
-
-If you are migrating an older V1 instance of LitKeeper, please refer to the [V1 to V2 Migration Guide](MIGRATION.md) for detailed instructions on updating your configuration and importing your existing stories.

@@ -69,6 +69,68 @@
   </header>
   {% endblock %}
 
+  {% if legacy_info and legacy_info.has_legacy_mounts %}
+  <div id="migrationInfo" class="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+    <div class="flex items-start gap-3">
+      <svg class="w-6 h-6 text-blue-600 dark:text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div class="flex-1">
+        <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-1">
+          Welcome to LitKeeper V2
+        </h3>
+        <p class="text-sm text-blue-800 dark:text-blue-300 mb-3">
+          You're running the new V2 version with significant improvements: interactive EPUB reader, story monitoring for updates, advanced search & filtering, and multi-format support.
+        </p>
+        <div class="flex items-start gap-2 mb-3">
+          <svg class="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <p class="text-sm text-blue-800 dark:text-blue-300">
+            <strong>IMPORTANT:</strong> 
+            <a href="https://github.com/redwoodstory/LitKeeper/blob/main/MIGRATION.md" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium underline transition-colors">
+              View migration guide
+            </a> to update your configuration for V2.
+          </p>
+        </div>
+        <details class="text-sm text-blue-900 dark:text-blue-200">
+          <summary class="cursor-pointer font-medium hover:text-blue-700 dark:hover:text-blue-100">
+            What's new in V2
+          </summary>
+          <div class="mt-2 space-y-2 text-blue-800 dark:text-blue-300">
+            <ul class="list-disc list-inside space-y-1 ml-1">
+              <li><strong>Interactive Reader:</strong> Read stories directly in your browser with customizable formatting</li>
+              <li><strong>Story Monitoring:</strong> Automatically detect when series receive new chapters</li>
+              <li><strong>Multi-Format Support:</strong> Generate HTML versions alongside EPUBs</li>
+              <li><strong>Advanced Search:</strong> Filter by author, category, tags, and more</li>
+              <li><strong>PWA Support:</strong> Install as a native app for offline reading</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+      <button onclick="dismissMigrationInfo()" class="text-blue-600 dark:text-blue-500 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+  <script>
+    function dismissMigrationInfo() {
+      sessionStorage.setItem('migrationInfoDismissed', 'true');
+      const info = document.getElementById('migrationInfo');
+      if (info) info.classList.add('hidden');
+    }
+    if (sessionStorage.getItem('migrationInfoDismissed') === 'true') {
+      const info = document.getElementById('migrationInfo');
+      if (info) info.classList.add('hidden');
+    }
+  </script>
+  {% endif %}
+
   {% if mount_warning and mount_warning.show_warning %}
   <div id="mountWarning" class="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
     <div class="flex items-start gap-3">
@@ -80,18 +142,27 @@
           Docker Configuration Warning
         </h3>
         <p class="text-sm text-amber-800 dark:text-amber-300 mb-3">
-          Your Docker container is missing the <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/stories</code> bind mount. Without this, your story files will be lost when the container is updated or recreated.
+          Your Docker container is missing 
+          {% if mount_warning.missing_mounts|length == 2 %}
+            the <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/data</code> and <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/stories</code> bind mounts. Without these, your database and story files
+          {% elif 'data' in mount_warning.missing_mounts %}
+            the <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/data</code> bind mount. Without this, your database
+          {% else %}
+            the <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">/stories</code> bind mount. Without this, your story files
+          {% endif %}
+          will be lost when the container is updated or recreated.
         </p>
         <details class="text-sm text-amber-900 dark:text-amber-200">
           <summary class="cursor-pointer font-medium hover:text-amber-700 dark:hover:text-amber-100">
             How to fix this
           </summary>
           <div class="mt-2 space-y-2 text-amber-800 dark:text-amber-300">
-            <p class="font-medium">Add the required volume mounts</p>
-            <p>Add these volume mounts to your <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
+            <p class="font-medium">Add the required volume mount{% if mount_warning.missing_mounts|length > 1 %}s{% endif %}</p>
+            <p>Add {% if mount_warning.missing_mounts|length > 1 %}these volume mounts{% else %}this volume mount{% endif %} to your <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker-compose.yml</code>:</p>
             <pre class="bg-amber-100 dark:bg-amber-900/40 p-3 rounded text-xs overflow-x-auto">volumes:
-  - ./data:/litkeeper/app/data
-  - ./stories:/litkeeper/app/stories</pre>
+{% if 'data' in mount_warning.missing_mounts %}  - ./data:/litkeeper/app/data
+{% endif %}{% if 'stories' in mount_warning.missing_mounts %}  - ./stories:/litkeeper/app/stories
+{% endif %}</pre>
             <p class="text-xs">After updating, restart your container: <code class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">docker compose down && docker compose up -d</code></p>
           </div>
         </details>

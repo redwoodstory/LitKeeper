@@ -86,7 +86,7 @@
                     {% if sync_status.orphaned_files_count > 0 and sync_status.orphaned_db_count == 0 %}
                     <p>You have <strong>{{ sync_status.orphaned_files_count }}</strong> {{ 'story' if sync_status.orphaned_files_count == 1 else 'stories' }} on your file system that {{ 'needs' if sync_status.orphaned_files_count == 1 else 'need' }} to be added to your library.</p>
                     {% elif sync_status.orphaned_db_count > 0 and sync_status.orphaned_files_count == 0 %}
-                    <p><strong>{{ sync_status.orphaned_db_count }}</strong> {{ 'story' if sync_status.orphaned_db_count == 1 else 'stories' }} in your library {{ 'is' if sync_status.orphaned_db_count == 1 else 'are' }} missing from disk and should be removed.</p>
+                    <p><strong>{{ sync_status.orphaned_db_count }}</strong> {{ 'story' if sync_status.orphaned_db_count == 1 else 'stories' }} in your library {{ 'is' if sync_status.orphaned_db_count == 1 else 'are' }} missing from disk and should be removed from the database.</p>
                     {% else %}
                     <p><strong>{{ sync_status.orphaned_files_count }}</strong> {{ 'story' if sync_status.orphaned_files_count == 1 else 'stories' }} to add, <strong>{{ sync_status.orphaned_db_count }}</strong> to remove.</p>
                     {% endif %}
