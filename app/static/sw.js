@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v31';
+const CACHE_VERSION = 'v32';
 const STATIC_CACHE  = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 const COVERS_CACHE  = `litkeeper-covers-${CACHE_VERSION}`;
@@ -366,38 +366,39 @@ async function handleCoverRequest(request) {
 // ─── Route handler functions ──────────────────────────────────────────────────
 
 async function handleStoryRequest(request, url) {
-  const filename = url.pathname.split('/').pop();
+  const filename = decodeURIComponent(url.pathname.split('/').pop());
+
+  let opfsInitOk = false;
+  let opfsContent = null;
+  try {
+    opfsInitOk = opfsStorage.initialized || await opfsStorage.init();
+    if (opfsInitOk) opfsContent = await opfsStorage.getStory(filename);
+  } catch (e) {
+    console.error('[SW] OPFS read error:', e);
+  }
+
+  if (opfsContent) {
+    return new Response(opfsContent, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Source': 'OPFS' },
+    });
+  }
+
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
 
   try {
-    if (opfsStorage.initialized || await opfsStorage.init()) {
-      const storyContent = await opfsStorage.getStory(filename);
-      if (storyContent) {
-        return new Response(storyContent, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Source': 'OPFS' },
-        });
-      }
-    }
-
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      if (opfsStorage.initialized) {
-        cachedResponse.clone().text().then(c => opfsStorage.saveStory(filename, c)).catch(() => {});
-      }
-      return cachedResponse;
-    }
-
     const response = await fetch(request);
     if (response?.status === 200) {
       const content = await response.clone().text();
-      if (opfsStorage.initialized) await opfsStorage.saveStory(filename, content).catch(() => {});
+      if (opfsInitOk) opfsStorage.saveStory(filename, content).catch(() => {});
       caches.open(DYNAMIC_CACHE).then(c => c.put(request, response.clone()));
     }
     return response;
-  } catch (error) {
-    console.error('[SW] Story fetch error:', error);
-    const fallback = await caches.match(request);
-    if (fallback) return fallback;
-    return new Response('Story not available offline', { status: 503 });
+  } catch {
+    const msg = `Story not available offline\n\nfilename: ${filename}\nopfs_init: ${opfsInitOk}\nopfs_read: ${opfsContent !== null ? 'ok' : 'null'}`;
+    return new Response(msg, { status: 503 });
   }
 }
 
@@ -497,6 +498,33 @@ self.addEventListener('message', async (event) => {
     } catch (error) {
       event.ports[0].postMessage({ success: false, error: error.message });
     }
+  }
+
+  if (event.data && event.data.type === 'TEST_OPFS_READ') {
+    const filename = event.data.filename;
+    const result = { filename, steps: {} };
+    try {
+      result.steps.navigator_storage = !!navigator.storage;
+      result.steps.get_directory = false;
+      const root = await navigator.storage.getDirectory();
+      result.steps.get_directory = true;
+      result.steps.get_file_handle = false;
+      const fh = await root.getFileHandle(filename);
+      result.steps.get_file_handle = true;
+      result.steps.get_file = false;
+      const file = await fh.getFile();
+      result.steps.get_file = true;
+      result.steps.read_text = false;
+      const text = await file.text();
+      result.steps.read_text = true;
+      result.steps.size = text.length;
+      result.success = true;
+    } catch (e) {
+      result.success = false;
+      result.error = e.message;
+    }
+    event.ports[0].postMessage(result);
+    return;
   }
 
   if (event.data && event.data.type === 'DELETE_STORY') {
