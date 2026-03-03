@@ -27,8 +27,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="LitKeeper">
+  <link rel="icon" type="image/x-icon" href="/static/icons/web/favicon.ico">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/web/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/web/icon-512.png">
+  <link rel="apple-touch-icon" href="/static/icons/web/apple-touch-icon.png">
   <link rel="manifest" href="/static/manifest.json">
-  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   <link rel="preload" href="/static/fonts/PlayfairDisplay-Regular.ttf" as="font" type="font/ttf" crossorigin="anonymous">
   {% endblock %}
 
@@ -82,7 +85,7 @@
         @apply bg-primary hover:bg-primary-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
       }
       .card {
-        @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6;
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-slate-200/60 dark:border-transparent p-6;
       }
     }
 
@@ -179,6 +182,7 @@
   {% block scripts %}
   <script src="/static/js/theme.js" defer></script>
   <script src="/static/js/offline-indicators.js" defer></script>
+  <script src="/static/js/toast.js" defer></script>
   {% endblock %}
 
   <div id="offlineIndicator"
@@ -219,12 +223,24 @@
       var hiddenAt = 0;
       var navigating = false;
 
+      document.addEventListener('htmx:beforeRequest', function () {
+        navigating = true;
+      });
+
+      document.addEventListener('htmx:afterSettle', function () {
+        setTimeout(function() { navigating = false; }, 100);
+      });
+
       window.addEventListener('beforeunload', function () {
         navigating = true;
       });
 
       window.addEventListener('pagehide', function () {
         navigating = true;
+      });
+
+      window.addEventListener('pageshow', function () {
+        setTimeout(function() { navigating = false; }, 100);
       });
 
       document.addEventListener('visibilitychange', function () {
@@ -235,15 +251,13 @@
         } else if (document.visibilityState === 'visible') {
           if (!window.location.pathname.startsWith('/auth/') && hiddenAt > 0 && !navigating) {
             var elapsed = Date.now() - hiddenAt;
-            hiddenAt = 0;
             if (elapsed >= lockMs) {
               navigator.sendBeacon('/auth/lock-now');
               window.location.replace('/auth/lock');
             }
-          } else {
-            hiddenAt = 0;
           }
-          navigating = false;
+          hiddenAt = 0;
+          setTimeout(function() { navigating = false; }, 100);
         }
       });
     })();

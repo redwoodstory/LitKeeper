@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import os
 from flask import render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import AppConfig
@@ -41,7 +42,7 @@ def verify():
     data = request.get_json(silent=True) or {}
     pin = str(data.get('pin', ''))
 
-    if len(pin) != 4 or not pin.isdigit():
+    if not (4 <= len(pin) <= 8) or not pin.isdigit():
         return jsonify({'success': False, 'message': 'Invalid PIN format'}), 400
 
     pin_cfg = _get_config('pin_hash')
@@ -77,8 +78,8 @@ def set_pin():
     data = request.get_json(silent=True) or {}
     pin = str(data.get('pin', ''))
 
-    if len(pin) != 4 or not pin.isdigit():
-        return jsonify({'success': False, 'message': 'PIN must be exactly 4 digits'}), 400
+    if not (4 <= len(pin) <= 8) or not pin.isdigit():
+        return jsonify({'success': False, 'message': 'PIN must be 4–8 digits'}), 400
 
     pin_hash = generate_password_hash(pin)
 
@@ -167,3 +168,39 @@ def update_timeout():
         return jsonify({'success': False, 'message': 'Failed to save timeout'}), 500
 
     return jsonify({'success': True})
+
+
+@auth.route('/reset-pin', methods=['POST'])
+def reset_pin():
+    if not _pin_enabled():
+        return jsonify({'success': False, 'message': 'PIN lock is not enabled'}), 400
+
+    reset_code_env = os.getenv('PIN_RESET_CODE', '').strip()
+    if not reset_code_env:
+        return jsonify({'success': False, 'message': 'PIN reset is not configured'}), 403
+
+    data = request.get_json(silent=True) or {}
+    provided_code = str(data.get('reset_code', '')).strip()
+
+    if not provided_code or provided_code != reset_code_env:
+        return jsonify({'success': False, 'message': 'Invalid reset code'}), 401
+
+    try:
+        enabled_cfg = _get_config('pin_enabled')
+        if enabled_cfg:
+            enabled_cfg.set_value(False)
+
+        hash_cfg = _get_config('pin_hash')
+        if hash_cfg:
+            hash_cfg.value = ''
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Failed to reset PIN'}), 500
+
+    session.pop('pin_unlocked', None)
+    session.pop('last_activity', None)
+    session.modified = True
+
+    return jsonify({'success': True, 'message': 'PIN has been reset. You can now set a new PIN in Settings.'})

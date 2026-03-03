@@ -106,6 +106,25 @@ Volume mounts are required for data persistence between container restarts:
 Without these bind mounts, your stories and database will be lost when the container is updated or recreated.
 
 
+## Security
+
+### PIN Lock
+
+LitKeeper supports optional PIN locking to secure the app when installed as a PWA on shared devices. This is meant for simple locking and unlocking of the UI; it is not intended to be a hardened security wall. For more security, I recommend moving LitKeeper behind a reverse proxy and using a tool like Authentik, Authelia, etc. 
+
+### Forgot Your PIN?
+
+If you forget your PIN, run this command to immediately disable the PIN lock:
+
+```bash
+docker exec -it <container-name> python reset_pin.py
+```
+
+Replace `<container-name>` with your actual container name. You can find it by running `docker ps`.
+
+This will disable the PIN lock and allow you to access the app. You can then set a new PIN in Settings.
+
+
 ## API Reference & Integrations
 
 LitKeeper provides a REST API for external integrations like iOS Shortcuts, automation tools, or custom scripts. 

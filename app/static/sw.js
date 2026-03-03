@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v32';
+const CACHE_VERSION = 'v33';
 const STATIC_CACHE  = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 const COVERS_CACHE  = `litkeeper-covers-${CACHE_VERSION}`;
@@ -12,6 +12,7 @@ const IS_DEV = self.location.hostname === 'localhost' || self.location.hostname 
 const STATIC_ASSETS = [
   '/',
   '/settings',
+  '/queue',
   '/auth/lock',
   '/static/reader/reader.css',
   '/static/reader/reader.js',

@@ -181,24 +181,29 @@
 
   if (isMobile && readerHeader) {
     let isHidden = false;
+    let hasScrolled = false;
     let hideTimeout;
 
     function showHeader() {
       readerHeader.classList.remove('hidden');
       isHidden = false;
       clearTimeout(hideTimeout);
-      hideTimeout = setTimeout(() => {
-        if (!settingsPanel.classList.contains('active')) {
-          readerHeader.classList.add('hidden');
-          isHidden = true;
-        }
-      }, 3000);
+      if (hasScrolled) {
+        hideTimeout = setTimeout(() => {
+          if (!settingsPanel.classList.contains('active')) {
+            readerHeader.classList.add('hidden');
+            isHidden = true;
+          }
+        }, 3000);
+      }
     }
 
     let lastScrollTop = 0;
     window.addEventListener('scroll', () => {
       const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
       if (Math.abs(currentScrollTop - lastScrollTop) < 5) return;
+
+      hasScrolled = true;
 
       if (currentScrollTop > lastScrollTop && currentScrollTop > 50 && !isHidden) {
         readerHeader.classList.add('hidden');

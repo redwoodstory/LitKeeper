@@ -190,11 +190,45 @@ def create_app() -> Flask:
             return ''
         return os.path.basename(path)
 
+    @app.template_filter('humanize_date')
+    def humanize_date_filter(dt) -> str:
+        """Convert datetime to human-readable format"""
+        if not dt:
+            return ''
+        from datetime import datetime, timezone
+        if isinstance(dt, str):
+            try:
+                dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            except:
+                return dt
+        
+        now = datetime.now(timezone.utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        
+        diff = now - dt
+        seconds = diff.total_seconds()
+        
+        if seconds < 60:
+            return 'just now'
+        elif seconds < 3600:
+            minutes = int(seconds / 60)
+            return f'{minutes} minute{"s" if minutes != 1 else ""} ago'
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
+            return f'{hours} hour{"s" if hours != 1 else ""} ago'
+        elif seconds < 604800:
+            days = int(seconds / 86400)
+            return f'{days} day{"s" if days != 1 else ""} ago'
+        else:
+            return dt.strftime('%b %d, %Y')
+
     # Register Blueprints
     from .blueprints import api, library, downloads, errors, settings
     from .blueprints.admin import admin
     from .blueprints.epub import epub
     from .blueprints.auth import auth
+    from .blueprints.queue import queue
 
     app.register_blueprint(api)
     app.register_blueprint(library)
@@ -204,6 +238,7 @@ def create_app() -> Flask:
     app.register_blueprint(settings)
     app.register_blueprint(epub)
     app.register_blueprint(auth)
+    app.register_blueprint(queue)
 
     from flask import request, redirect, url_for, session
     from app.models import AppConfig

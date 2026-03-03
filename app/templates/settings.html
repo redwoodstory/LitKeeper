@@ -89,29 +89,41 @@
         Security
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Protect the app with a 4-digit PIN. Useful when installed as a PWA on a shared device.
+        Protect the app with a numeric PIN. Useful when installed as a PWA on a shared device.
       </p>
 
       {% if not pin_enabled %}
       <div id="pinSetupForm">
-        <form onsubmit="enablePin(); return false;" autocomplete="new-password">
+        <form onsubmit="enablePin(); return false;" autocomplete="new-password" novalidate>
+          <div class="mb-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p class="text-sm text-blue-800 dark:text-blue-300">
+              <span class="font-semibold">PIN Requirements:</span> Enter a numeric PIN between 4 and 8 digits (0–9 only).
+            </p>
+          </div>
           <div class="grid sm:grid-cols-2 gap-4 max-w-sm">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="newPin">New PIN</label>
-              <input type="password" id="newPin" inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                placeholder="4 digits" autocomplete="new-password"
+              <input type="password" id="newPin" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+                placeholder="••••" autocomplete="new-password"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="confirmPin">Confirm PIN</label>
-              <input type="password" id="confirmPin" inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                placeholder="4 digits" autocomplete="new-password"
+              <input type="password" id="confirmPin" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+                placeholder="••••" autocomplete="new-password"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
             </div>
           </div>
-          <p id="pinSetupError" class="text-sm text-red-500 dark:text-red-400 mt-2 min-h-[1.25rem]"></p>
+          <div id="pinSetupError" class="mt-3 hidden">
+            <div class="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+              <svg class="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p id="pinSetupErrorText" class="text-sm text-red-700 dark:text-red-300 font-medium"></p>
+            </div>
+          </div>
           <button type="submit"
-            class="mt-3 px-4 py-2 w-full sm:w-auto bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+            class="mt-4 px-4 py-2 w-full sm:w-auto bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
@@ -150,24 +162,36 @@
         </div>
 
         <div id="changePinForm" class="hidden mt-4 pt-4 border-t border-slate-100 dark:border-gray-700/60">
-          <form onsubmit="saveChangedPin(); return false;" autocomplete="new-password">
+          <form onsubmit="saveChangedPin(); return false;" autocomplete="new-password" novalidate>
+            <div class="mb-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p class="text-sm text-blue-800 dark:text-blue-300">
+                <span class="font-semibold">PIN Requirements:</span> Enter a numeric PIN between 4 and 8 digits (0–9 only).
+              </p>
+            </div>
             <div class="grid sm:grid-cols-2 gap-4 max-w-sm">
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="changePinNew">New PIN</label>
-                <input type="password" id="changePinNew" inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                  placeholder="4 digits" autocomplete="new-password"
+                <input type="password" id="changePinNew" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+                  placeholder="••••" autocomplete="new-password"
                   class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="changePinConfirm">Confirm PIN</label>
-                <input type="password" id="changePinConfirm" inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                  placeholder="4 digits" autocomplete="new-password"
+                <input type="password" id="changePinConfirm" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+                  placeholder="••••" autocomplete="new-password"
                   class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
               </div>
             </div>
-            <p id="changePinError" class="text-sm text-red-500 dark:text-red-400 mt-2 min-h-[1.25rem]"></p>
+            <div id="changePinError" class="mt-3 hidden">
+              <div class="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                <svg class="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p id="changePinErrorText" class="text-sm text-red-700 dark:text-red-300 font-medium"></p>
+              </div>
+            </div>
             <button type="submit"
-              class="mt-3 w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
+              class="mt-4 w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm inline-flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -292,17 +316,6 @@
         <p id="syncStatusText" class="text-sm text-gray-600 dark:text-gray-400"></p>
       </div>
 
-      <details id="opfsDebug" class="mt-4 group" ontoggle="if(this.open) loadOpfsDebug()">
-        <summary class="cursor-pointer text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors select-none flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-          OPFS Debug
-        </summary>
-        <div id="opfsDebugContent" class="mt-3 text-xs font-mono space-y-3">
-          <p class="text-slate-400 dark:text-slate-500">Click to load…</p>
-        </div>
-      </details>
     </section>
   </div>
   {% endif %}
@@ -572,6 +585,36 @@
   document.addEventListener('DOMContentLoaded', () => {
     initializeThemeButtons();
     loadAutoUpdateSetting();
+
+    const newPinInput = document.getElementById('newPin');
+    const confirmPinInput = document.getElementById('confirmPin');
+    const pinSetupError = document.getElementById('pinSetupError');
+    
+    if (newPinInput) {
+      newPinInput.addEventListener('input', () => {
+        if (pinSetupError) pinSetupError.classList.add('hidden');
+      });
+    }
+    if (confirmPinInput) {
+      confirmPinInput.addEventListener('input', () => {
+        if (pinSetupError) pinSetupError.classList.add('hidden');
+      });
+    }
+
+    const changePinNew = document.getElementById('changePinNew');
+    const changePinConfirm = document.getElementById('changePinConfirm');
+    const changePinError = document.getElementById('changePinError');
+    
+    if (changePinNew) {
+      changePinNew.addEventListener('input', () => {
+        if (changePinError) changePinError.classList.add('hidden');
+      });
+    }
+    if (changePinConfirm) {
+      changePinConfirm.addEventListener('input', () => {
+        if (changePinError) changePinError.classList.add('hidden');
+      });
+    }
   });
 
   async function loadAutoUpdateSetting() {
@@ -797,137 +840,6 @@
     document.getElementById('clearOfflineBtn').classList.remove('hidden');
   }
 
-  async function loadOpfsDebug() {
-    const container = document.getElementById('opfsDebugContent');
-    container.innerHTML = '<p class="text-slate-400 dark:text-slate-500">Reading OPFS…</p>';
-
-    if (!navigator.storage?.getDirectory) {
-      container.innerHTML = '<p class="text-red-500">OPFS not supported in this browser.</p>';
-      return;
-    }
-
-    function fmtSize(bytes) {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-    }
-
-    try {
-      const root = await navigator.storage.getDirectory();
-      const rows = [];
-
-      for await (const entry of root.values()) {
-        if (entry.kind === 'file') {
-          const file = await entry.getFile();
-          rows.push({ path: entry.name, size: file.size, modified: file.lastModified });
-        } else if (entry.kind === 'directory') {
-          const subDir = await root.getDirectoryHandle(entry.name);
-          for await (const sub of subDir.values()) {
-            if (sub.kind === 'file') {
-              const file = await sub.getFile();
-              rows.push({ path: `${entry.name}/${sub.name}`, size: file.size, modified: file.lastModified });
-            }
-          }
-        }
-      }
-
-      if (rows.length === 0) {
-        container.innerHTML = '<p class="text-slate-400 dark:text-slate-500">OPFS is empty.</p>';
-        return;
-      }
-
-      rows.sort((a, b) => a.path.localeCompare(b.path));
-      const totalSize = rows.reduce((s, r) => s + r.size, 0);
-
-      const table = `
-        <p class="text-slate-500 dark:text-slate-400 mb-2">${rows.length} file${rows.length === 1 ? '' : 's'} · ${fmtSize(totalSize)} total</p>
-        <div class="overflow-x-auto rounded border border-slate-200 dark:border-slate-700">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                <th class="px-3 py-1.5 font-medium">Path</th>
-                <th class="px-3 py-1.5 font-medium text-right">Size</th>
-                <th class="px-3 py-1.5 font-medium">Modified</th>
-                <th class="px-3 py-1.5 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map((r, i) => `
-                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td class="px-3 py-1 text-slate-700 dark:text-slate-300 break-all">${r.path}</td>
-                  <td class="px-3 py-1 text-slate-500 dark:text-slate-400 text-right whitespace-nowrap">${fmtSize(r.size)}</td>
-                  <td class="px-3 py-1 text-slate-400 dark:text-slate-500 whitespace-nowrap">${new Date(r.modified).toLocaleString()}</td>
-                  <td class="px-3 py-1 whitespace-nowrap">
-                    <button onclick="peekOpfsFile(${i}, '${r.path.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 underline">peek</button>
-                    <button onclick="testSwOpfsRead(${i}, '${r.path.replace(/'/g, "\\'")}')" class="ml-2 text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 underline">SW test</button>
-                  </td>
-                </tr>
-                <tr id="peek-row-${i}" class="hidden border-t border-slate-100 dark:border-slate-800">
-                  <td colspan="4" class="px-3 py-2">
-                    <pre id="peek-content-${i}" class="whitespace-pre-wrap break-all text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-2 rounded text-xs max-h-48 overflow-auto"></pre>
-                  </td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
-      container.innerHTML = table;
-    } catch (e) {
-      container.innerHTML = `<p class="text-red-500">Error reading OPFS: ${e.message}</p>`;
-    }
-  }
-
-  async function peekOpfsFile(idx, path) {
-    const row = document.getElementById(`peek-row-${idx}`);
-    const pre = document.getElementById(`peek-content-${idx}`);
-    if (row.classList.toggle('hidden')) return; // toggle off
-
-    pre.textContent = 'Loading…';
-    try {
-      const root = await navigator.storage.getDirectory();
-      let fileHandle;
-      if (path.includes('/')) {
-        const [dir, name] = path.split('/');
-        const dirHandle = await root.getDirectoryHandle(dir);
-        fileHandle = await dirHandle.getFileHandle(name);
-      } else {
-        fileHandle = await root.getFileHandle(path);
-      }
-      const file = await fileHandle.getFile();
-      const text = await file.slice(0, 600).text();
-      pre.textContent = text;
-    } catch (e) {
-      pre.textContent = `Error: ${e.message}`;
-    }
-  }
-
-  async function testSwOpfsRead(idx, path) {
-    const pre = document.getElementById(`peek-content-${idx}`);
-    const row = document.getElementById(`peek-row-${idx}`);
-    row.classList.remove('hidden');
-    pre.textContent = 'Asking SW to read…';
-
-    if (!navigator.serviceWorker?.controller) {
-      pre.textContent = 'No active SW controller.';
-      return;
-    }
-
-    const filename = path.includes('/') ? path.split('/').pop() : path;
-    const mc = new MessageChannel();
-    mc.port1.onmessage = (e) => {
-      const r = e.data;
-      const lines = [`SW read test: ${r.success ? '✅ SUCCESS' : '❌ FAILED'}`, `filename: ${r.filename}`];
-      if (r.steps) {
-        Object.entries(r.steps).forEach(([k, v]) => lines.push(`  ${k}: ${v}`));
-      }
-      if (r.error) lines.push(`error: ${r.error}`);
-      pre.textContent = lines.join('\n');
-    };
-    navigator.serviceWorker.controller.postMessage(
-      { type: 'TEST_OPFS_READ', filename: path },
-      [mc.port2]
-    );
-  }
-
   async function confirmClearOffline() {
     const confirmDiv = document.getElementById('clearOfflineConfirm');
     confirmDiv.querySelector('p').textContent = 'Removing…';
@@ -951,41 +863,55 @@
     if (window.offlineIndicators) window.offlineIndicators.applyOfflineBadges();
   }
 
-  function validatePinInput(pin, confirm, errorEl) {
-    if (!/^\d{4}$/.test(pin)) {
-      errorEl.textContent = 'PIN must be exactly 4 digits (0–9)';
+  function validatePinInput(pin, confirm, errorContainer, errorTextEl) {
+    if (!/^\d{4,8}$/.test(pin)) {
+      errorContainer.classList.remove('hidden');
+      errorTextEl.textContent = 'PIN must be 4–8 digits (0–9 only)';
       return false;
     }
     if (pin !== confirm) {
-      errorEl.textContent = 'PINs do not match';
+      errorContainer.classList.remove('hidden');
+      errorTextEl.textContent = 'PINs do not match';
       return false;
     }
-    errorEl.textContent = '';
+    errorContainer.classList.add('hidden');
+    errorTextEl.textContent = '';
     return true;
   }
 
   async function enablePin() {
     const pin = document.getElementById('newPin').value;
     const confirm = document.getElementById('confirmPin').value;
-    const errorEl = document.getElementById('pinSetupError');
-    if (!validatePinInput(pin, confirm, errorEl)) return;
+    const errorContainer = document.getElementById('pinSetupError');
+    const errorTextEl = document.getElementById('pinSetupErrorText');
+    
+    if (!validatePinInput(pin, confirm, errorContainer, errorTextEl)) return;
+    
     if (!navigator.onLine) {
-      errorEl.textContent = 'You\'re offline — connect to enable PIN lock';
+      errorContainer.classList.remove('hidden');
+      errorTextEl.textContent = 'You\'re offline — connect to enable PIN lock';
       return;
     }
 
-    const res = await fetch('/auth/set-pin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin })
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch('/auth/set-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin })
+      });
+      const data = await res.json();
 
-    if (data.success) {
-      await storePinHashLocally(pin);
-      window.location.reload();
-    } else {
-      errorEl.textContent = data.message || 'Failed to enable PIN';
+      if (data.success) {
+        await storePinHashLocally(pin);
+        window.location.reload();
+      } else {
+        errorContainer.classList.remove('hidden');
+        errorTextEl.textContent = data.message || 'Failed to enable PIN';
+      }
+    } catch (err) {
+      errorContainer.classList.remove('hidden');
+      errorTextEl.textContent = 'Connection error. Please try again.';
+      console.error('PIN setup error:', err);
     }
   }
 
@@ -1021,10 +947,12 @@
   async function saveChangedPin() {
     const pin = document.getElementById('changePinNew').value;
     const confirm = document.getElementById('changePinConfirm').value;
-    const errorEl = document.getElementById('changePinError');
-    if (!validatePinInput(pin, confirm, errorEl)) return;
+    const errorContainer = document.getElementById('changePinError');
+    const errorTextEl = document.getElementById('changePinErrorText');
+    if (!validatePinInput(pin, confirm, errorContainer, errorTextEl)) return;
     if (!navigator.onLine) {
-      errorEl.textContent = 'You\'re offline — connect to change PIN';
+      errorContainer.classList.remove('hidden');
+      errorTextEl.textContent = 'You\'re offline — connect to change PIN';
       return;
     }
 
@@ -1039,7 +967,8 @@
       await storePinHashLocally(pin);
       window.location.reload();
     } else {
-      errorEl.textContent = data.message || 'Failed to update PIN';
+      errorContainer.classList.remove('hidden');
+      errorTextEl.textContent = data.message || 'Failed to update PIN';
     }
   }
 

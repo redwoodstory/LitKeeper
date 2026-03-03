@@ -45,7 +45,7 @@ def _get_or_generate_cron_schedule(app: Flask) -> Optional[str]:
         app.logger.info("Auto-updates are DISABLED by default. Enable in Settings UI after reviewing the schedule.")
         app.config['ACTIVE_CRON'] = random_schedule
         
-        return saved_schedule
+        return random_schedule
 
 def init_scheduler(app: Flask) -> None:
     """Initialize APScheduler with Flask app context."""

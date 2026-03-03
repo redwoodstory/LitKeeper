@@ -19,6 +19,10 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
 
     story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='SET NULL'), index=True)
 
+    total_pages = db.Column(db.Integer)
+    downloaded_pages = db.Column(db.Integer, default=0)
+    file_size = db.Column(db.Integer)
+
     progress_message = db.Column(db.String(255))
     error_message = db.Column(db.Text)
 
@@ -82,6 +86,9 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
             'category': self.category,
             'tags': self.get_tags(),
             'story_id': self.story_id,
+            'total_pages': self.total_pages,
+            'downloaded_pages': self.downloaded_pages,
+            'file_size': self.file_size,
             'progress_message': self.progress_message,
             'error_message': self.error_message,
             'created_at': self.created_at.isoformat() if self.created_at else None,

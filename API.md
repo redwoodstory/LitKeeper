@@ -76,7 +76,7 @@ Add a story to the download queue. This is the recommended method for web integr
 ```json
 {
   "success": true,
-  "message": "Story added to download queue",
+  "message": "Story added to queue",
   "queue_item": {
     "id": 123,
     "url": "https://www.literotica.com/s/story-name",

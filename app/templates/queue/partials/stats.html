@@ -1,0 +1,55 @@
+<div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 dark:border-gray-700/60 p-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Queued</p>
+      <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ pending }}</p>
+    </div>
+    <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+      <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 dark:border-gray-700/60 p-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Active</p>
+      <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ processing }}</p>
+    </div>
+    <div class="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+      <svg class="w-6 h-6 text-amber-600 dark:text-amber-400 {% if processing > 0 %}animate-spin{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 dark:border-gray-700/60 p-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Completed</p>
+      <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ completed }}</p>
+    </div>
+    <div class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+      <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 dark:border-gray-700/60 p-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Failed</p>
+      <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ failed }}</p>
+    </div>
+    <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+      <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+  </div>
+</div>

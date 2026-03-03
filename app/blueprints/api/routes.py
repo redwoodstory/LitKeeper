@@ -91,7 +91,7 @@ def queue_download() -> ResponseReturnValue:
         
         return jsonify({
             "success": True,
-            "message": "Story added to download queue",
+            "message": "Story added to queue",
             "queue_item": queue_item.to_dict()
         })
 
@@ -260,7 +260,7 @@ def download() -> ResponseReturnValue:
 
         return jsonify({
             "success": True,
-            "message": "Story added to download queue",
+            "message": "Story added to queue",
             "queue_item": queue_item.to_dict()
         })
 

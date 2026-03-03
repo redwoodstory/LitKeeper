@@ -159,7 +159,7 @@
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 pr-12">{{ story.title }}</h2>
           {% if story.author %}
           <p class="text-gray-600 dark:text-gray-400 mb-2">
-            by {% if story.author_url %}<a href="{{ story.author_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 underline decoration-dotted">{{ story.author.name if story.author.name is defined else story.author }}</a>{% else %}{{ story.author.name if story.author.name is defined else story.author }}{% endif %}
+            by {% if story.author.literotica_url %}<a href="{{ story.author.literotica_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 underline decoration-dotted">{{ story.author.name if story.author.name is defined else story.author }}</a>{% else %}{{ story.author.name if story.author.name is defined else story.author }}{% endif %}
           </p>
           {% endif %}
           {% if story.source_url %}

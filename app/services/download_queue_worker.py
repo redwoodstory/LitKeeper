@@ -165,6 +165,8 @@ class DownloadQueueWorker:
         item.author = author
         item.category = category
         item.set_tags(tags)
+        item.total_pages = page_count
+        item.downloaded_pages = page_count
         db.session.commit()
 
         item.progress_message = 'Creating files...'
