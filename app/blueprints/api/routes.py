@@ -906,20 +906,31 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
 def get_offline_story_urls() -> ResponseReturnValue:
     """Return all URLs needed for offline reading.
 
-    Returns two lists:
+    Returns three lists:
     - reader_urls: /read/<filename> JSON reader pages (all stories)
     - epub_urls:   /epub/reader/<id> page + /epub/file/<id> binary (epub stories only)
+    - cover_urls:  /api/cover/<filename>.jpg (all stories, for proactive caching)
 
-    Caching both lists gives full offline support for both reader types.
+    Caching all three lists gives full offline support.
     """
     try:
         from app.models import Story, StoryFormat
 
-        # All stories get a JSON reader URL
-        all_stories = Story.query.with_entities(Story.id, Story.filename_base).all()
-        reader_urls = [f"/read/{row.filename_base}.html" for row in all_stories]
+        # Both 'html' and 'json' format types produce a /read/*.html reader page.
+        # EPUB-only stories (no html/json format) have no reader URL and are excluded.
+        html_story_ids = {
+            row.story_id
+            for row in StoryFormat.query.with_entities(StoryFormat.story_id)
+            .filter(StoryFormat.format_type.in_(['html', 'json'])).all()
+        }
+        all_stories = Story.query.with_entities(Story.id, Story.filename_base, Story.cover_filename).all()
+        reader_urls = [
+            f"/read/{row.filename_base}.html"
+            for row in all_stories
+            if row.id in html_story_ids and row.filename_base
+        ]
 
-        # Only stories with an epub format get epub URLs
+        # All stories with an epub format get epub URLs (including EPUB-only ones)
         epub_story_ids = {
             row.story_id
             for row in StoryFormat.query.with_entities(StoryFormat.story_id)
@@ -931,11 +942,20 @@ def get_offline_story_urls() -> ResponseReturnValue:
                 epub_urls.append(f"/epub/reader/{row.id}")
                 epub_urls.append(f"/epub/file/{row.id}")
 
+        # Cover images for every story — proactively cached during sync so they
+        # show offline even for stories the user hasn't scrolled past.
+        cover_urls = [
+            f"/api/cover/{row.cover_filename if row.cover_filename else row.filename_base + '.jpg'}"
+            for row in all_stories
+            if row.filename_base
+        ]
+
         return jsonify({
             "success": True,
             "reader_urls": reader_urls,
             "epub_urls": epub_urls,
-            "count": len(reader_urls) + len(epub_urls),
+            "cover_urls": cover_urls,
+            "count": len(reader_urls) + len(epub_urls) + len(cover_urls),
             # Legacy key — keep for any old clients
             "urls": reader_urls,
         })
@@ -947,5 +967,6 @@ def get_offline_story_urls() -> ResponseReturnValue:
             "message": "An error occurred while fetching story URLs",
             "reader_urls": [],
             "epub_urls": [],
+            "cover_urls": [],
             "urls": [],
         }), 500

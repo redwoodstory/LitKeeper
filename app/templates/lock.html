@@ -99,6 +99,14 @@
 
 <script>
   const NEXT_URL = {{ next_url | tojson }};
+
+  // If session is already unlocked (online), skip the lock screen immediately.
+  if (navigator.onLine) {
+    fetch('/auth/status').then(r => r.json()).then(d => {
+      if (d.unlocked) window.location.replace(NEXT_URL || '/');
+    }).catch(() => {});
+  }
+
   let pin = '';
   const dots = document.querySelectorAll('.pin-dot');
   const errorMsg = document.getElementById('errorMsg');
@@ -142,8 +150,57 @@
     clearError();
   }
 
+  function showPinError(msg) {
+    dots.forEach(d => d.classList.add('error'));
+    if (textInput) textInput.classList.add('border-red-400', 'dark:border-red-500');
+    const pinDots = document.getElementById('pinDots');
+    pinDots.classList.add('shake');
+    errorMsg.textContent = msg;
+    setTimeout(() => {
+      pinDots.classList.remove('shake');
+      pin = '';
+      updateDots();
+      syncTextInput();
+      if (textInput) {
+        textInput.disabled = false;
+        textInput.classList.remove('border-red-400', 'dark:border-red-500');
+        textInput.focus();
+      }
+    }, 500);
+  }
+
   async function submitPin() {
     if (textInput) textInput.disabled = true;
+
+    // Offline: verify against locally stored SHA-256 hash
+    if (!navigator.onLine) {
+      const storedHash = localStorage.getItem('lk_pin_client_hash');
+      if (!storedHash) {
+        errorMsg.textContent = 'Offline — connect to verify PIN';
+        pin = '';
+        updateDots();
+        syncTextInput();
+        if (textInput) { textInput.disabled = false; textInput.focus(); }
+        return;
+      }
+      try {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        if (hex === storedHash) {
+          window.location.replace(NEXT_URL || '/');
+        } else {
+          showPinError('Incorrect PIN');
+        }
+      } catch (_) {
+        errorMsg.textContent = 'Offline — cannot verify PIN';
+        pin = '';
+        updateDots();
+        syncTextInput();
+        if (textInput) { textInput.disabled = false; textInput.focus(); }
+      }
+      return;
+    }
+
     try {
       const res = await fetch('/auth/verify', {
         method: 'POST',
@@ -153,24 +210,15 @@
       const data = await res.json();
 
       if (data.success) {
+        // Store hash for offline unlock on future visits
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin))
+          .then(buf => {
+            const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            localStorage.setItem('lk_pin_client_hash', hex);
+          }).catch(() => {});
         window.location.replace(data.redirect || '/');
       } else {
-        dots.forEach(d => d.classList.add('error'));
-        if (textInput) textInput.classList.add('border-red-400', 'dark:border-red-500');
-        const pinDots = document.getElementById('pinDots');
-        pinDots.classList.add('shake');
-        errorMsg.textContent = 'Incorrect PIN';
-        setTimeout(() => {
-          pinDots.classList.remove('shake');
-          pin = '';
-          updateDots();
-          syncTextInput();
-          if (textInput) {
-            textInput.disabled = false;
-            textInput.classList.remove('border-red-400', 'dark:border-red-500');
-            textInput.focus();
-          }
-        }, 500);
+        showPinError('Incorrect PIN');
       }
     } catch (_) {
       errorMsg.textContent = 'Connection error. Try again.';

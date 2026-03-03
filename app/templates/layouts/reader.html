@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>if (!navigator.onLine) document.documentElement.dataset.offline = '';</script>
 
   <title>{% block title %}{{ story.title }} - {{ story.author }}{% endblock %}</title>
 
@@ -96,7 +97,7 @@
       </div>
     </div>
     {% block download_button %}
-    <div class="settings-group">
+    <div class="settings-group" id="downloadSection">
       <div class="download-buttons">
         <a href="/download/html/{{ request.path.split('/')[-1] }}" class="download-btn" download>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

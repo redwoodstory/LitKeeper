@@ -4,7 +4,15 @@ LitKeeper provides a REST API for external integrations like iOS Shortcuts, auto
 
 ## Authentication
 
-The API currently does not require authentication. If your instance is publicly accessible, consider using a reverse proxy with authentication.
+If PIN lock is enabled in Settings → Security, **all API endpoints require an active browser session** — there is no API key or token mechanism. Requests that arrive without a valid session are redirected to the lock screen (HTTP 302), or receive an `HX-Redirect` header if the request came from HTMX.
+
+This means:
+- **Browser-based tools** (HTMX, iOS Shortcuts via Safari, etc.) work automatically as long as the session is unlocked.
+- **Headless scripts or external clients** (curl, automation tools) cannot authenticate and will be blocked when PIN lock is on.
+
+If you need external API access with PIN lock enabled, disable the PIN or use a reverse proxy with its own authentication in front of LitKeeper and keep PIN lock off.
+
+If PIN lock is disabled, the API is open to anyone who can reach your instance — consider a reverse proxy with authentication if it is publicly accessible.
 
 ## Download Story
 

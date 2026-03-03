@@ -4,7 +4,7 @@
 {% block main_content %}
 <div id="syncBanner"
      hx-get="/sync-banner"
-     hx-trigger="load"
+     hx-trigger="load[navigator.onLine]"
      hx-swap="outerHTML"></div>
 
 <script>
@@ -22,8 +22,8 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
 }
 </script>
 
-<div class="card mb-8">
-  <form id="downloadForm" 
+<div id="downloadCard" class="card mb-8">
+  <form id="downloadForm"
         hx-post="/api/queue"
         hx-target="#result"
         hx-swap="innerHTML"
@@ -48,7 +48,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
     </div>
 
     <div class="flex md:pt-7">
-      <button type="submit" class="btn-primary w-full md:w-auto md:px-8 whitespace-nowrap">
+      <button type="submit" data-requires-online class="btn-primary w-full md:w-auto md:px-8 whitespace-nowrap">
         <span class="htmx-indicator">Submitting...</span>
         <span class="htmx-not-indicator">Download Story</span>
       </button>
@@ -76,12 +76,13 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
       </div>
     </div>
 
-    <div class="flex flex-col gap-3">
+    <div id="libraryFilters" class="flex flex-col gap-3">
       <div class="relative w-full">
         <input type="text"
                id="searchInput"
                name="search"
                placeholder="Search stories..."
+               data-requires-online
                hx-get="/library/filter"
                hx-trigger="keyup changed delay:300ms"
                hx-target="#library-content"
@@ -100,6 +101,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
           <label for="categoryFilter" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap w-16">Filter:</label>
           <select id="categoryFilter"
                   name="category"
+                  data-requires-online
                   hx-get="/library/filter"
                   hx-trigger="change"
                   hx-target="#library-content"
@@ -120,6 +122,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
           <label for="sortBy" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap w-16">Sort by:</label>
           <select id="sortBy"
                   name="sort_by"
+                  data-requires-online
                   hx-get="/library/filter"
                   hx-trigger="change"
                   hx-target="#library-content"
@@ -139,6 +142,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
                   id="sortOrderToggle"
                   name="sort_order"
                   value="desc"
+                  data-requires-online
                   hx-get="/library/filter"
                   hx-trigger="click"
                   hx-target="#library-content"
@@ -160,7 +164,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
     <div id="library-content">
     <script>
-      if (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_sort_order')) {
+      if (navigator.onLine && (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_sort_order'))) {
         document.getElementById('library-content').style.visibility = 'hidden';
       }
     </script>

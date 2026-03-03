@@ -14,6 +14,25 @@
   <p class="text-sm text-gray-500 dark:text-gray-400">Manage your library and application settings</p>
 </div>
 
+<div id="offlineBanner"
+     class="hidden mb-4 flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-sm">
+  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" stroke-width="2"/>
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
+  </svg>
+  <span>You're offline — most settings changes won't be saved until you reconnect.</span>
+</div>
+<script>
+  (function () {
+    const banner = document.getElementById('offlineBanner');
+    function sync() { banner.classList.toggle('hidden', navigator.onLine); }
+    window.addEventListener('online', sync);
+    window.addEventListener('offline', sync);
+    sync();
+  })();
+</script>
+
 <div class="space-y-4 mb-8">
 
   <div class="card">
@@ -246,6 +265,22 @@
           class="hidden w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 font-medium">
           Cancel
         </button>
+        <button id="clearOfflineBtn" onclick="initiateClearOffline()"
+          class="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-800 transition-all duration-200 font-medium inline-flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          Clear All Offline
+        </button>
+      </div>
+
+      <div id="clearOfflineConfirm" class="hidden mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-between gap-4">
+        <p class="text-sm text-red-700 dark:text-red-300">Remove all downloaded stories from your device?</p>
+        <div class="flex gap-2 flex-shrink-0">
+          <button onclick="confirmClearOffline()" class="px-3 py-1 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors">Remove</button>
+          <button onclick="cancelClearOffline()" class="px-3 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors">Cancel</button>
+        </div>
       </div>
 
       <div id="syncProgress" class="hidden space-y-2">
@@ -256,6 +291,18 @@
         </div>
         <p id="syncStatusText" class="text-sm text-gray-600 dark:text-gray-400"></p>
       </div>
+
+      <details id="opfsDebug" class="mt-4 group" ontoggle="if(this.open) loadOpfsDebug()">
+        <summary class="cursor-pointer text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors select-none flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          OPFS Debug
+        </summary>
+        <div id="opfsDebugContent" class="mt-3 text-xs font-mono space-y-3">
+          <p class="text-slate-400 dark:text-slate-500">Click to load…</p>
+        </div>
+      </details>
     </section>
   </div>
   {% endif %}
@@ -367,7 +414,7 @@
       });
     } else {
       console.error('openRefreshModal function not found');
-      alert('Metadata refresh modal is not available. Please refresh the page and try again.');
+      showToast('Metadata refresh modal is not available. Please refresh and try again.', 'error');
     }
   }
 
@@ -405,6 +452,10 @@
     if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {
       return;
     }
+    if (!navigator.onLine) {
+      showToast('You\'re offline — connect to save changes', 'warning');
+      return;
+    }
 
     const btn = document.getElementById('resetAllExclusionsBtn');
     const originalText = btn.textContent;
@@ -421,12 +472,12 @@
 
       if (data.success) {
         await loadExcludedStories();
-        alert(data.message);
+        showToast(data.message, 'success');
       } else {
-        alert(`Error: ${data.message}`);
+        showToast(`Error: ${data.message}`, 'error');
       }
     } catch (error) {
-      alert(`Error resetting exclusions: ${error.message}`);
+      showToast(`Error resetting exclusions: ${error.message}`, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -435,6 +486,10 @@
 
   async function clearAllReadingProgress() {
     if (!confirm('Clear all reading progress?\n\nThis will reset all reading positions for all stories. All stories will start from the beginning when you next open them.\n\nThis action cannot be undone.')) {
+      return;
+    }
+    if (!navigator.onLine) {
+      showToast('You\'re offline — connect to save changes', 'warning');
       return;
     }
 
@@ -452,12 +507,12 @@
       const data = await response.json();
 
       if (data.success) {
-        alert(data.message);
+        showToast(data.message, 'success');
       } else {
-        alert(`Error: ${data.message}`);
+        showToast(`Error: ${data.message}`, 'error');
       }
     } catch (error) {
-      alert(`Error clearing reading progress: ${error.message}`);
+      showToast(`Error clearing reading progress: ${error.message}`, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -554,26 +609,31 @@
   }
 
   async function toggleGlobalAutoUpdate() {
+    if (!navigator.onLine) {
+      showToast('You\'re offline — connect to save changes', 'warning');
+      return;
+    }
+
     const toggle = document.getElementById('autoUpdateToggle');
     const currentState = toggle.getAttribute('aria-checked') === 'true';
-    
+
     try {
       const response = await fetch('/settings/toggle-auto-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !currentState })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         updateAutoUpdateToggle(data.enabled);
       } else {
-        alert(`Error: ${data.message}`);
+        showToast(`Error: ${data.message}`, 'error');
       }
     } catch (error) {
       console.error('Error toggling auto-update:', error);
-      alert('Failed to update auto-update setting');
+      showToast('Failed to update auto-update setting', 'error');
     }
   }
 
@@ -583,8 +643,12 @@
     }
   });
   async function startOfflineSync() {
-    if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
-      alert('Service Worker is not active yet. Please refresh the page and try again.');
+    if (!navigator.onLine) {
+      showToast('You\'re offline — connect to download stories for offline reading', 'warning');
+      return;
+    }
+    if (!navigator.serviceWorker) {
+      showToast('Service Workers are not supported in this browser.', 'error');
       return;
     }
 
@@ -595,27 +659,47 @@
     const statusText = document.getElementById('syncStatusText');
 
     syncBtn.disabled = true;
-    cancelBtn.classList.remove('hidden');
     progressDiv.classList.remove('hidden');
     progressBar.style.width = '0%';
+    statusText.textContent = 'Waiting for Service Worker…';
+
+    let swTarget;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      swTarget = registration.active;
+    } catch (err) {
+      statusText.textContent = 'Service Worker failed to activate. Please refresh and try again.';
+      syncBtn.disabled = false;
+      progressDiv.classList.add('hidden');
+      return;
+    }
+
+    cancelBtn.classList.remove('hidden');
     statusText.textContent = 'Fetching story list…';
 
-    let urls = [];
+    let readerUrls = [];
+    let epubUrls = [];
+    let coverUrls = [];
     try {
       const res = await fetch('/api/offline/story-urls');
       const data = await res.json();
-      const readerUrls = data.reader_urls || data.urls || [];
-      const epubUrls = data.epub_urls || [];
-      const totalItems = readerUrls.length + epubUrls.length;
-      if (!data.success || totalItems === 0) {
-        statusText.textContent = totalItems === 0 ? 'No stories found to cache.' : 'Failed to fetch story list.';
+      readerUrls = data.reader_urls || data.urls || [];
+      epubUrls = data.epub_urls || [];
+      coverUrls = data.cover_urls || [];
+      if (!data.success) {
+        statusText.textContent = data.message || 'Failed to fetch story list.';
         syncBtn.disabled = false;
         cancelBtn.classList.add('hidden');
         return;
       }
-      urls = readerUrls; // keep for legacy compat
-      const epubNote = epubUrls.length ? ` + ${epubUrls.length} EPUB file${epubUrls.length === 1 ? '' : 's'}` : '';
-      statusText.textContent = `Starting sync of ${readerUrls.length} stor${readerUrls.length === 1 ? 'y' : 'ies'}${epubNote}…`;
+      const totalSyncable = readerUrls.length + epubUrls.length;
+      if (totalSyncable === 0) {
+        statusText.textContent = 'No stories found to cache.';
+        syncBtn.disabled = false;
+        cancelBtn.classList.add('hidden');
+        return;
+      }
+      statusText.textContent = `Starting sync of ${readerUrls.length} stor${readerUrls.length === 1 ? 'y' : 'ies'}…`;
     } catch (err) {
       statusText.textContent = `Error: ${err.message}`;
       syncBtn.disabled = false;
@@ -623,15 +707,21 @@
       return;
     }
 
+    // Track story-level progress separately from EPUB sub-items
+    const storyTotal = readerUrls.length;
+    let storyDone = 0;
+    let storyCached = 0;
+    let storySkipped = 0;
+
     const messageChannel = new MessageChannel();
 
     messageChannel.port1.onmessage = (event) => {
       const msg = event.data;
 
       if (msg.cancelled) {
-        statusText.textContent = `Cancelled — ${msg.cached} cached, ${msg.skipped} already saved.`;
         progressBar.style.width = '100%';
         progressBar.classList.replace('bg-purple-500', 'bg-gray-400');
+        statusText.textContent = `Cancelled — ${storyCached} saved, ${storySkipped} already saved.`;
         syncBtn.disabled = false;
         cancelBtn.classList.add('hidden');
         return;
@@ -639,39 +729,197 @@
 
       if (msg.complete) {
         progressBar.style.width = '100%';
-        progressBar.classList.replace('bg-purple-500', 'bg-green-500');
+        const storyFailed = msg.failedUrls?.filter(u => u.startsWith('/read/')).length ?? 0;
+        const hadFailures = storyFailed > 0;
+        progressBar.classList.replace('bg-purple-500', hadFailures ? 'bg-amber-500' : 'bg-green-500');
         const parts = [];
-        if (msg.cached) parts.push(`${msg.cached} cached`);
-        if (msg.skipped) parts.push(`${msg.skipped} already saved`);
-        if (msg.failed) parts.push(`${msg.failed} failed`);
-        statusText.textContent = `✅ Done — ${parts.join(', ')}.`;
+        if (storyCached) parts.push(`${storyCached} saved`);
+        if (storySkipped) parts.push(`${storySkipped} already saved`);
+        if (storyFailed) parts.push(`${storyFailed} failed`);
+        statusText.textContent = `${hadFailures ? '⚠️' : '✅'} Done — ${parts.join(', ')}.`;
+        if (hadFailures && msg.failedUrls?.length) {
+          const failedStories = msg.failedUrls.filter(u => u.startsWith('/read/'));
+          if (failedStories.length) {
+            const detail = document.createElement('details');
+            detail.className = 'mt-2 text-xs text-amber-700 dark:text-amber-400';
+            detail.innerHTML = `<summary class="cursor-pointer font-medium">Show failed stories (${failedStories.length})</summary>
+              <ul class="mt-1 ml-3 space-y-0.5 list-disc">${failedStories.map(u =>
+                `<li>${u.split('/').pop().replace('.html','').replace(/_/g,' ')}</li>`).join('')}</ul>`;
+            statusText.after(detail);
+          }
+        }
+        if (window.offlineIndicators) window.offlineIndicators.applyOfflineBadges();
         syncBtn.disabled = false;
         cancelBtn.classList.add('hidden');
         return;
       }
 
-      if (msg.total > 0) {
-        const pct = Math.round((msg.done / msg.total) * 100);
+      if (msg.url?.startsWith('/read/')) {
+        // Story-level item: advance the progress bar
+        storyDone++;
+        if (msg.skipped) storySkipped++; else storyCached++;
+        const pct = Math.round((storyDone / storyTotal) * 100);
         progressBar.style.width = `${pct}%`;
-        const storyName = msg.url.split('/').pop().replace('.html', '').replace(/_/g, ' ');
+        const label = msg.url.split('/').pop().replace('.html', '').replace(/_/g, ' ');
         statusText.textContent = msg.skipped
-          ? `Skipped ${msg.done}/${msg.total} — ${storyName} (already cached)`
-          : `Caching ${msg.done}/${msg.total} — ${storyName}`;
+          ? `Skipped ${storyDone}/${storyTotal} — ${label} (already saved)`
+          : `Saving ${storyDone}/${storyTotal} — ${label}`;
+      } else if (msg.url?.startsWith('/epub/')) {
+        // EPUB files: silent background work, bar stays full, no story count change
+        statusText.textContent = `Syncing EPUB files…`;
       }
     };
 
-    navigator.serviceWorker.controller.postMessage(
-      { type: 'SYNC_ALL_STORIES', reader_urls: readerUrls, epub_urls: epubUrls, urls: readerUrls },
+    swTarget.postMessage(
+      { type: 'SYNC_ALL_STORIES', reader_urls: readerUrls, epub_urls: epubUrls, cover_urls: coverUrls, urls: readerUrls },
       [messageChannel.port2]
     );
   }
 
   function cancelOfflineSync() {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_SYNC' });
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.ready.then(reg => {
+        const target = reg.active || navigator.serviceWorker.controller;
+        if (target) target.postMessage({ type: 'CANCEL_SYNC' });
+      });
     }
     document.getElementById('cancelSync').classList.add('hidden');
     document.getElementById('syncStatusText').textContent = 'Cancelling…';
+  }
+
+  function initiateClearOffline() {
+    document.getElementById('clearOfflineConfirm').classList.remove('hidden');
+    document.getElementById('clearOfflineBtn').classList.add('hidden');
+  }
+
+  function cancelClearOffline() {
+    document.getElementById('clearOfflineConfirm').classList.add('hidden');
+    document.getElementById('clearOfflineBtn').classList.remove('hidden');
+  }
+
+  async function loadOpfsDebug() {
+    const container = document.getElementById('opfsDebugContent');
+    container.innerHTML = '<p class="text-slate-400 dark:text-slate-500">Reading OPFS…</p>';
+
+    if (!navigator.storage?.getDirectory) {
+      container.innerHTML = '<p class="text-red-500">OPFS not supported in this browser.</p>';
+      return;
+    }
+
+    function fmtSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    try {
+      const root = await navigator.storage.getDirectory();
+      const rows = [];
+
+      for await (const entry of root.values()) {
+        if (entry.kind === 'file') {
+          const file = await entry.getFile();
+          rows.push({ path: entry.name, size: file.size, modified: file.lastModified });
+        } else if (entry.kind === 'directory') {
+          const subDir = await root.getDirectoryHandle(entry.name);
+          for await (const sub of subDir.values()) {
+            if (sub.kind === 'file') {
+              const file = await sub.getFile();
+              rows.push({ path: `${entry.name}/${sub.name}`, size: file.size, modified: file.lastModified });
+            }
+          }
+        }
+      }
+
+      if (rows.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 dark:text-slate-500">OPFS is empty.</p>';
+        return;
+      }
+
+      rows.sort((a, b) => a.path.localeCompare(b.path));
+      const totalSize = rows.reduce((s, r) => s + r.size, 0);
+
+      const table = `
+        <p class="text-slate-500 dark:text-slate-400 mb-2">${rows.length} file${rows.length === 1 ? '' : 's'} · ${fmtSize(totalSize)} total</p>
+        <div class="overflow-x-auto rounded border border-slate-200 dark:border-slate-700">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                <th class="px-3 py-1.5 font-medium">Path</th>
+                <th class="px-3 py-1.5 font-medium text-right">Size</th>
+                <th class="px-3 py-1.5 font-medium">Modified</th>
+                <th class="px-3 py-1.5 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((r, i) => `
+                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td class="px-3 py-1 text-slate-700 dark:text-slate-300 break-all">${r.path}</td>
+                  <td class="px-3 py-1 text-slate-500 dark:text-slate-400 text-right whitespace-nowrap">${fmtSize(r.size)}</td>
+                  <td class="px-3 py-1 text-slate-400 dark:text-slate-500 whitespace-nowrap">${new Date(r.modified).toLocaleString()}</td>
+                  <td class="px-3 py-1 whitespace-nowrap">
+                    <button onclick="peekOpfsFile(${i}, '${r.path.replace(/'/g, "\\'")}')" class="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 underline">peek</button>
+                  </td>
+                </tr>
+                <tr id="peek-row-${i}" class="hidden border-t border-slate-100 dark:border-slate-800">
+                  <td colspan="4" class="px-3 py-2">
+                    <pre id="peek-content-${i}" class="whitespace-pre-wrap break-all text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-2 rounded text-xs max-h-48 overflow-auto"></pre>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      container.innerHTML = table;
+    } catch (e) {
+      container.innerHTML = `<p class="text-red-500">Error reading OPFS: ${e.message}</p>`;
+    }
+  }
+
+  async function peekOpfsFile(idx, path) {
+    const row = document.getElementById(`peek-row-${idx}`);
+    const pre = document.getElementById(`peek-content-${idx}`);
+    if (row.classList.toggle('hidden')) return; // toggle off
+
+    pre.textContent = 'Loading…';
+    try {
+      const root = await navigator.storage.getDirectory();
+      let fileHandle;
+      if (path.includes('/')) {
+        const [dir, name] = path.split('/');
+        const dirHandle = await root.getDirectoryHandle(dir);
+        fileHandle = await dirHandle.getFileHandle(name);
+      } else {
+        fileHandle = await root.getFileHandle(path);
+      }
+      const file = await fileHandle.getFile();
+      const text = await file.slice(0, 600).text();
+      pre.textContent = text;
+    } catch (e) {
+      pre.textContent = `Error: ${e.message}`;
+    }
+  }
+
+  async function confirmClearOffline() {
+    const confirmDiv = document.getElementById('clearOfflineConfirm');
+    confirmDiv.querySelector('p').textContent = 'Removing…';
+    confirmDiv.querySelectorAll('button').forEach(b => b.disabled = true);
+
+    const result = await window.offlineIndicators?.clearAllOffline() ?? { cleared: 0 };
+
+    confirmDiv.classList.add('hidden');
+    document.getElementById('clearOfflineBtn').classList.remove('hidden');
+
+    const statusDiv = document.getElementById('syncProgress');
+    const statusText = document.getElementById('syncStatusText');
+    const progressBar = document.getElementById('syncProgressBar');
+    statusDiv.classList.remove('hidden');
+    progressBar.style.width = '100%';
+    progressBar.className = 'bg-gray-400 h-2 rounded-full transition-all duration-300 ease-out';
+    statusText.textContent = result.error
+      ? `Error clearing offline storage: ${result.error}`
+      : `Cleared ${result.cleared} file${result.cleared === 1 ? '' : 's'} from offline storage.`;
+
+    if (window.offlineIndicators) window.offlineIndicators.applyOfflineBadges();
   }
 
   function validatePinInput(pin, confirm, errorEl) {
@@ -692,6 +940,10 @@
     const confirm = document.getElementById('confirmPin').value;
     const errorEl = document.getElementById('pinSetupError');
     if (!validatePinInput(pin, confirm, errorEl)) return;
+    if (!navigator.onLine) {
+      errorEl.textContent = 'You\'re offline — connect to enable PIN lock';
+      return;
+    }
 
     const res = await fetch('/auth/set-pin', {
       method: 'POST',
@@ -701,6 +953,7 @@
     const data = await res.json();
 
     if (data.success) {
+      await storePinHashLocally(pin);
       window.location.reload();
     } else {
       errorEl.textContent = data.message || 'Failed to enable PIN';
@@ -709,6 +962,10 @@
 
   async function removePin() {
     if (!confirm('Remove PIN lock? The app will be accessible without authentication.')) return;
+    if (!navigator.onLine) {
+      showToast('You\'re offline — connect to save changes', 'warning');
+      return;
+    }
 
     const res = await fetch('/auth/remove-pin', {
       method: 'POST',
@@ -717,9 +974,10 @@
     const data = await res.json();
 
     if (data.success) {
+      localStorage.removeItem('lk_pin_client_hash');
       window.location.reload();
     } else {
-      alert(data.message || 'Failed to remove PIN');
+      showToast(data.message || 'Failed to remove PIN', 'error');
     }
   }
 
@@ -736,6 +994,10 @@
     const confirm = document.getElementById('changePinConfirm').value;
     const errorEl = document.getElementById('changePinError');
     if (!validatePinInput(pin, confirm, errorEl)) return;
+    if (!navigator.onLine) {
+      errorEl.textContent = 'You\'re offline — connect to change PIN';
+      return;
+    }
 
     const res = await fetch('/auth/set-pin', {
       method: 'POST',
@@ -745,10 +1007,19 @@
     const data = await res.json();
 
     if (data.success) {
+      await storePinHashLocally(pin);
       window.location.reload();
     } else {
       errorEl.textContent = data.message || 'Failed to update PIN';
     }
+  }
+
+  async function storePinHashLocally(pin) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+      const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('lk_pin_client_hash', hex);
+    } catch (_) {}
   }
 
 </script>

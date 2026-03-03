@@ -21,10 +21,12 @@
       const data = await response.json();
       if (data.success) {
         savedThemePreference = data.theme;
+        localStorage.setItem('litkeeper_theme', data.theme);
         return data.theme;
       }
-    } catch (error) {
-      console.error('Error fetching theme preference:', error);
+    } catch {
+      const local = localStorage.getItem('litkeeper_theme');
+      if (local) return local;
     }
     return 'system';
   }
@@ -53,19 +55,14 @@
     applyThemePreference(preference);
   }
 
-  async function saveAndApplyTheme(preference) {
-    try {
-      const response = await fetch('/settings/theme-preference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme: preference })
-      });
-      if (response.ok) {
-        applyThemePreference(preference);
-      }
-    } catch (error) {
-      console.error('Error saving theme preference:', error);
-    }
+  function saveAndApplyTheme(preference) {
+    applyThemePreference(preference);
+    localStorage.setItem('litkeeper_theme', preference);
+    fetch('/settings/theme-preference', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme: preference })
+    }).catch(() => {});
   }
 
   initTheme();
@@ -77,6 +74,9 @@
       setTheme(e.matches ? 'dark' : 'light');
     }
   });
+
+  window.addEventListener('offline', () => { document.documentElement.dataset.offline = ''; });
+  window.addEventListener('online',  () => { delete document.documentElement.dataset.offline; });
 
   window.addEventListener('pageshow', async (event) => {
     if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
@@ -340,10 +340,25 @@
     }, { passive: true });
 
     // --- Restore position on load ---
-    function restorePosition() {
-      if (!initialProgress) return;
+    // Prefer IndexedDB (updated on every scroll, survives offline) over the
+    // server-embedded INITIAL_PROGRESS (stale if the page was served from cache).
+    async function restorePosition() {
+      let progress = initialProgress;
 
-      const { current_chapter: chapter, current_paragraph: para, percentage: pct } = initialProgress;
+      try {
+        const db = await progressDB.open();
+        const local = await new Promise((resolve) => {
+          const tx = db.transaction(progressDB.storeName, 'readonly');
+          const req = tx.objectStore(progressDB.storeName).get(storyId);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        });
+        if (local?.timestamp) progress = local;
+      } catch (_) {}
+
+      if (!progress) return;
+
+      const { current_chapter: chapter, current_paragraph: para, percentage: pct } = progress;
 
       // If we have valid chapter-level data (HTML reader saved it), jump to that paragraph.
       // chapter === 0 means the progress came from the EPUB reader which always writes 0.

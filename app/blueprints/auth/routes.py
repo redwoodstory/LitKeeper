@@ -27,9 +27,8 @@ def _safe_next(next_url: str | None) -> str:
 def lock():
     if not _pin_enabled():
         return redirect('/')
-    if session.get('pin_unlocked'):
-        next_url = _safe_next(request.args.get('next'))
-        return redirect(next_url)
+    # Always render the lock page (200) so the SW can reliably pre-cache it.
+    # Client-side JS in lock.html redirects away if the session is already unlocked.
     next_url = request.args.get('next', '/')
     return render_template('lock.html', next_url=next_url)
 

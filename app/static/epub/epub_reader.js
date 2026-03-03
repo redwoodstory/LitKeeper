@@ -63,10 +63,12 @@ async function fetchThemePreference() {
     const data = await response.json();
     if (data.success) {
       savedThemePreference = data.theme;
+      localStorage.setItem('litkeeper_theme', data.theme);
       return data.theme;
     }
-  } catch (error) {
-    console.error('Error fetching theme preference:', error);
+  } catch {
+    const local = localStorage.getItem('litkeeper_theme');
+    if (local) return local;
   }
   return 'system';
 }
@@ -99,19 +101,14 @@ async function initTheme() {
   applyThemePreference(preference);
 }
 
-async function saveAndApplyTheme(preference) {
-  try {
-    const response = await fetch('/settings/theme-preference', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme: preference })
-    });
-    if (response.ok) {
-      applyThemePreference(preference);
-    }
-  } catch (error) {
-    console.error('Error saving theme preference:', error);
-  }
+function saveAndApplyTheme(preference) {
+  applyThemePreference(preference);
+  localStorage.setItem('litkeeper_theme', preference);
+  fetch('/settings/theme-preference', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ theme: preference })
+  }).catch(() => {});
 }
 
 initTheme();
@@ -123,6 +120,9 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
     setTheme(e.matches ? 'dark' : 'light');
   }
 });
+
+window.addEventListener('offline', () => { document.documentElement.dataset.offline = ''; });
+window.addEventListener('online',  () => { delete document.documentElement.dataset.offline; });
 
 window.addEventListener('pageshow', async (event) => {
   if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
@@ -387,7 +387,8 @@ window.cleanupAndGoBack = async function() {
   
   setTimeout(() => {
     const storyId = window.STORY_ID;
-    if (storyId) {
+    // When offline the modal can't be loaded, so just go home
+    if (storyId && navigator.onLine) {
       window.location.href = `/?open_modal=${storyId}`;
     } else {
       window.location.href = '/';

@@ -47,51 +47,32 @@ function updateSWStatus() {
   `;
 }
 
+// SW is registered globally in base.html. Here we just hook into the existing registration
+// to drive the settings page UI.
 let swRegistration = null;
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        swRegistration = registration;
-        console.log('Service Worker registered successfully:', registration.scope);
-        updateSWStatus();
+  navigator.serviceWorker.ready.then((registration) => {
+    swRegistration = registration;
+    updateSWStatus();
+    loadStorageInfo();
 
-        registration.update();
-
-        if (registration.active) {
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          updateSWStatus();
           loadStorageInfo();
-        } else {
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            console.log('New service worker found, installing...');
-            newWorker.addEventListener('statechange', () => {
-              console.log('Service Worker state:', newWorker.state);
-              if (newWorker.state === 'activated') {
-                console.log('New service worker activated!');
-                updateSWStatus();
-                loadStorageInfo();
-              }
-            });
-          });
-        }
-      })
-      .catch((error) => {
-        console.log('Service Worker registration failed:', error);
-        const statusDiv = document.getElementById('swStatus');
-        if (statusDiv) {
-          statusDiv.innerHTML =
-            `<p class="text-red-600 dark:text-red-400">❌ Registration failed: ${error.message}</p>`;
         }
       });
-
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('Service Worker controller changed - reloading page');
-      updateSWStatus();
-      window.location.reload();
     });
-
-    setTimeout(updateSWStatus, 100);
   });
+
+  // SW took over (e.g. after an update) — refresh status display without reloading the page
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    updateSWStatus();
+  });
+
+  setTimeout(updateSWStatus, 100);
 } else {
   updateSWStatus();
 }

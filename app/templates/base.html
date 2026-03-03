@@ -14,6 +14,8 @@
         document.documentElement.setAttribute('data-theme',
           window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       }
+      // Mark offline immediately so CSS hides online-only elements before first paint
+      if (!navigator.onLine) document.documentElement.dataset.offline = '';
     })();
   </script>
 
@@ -131,6 +133,11 @@
         --tw-ring-color: rgb(255 255 255 / 0.2);
       }
 
+      /* Immediately hide online-only UI when page loads offline (no flash) */
+      html[data-offline] [data-offline-hide],
+      html[data-offline] #downloadCard,
+      html[data-offline] #libraryFilters { display: none !important; }
+
       .htmx-indicator {
         display: none;
       }
@@ -171,7 +178,39 @@
 
   {% block scripts %}
   <script src="/static/js/theme.js" defer></script>
+  <script src="/static/js/offline-indicators.js" defer></script>
   {% endblock %}
+
+  <div id="offlineIndicator"
+       class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50
+              bg-amber-500 text-white text-sm font-medium
+              px-4 py-2 rounded-full shadow-lg
+              flex items-center gap-2 transition-all duration-300"
+       aria-live="polite" aria-label="Offline mode active">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" stroke-width="2"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
+    </svg>
+    Offline mode
+  </div>
+  <script>
+    (function () {
+      var el = document.getElementById('offlineIndicator');
+      function sync() { el.classList.toggle('hidden', navigator.onLine); }
+      window.addEventListener('online', sync);
+      window.addEventListener('offline', sync);
+      sync();
+    })();
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
 
   {% if pin_enabled %}
   <script>
