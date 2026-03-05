@@ -1,6 +1,7 @@
 from __future__ import annotations
 import threading
 import time
+import random
 from datetime import datetime
 from typing import Optional
 from app.services.logger import log_action, log_error
@@ -179,7 +180,8 @@ class BackgroundAutomation:
                     log_action(f"[AUTOMATION] Searching Literotica for: title='{story.title}', author='{story.author.name}'")
                     
                     search_result = service.search_for_story(story.id)
-                    
+                    time.sleep(random.randint(10, 15))
+
                     if not search_result.get('success'):
                         exclusion_reason = f"No matches found on Literotica for '{story.title}' by {story.author.name}"
                         log_action(f"[AUTOMATION] {exclusion_reason} - marking as excluded")
@@ -232,9 +234,7 @@ class BackgroundAutomation:
                         db.session.commit()
                         
                         queued_count += 1
-                    
-                    time.sleep(2)
-                    
+
                 except Exception as e:
                     db.session.rollback()
                     log_error(f"[AUTOMATION] Error processing story '{story.title}': {str(e)}")

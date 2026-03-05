@@ -476,6 +476,78 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
         log_error(error_msg, url)
         return None, None, None, None, None, None, None, None
 
+def fetch_story_metadata(url: str) -> dict:
+    """
+    Fetch only metadata from the first page of a story URL without downloading content.
+
+    Returns a dict with: title, author, author_url, category, tags, page_count, series_url.
+    Returns an empty dict on failure.
+    """
+    import html as html_module
+    import re
+
+    try:
+        session = get_session()
+        url = url.split('?')[0]
+
+        response = session.get(url, timeout=10)
+        response.raise_for_status()
+        response.encoding = response.apparent_encoding or 'utf-8'
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        title_tag = soup.find('h1', class_=lambda c: c and c.startswith('_title_'))
+        title = html_module.unescape(title_tag.text.strip()) if title_tag else 'Unknown Title'
+
+        author_tag = soup.find('a', class_=lambda c: c and '_author__title_' in str(c))
+        author = html_module.unescape(author_tag.text.strip()) if author_tag else 'Unknown Author'
+        author_url = None
+        if author_tag and author_tag.get('href'):
+            href = author_tag.get('href')
+            author_url = href if href.startswith('http') else 'https://www.literotica.com' + href
+
+        category = None
+        breadcrumb = soup.find('nav', class_=lambda c: c and '_breadcrumbs_' in str(c))
+        if breadcrumb:
+            items = breadcrumb.find_all('span', itemprop='name')
+            if len(items) >= 2:
+                category = items[1].text.strip()
+                if 'taboo' in category.lower():
+                    category = 'I/T'
+
+        tag_elements = soup.find_all('a', class_=lambda c: c and '_tags__link_' in str(c))
+        tags = [t.text.strip() for t in tag_elements
+                if not t.text.strip().lower().startswith('inc')]
+        if category and category not in tags:
+            tags = [category] + tags
+
+        page_count = 1
+        pagination_links = soup.find_all('a', class_=lambda c: c and '_pagination__item_' in str(c))
+        for link in pagination_links:
+            match = re.search(r'[?&]page=(\d+)', link.get('href', ''))
+            if match:
+                page_count = max(page_count, int(match.group(1)))
+
+        series_url = None
+        series_link = soup.find('a', href=lambda h: h and '/series/se/' in h)
+        if series_link:
+            href = series_link.get('href', '')
+            series_url = href if href.startswith('http') else 'https://www.literotica.com' + href
+
+        return {
+            'title': title,
+            'author': author,
+            'author_url': author_url,
+            'category': category,
+            'tags': tags,
+            'page_count': page_count,
+            'series_url': series_url,
+        }
+
+    except Exception as e:
+        log_error(f'Error fetching story metadata: {str(e)}', url)
+        return {}
+
+
 def extract_chapter_titles(story_content: str) -> list[str]:
     """
     Extract chapter titles from story content.

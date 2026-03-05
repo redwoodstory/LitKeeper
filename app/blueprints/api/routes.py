@@ -5,7 +5,7 @@ from app.services import download_story_and_create_files, log_error, log_url, lo
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
 from app.utils.security import validate_file_in_directory
 from app.validators import StoryDownloadRequest, StoryMetadataUpdate
-from app.services.story_downloader import download_story
+from app.services.story_downloader import download_story, fetch_story_metadata
 from app.services.metadata_refresh_service import MetadataRefreshService
 from pydantic import ValidationError
 import os
@@ -130,27 +130,23 @@ def preview_story() -> ResponseReturnValue:
     log_url(validated.url)
 
     try:
-        from app.services import story_processor
-        story_data = download_story(validated.url)
-        story_content, title, author, category, tags, author_url, page_count, series_url = story_data
+        metadata = fetch_story_metadata(validated.url)
 
-        if not story_content or not title:
+        if not metadata or not metadata.get('title'):
             return jsonify({
                 "success": False,
                 "message": "Failed to extract story metadata"
             }), 500
 
-        story_processor._story_cache[validated.url] = story_data
-
         return jsonify({
             "success": True,
             "metadata": {
                 "url": validated.url,
-                "title": title or "Unknown Title",
-                "author": author or "Unknown Author",
-                "category": category,
-                "tags": tags or [],
-                "author_url": author_url,
+                "title": metadata.get('title', 'Unknown Title'),
+                "author": metadata.get('author', 'Unknown Author'),
+                "category": metadata.get('category'),
+                "tags": metadata.get('tags', []),
+                "author_url": metadata.get('author_url'),
                 "formats": validated.format
             }
         })

@@ -143,8 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
   applyOnlineRequirements();
 });
 
-window.addEventListener('online', applyOnlineRequirements);
-window.addEventListener('offline', applyOnlineRequirements);
+function syncOfflineDataset() {
+  if (navigator.onLine) {
+    document.documentElement.removeAttribute('data-offline');
+  } else {
+    document.documentElement.dataset.offline = '';
+  }
+}
+
+window.addEventListener('online', () => { syncOfflineDataset(); applyOnlineRequirements(); });
+window.addEventListener('offline', () => { syncOfflineDataset(); applyOnlineRequirements(); });
 
 // Re-apply badges and update modal sync button after any HTMX swap
 document.addEventListener('htmx:afterSettle', (e) => {

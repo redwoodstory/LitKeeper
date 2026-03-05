@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v33';
+const CACHE_VERSION = 'v34';
 const STATIC_CACHE  = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 const COVERS_CACHE  = `litkeeper-covers-${CACHE_VERSION}`;
@@ -43,9 +43,12 @@ const STATIC_ASSETS = [
   '/static/foliate-js/fixed-layout.js',
   '/static/foliate-js/vendor/zip.js',
   '/static/fonts/PlayfairDisplay-Regular.ttf',
-  '/static/icons/icon-192.png',
-  '/static/icons/icon-512.png',
-  '/static/icons/icon.svg',
+  '/static/icons/web/icon-192.png',
+  '/static/icons/web/icon-512.png',
+  '/static/icons/web/icon-192-maskable.png',
+  '/static/icons/web/icon-512-maskable.png',
+  '/static/icons/web/apple-touch-icon.png',
+  '/static/icons/web/favicon.ico',
   '/static/fonts/fonts.css',
   '/static/fonts/inter-200.ttf',
   '/static/fonts/inter-300.ttf',
