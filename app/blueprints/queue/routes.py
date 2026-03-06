@@ -9,8 +9,26 @@ queue = Blueprint('queue', __name__, url_prefix='/queue')
 
 @queue.route('/')
 def index() -> ResponseReturnValue:
-    """Main download queue status page"""
-    return render_template('queue/index.html')
+    pending_items = DownloadQueueItem.query.filter_by(status='pending').order_by(DownloadQueueItem.created_at.asc()).all()
+    processing_items = DownloadQueueItem.query.filter_by(status='processing').order_by(DownloadQueueItem.started_at.desc()).all()
+    completed_items = DownloadQueueItem.query.filter_by(status='completed').order_by(desc(DownloadQueueItem.completed_at)).limit(50).all()
+    failed_items = DownloadQueueItem.query.filter_by(status='failed').order_by(desc(DownloadQueueItem.completed_at)).limit(20).all()
+
+    pending_with_position = []
+    for idx, item in enumerate(pending_items, start=1):
+        item_dict = item.to_dict()
+        item_dict['queue_position'] = idx
+        pending_with_position.append(item_dict)
+
+    return render_template('queue/index.html',
+                           pending=len(pending_items),
+                           processing=len(processing_items),
+                           completed=DownloadQueueItem.query.filter_by(status='completed').count(),
+                           failed=DownloadQueueItem.query.filter_by(status='failed').count(),
+                           queue_pending=pending_with_position,
+                           queue_processing=[i.to_dict() for i in processing_items],
+                           queue_completed=[i.to_dict() for i in completed_items],
+                           queue_failed=[i.to_dict() for i in failed_items])
 
 @queue.route('/api/items')
 def get_queue_items() -> ResponseReturnValue:

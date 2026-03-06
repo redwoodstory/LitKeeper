@@ -2,7 +2,7 @@
 <html lang="en" class="{% block html_class %}h-full{% endblock %}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <script>
     (function() {
       var pref = localStorage.getItem('litkeeper_theme');
@@ -25,7 +25,7 @@
   <meta name="description" content="Download and read stories from Literotica in EPUB and HTML formats">
   <meta name="theme-color" content="#4a90e2">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="LitKeeper">
   <link rel="icon" type="image/x-icon" href="/static/icons/web/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/web/icon-192.png">
@@ -158,11 +158,55 @@
       }
     }
   </style>
+
+  <style>
+    /* Match page background on <html> so the body fade-in (opacity: 0 start) doesn't flash white */
+    html[data-theme="light"] { background-color: #f9fafb; }
+    html[data-theme="dark"]  { background-color: #111827; }
+
+    /* iOS safe area utilities */
+    .safe-top    { padding-top:    env(safe-area-inset-top, 0px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+    /* Mobile content: clear top nav (3.5rem) + safe-area-top + extra breathing room,
+       and bottom tabs (4rem) + safe-area-bottom. md+ resets to original Tailwind values. */
+    .content-inset {
+      padding-top:    calc(env(safe-area-inset-top, 0px) + 1rem);
+      padding-bottom: calc(4rem   + env(safe-area-inset-bottom, 0px) + 1rem);
+    }
+    @media (min-width: 768px) {
+      .content-inset {
+        padding-top:    5rem;
+        padding-bottom: 2rem;
+      }
+    }
+
+    /* SwiftUI-style tap squish — touch devices only.
+       No transition override: Tailwind's transition-all handles the snap-back. */
+    @media (pointer: coarse) {
+      a:active, button:active { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Remove iOS tap highlight flash */
+    * { -webkit-tap-highlight-color: transparent; }
+    a, button { touch-action: manipulation; }
+
+    /* Mask page-load nav flash with a smooth body fade-in */
+    @media (prefers-reduced-motion: no-preference) {
+      body { animation: lk-page-in 100ms ease forwards; }
+      @keyframes lk-page-in { from { opacity: 0; } }
+    }
+
+    /* Story modal: leave room for the bottom tab bar on mobile */
+    .modal-bottom-inset { bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
+    @media (min-width: 768px) { .modal-bottom-inset { bottom: 0; } }
+
+  </style>
   {% endblock %}
 
   {% block extra_head %}{% endblock %}
 </head>
-<body class="{% block body_class %}bg-gray-50 dark:bg-gray-900 transition-colors h-full{% endblock %}" hx-boost="true">
+<body class="{% block body_class %}bg-gray-50 dark:bg-gray-900 transition-colors h-full{% endblock %}" hx-boost="true" ontouchstart="">
   {% block theme_toggle %}
   <div class="fixed top-4 right-4 z-50">
     <a href="/settings"

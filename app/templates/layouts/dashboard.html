@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-<nav class="fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-gray-700/60">
+<nav class="hidden md:block fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-gray-700/60 safe-top">
   <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
     <a href="/"
        hx-boost="false"
@@ -35,7 +35,7 @@
       <a href="/settings"
          hx-boost="false"
          data-offline-hide
-         class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all duration-200"
+         class="hidden md:flex p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all duration-200"
          aria-label="Settings">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -46,7 +46,7 @@
   </div>
 </nav>
 
-<div class="container mx-auto px-4 pt-20 pb-8 max-w-6xl">
+<div class="container mx-auto px-4 max-w-6xl content-inset">
   {% block header %}
   <header class="mb-12">
     <div class="text-center">
@@ -192,4 +192,55 @@
 </div>
 
 {% include 'components/metadata_refresh_modal.html' %}
+
+{% set p = request.path %}
+{% set tab_base = "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium" %}
+{% set tab_on   = "text-primary" %}
+{% set tab_off  = "text-gray-500 dark:text-gray-400" %}
+<nav id="bottom-tab-nav" hx-preserve
+     class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-slate-200 dark:border-gray-700/60 safe-bottom"
+     aria-label="Main navigation">
+  <div class="flex items-stretch max-w-6xl mx-auto">
+
+    <a href="/" hx-boost="false"
+       class="{{ tab_base }} {{ tab_on if p == '/' else tab_off }}"
+       aria-label="Library">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+      </svg>
+      <span>Library</span>
+    </a>
+
+    <a href="/queue/" hx-boost="false"
+       class="{{ tab_base }} {{ tab_on if p.startswith('/queue') else tab_off }}"
+       aria-label="Download Queue">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+      </svg>
+      <span>Queue</span>
+    </a>
+
+    {% if pin_enabled %}
+    <button onclick="navigator.onLine?fetch('/auth/lock-now',{method:'POST'}).then(()=>location.replace('/auth/lock')):location.replace('/auth/lock')"
+       class="{{ tab_base }} text-gray-500 dark:text-gray-400"
+       aria-label="Lock app">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+      <span>Lock</span>
+    </button>
+    {% endif %}
+
+    <a href="/settings" hx-boost="false" data-offline-hide
+       class="{{ tab_base }} {{ tab_on if p.startswith('/settings') else tab_off }}"
+       aria-label="Settings">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      <span>Settings</span>
+    </a>
+
+  </div>
+</nav>
 {% endblock %}
