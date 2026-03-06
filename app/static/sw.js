@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v34';
+const CACHE_VERSION = 'v38';
 const STATIC_CACHE  = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 const COVERS_CACHE  = `litkeeper-covers-${CACHE_VERSION}`;

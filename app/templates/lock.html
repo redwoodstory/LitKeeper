@@ -2,7 +2,7 @@
 
 {% block title %}LitKeeper — Locked{% endblock %}
 
-{% block html_class %}h-full{% endblock %}
+{% block html_class %}{% endblock %}
 
 {% block meta_tags %}
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -16,13 +16,13 @@
 
 {% block theme_toggle %}{% endblock %}
 
-{% block body_class %}bg-gray-50 dark:bg-gray-900 h-full{% endblock %}
+{% block body_class %}bg-gray-50 dark:bg-gray-900{% endblock %}
 
 {% block content %}
-<main class="min-h-screen flex items-center justify-center p-4">
+<main class="h-dvh flex flex-col items-center px-6 pt-16 sm:justify-center sm:pt-0 overflow-hidden">
   <div class="w-full max-w-xs">
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 mb-4">
+      <div class="hidden sm:block inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 mb-4">
         <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -34,52 +34,16 @@
 
     <p id="errorMsg" class="text-center text-sm text-red-500 dark:text-red-400 mb-4 min-h-[1.25rem]"></p>
 
-    <form id="pinForm" onsubmit="handleSubmit(); return false;" autocomplete="current-password"
+    <form id="pinForm" autocomplete="current-password" hx-boost="false"
       class="flex flex-col items-center gap-4">
       <input type="password" id="pinTextInput" inputmode="numeric" pattern="[0-9]*" maxlength="8"
         placeholder="····" autocomplete="current-password"
         class="w-40 px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-primary transition-all duration-200">
-      <button type="submit" id="unlockBtn" disabled
-        class="px-6 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark active:scale-95">
+      <button type="submit" id="unlockBtn"
+        class="px-6 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm transition-all duration-200 hover:bg-primary-dark active:scale-95">
         Unlock
       </button>
     </form>
-
-    <div class="mt-6 text-center">
-      <button onclick="toggleResetForm()" id="forgotPinBtn"
-        class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors underline">
-        Forgot PIN?
-      </button>
-    </div>
-
-    <div id="resetForm" class="hidden mt-6 p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700">
-      <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Reset PIN</h3>
-      <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">
-        Enter the reset code from your environment configuration.
-      </p>
-      <form onsubmit="handleResetSubmit(); return false;" class="space-y-3">
-        <input type="text" id="resetCodeInput" placeholder="Reset code"
-          class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
-        <div id="resetError" class="hidden">
-          <div class="px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
-            <svg class="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p id="resetErrorText" class="text-xs text-red-700 dark:text-red-300 font-medium"></p>
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button type="submit" id="resetSubmitBtn"
-            class="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm">
-            Reset PIN
-          </button>
-          <button type="button" onclick="toggleResetForm()"
-            class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 font-medium text-sm">
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
   </div>
 </main>
 
@@ -105,58 +69,34 @@
     }).catch(() => {});
   }
 
-  let pin = '';
   const errorMsg = document.getElementById('errorMsg');
   const textInput = document.getElementById('pinTextInput');
-  const unlockBtn = document.getElementById('unlockBtn');
-
-  function syncTextInput() {
-    if (textInput) textInput.value = pin;
-  }
 
   function clearError() {
     errorMsg.textContent = '';
+    textInput.classList.remove('border-red-400', 'dark:border-red-500');
   }
 
-  function updateUnlockBtn() {
-    if (unlockBtn) unlockBtn.disabled = pin.length < 4;
-  }
-
-  function handleSubmit() {
-    if (pin.length >= 4) submitPin();
-  }
-
-  function showPinError(msg) {
-    if (textInput) {
-      textInput.classList.add('border-red-400', 'dark:border-red-500', 'shake');
-    }
+  function showError(msg) {
     errorMsg.textContent = msg;
-    setTimeout(() => {
-      if (textInput) {
-        textInput.classList.remove('shake', 'border-red-400', 'dark:border-red-500');
-      }
-      pin = '';
-      syncTextInput();
-      updateUnlockBtn();
-      if (textInput) {
-        textInput.disabled = false;
-        textInput.focus();
-      }
-    }, 500);
+    textInput.classList.add('border-red-400', 'dark:border-red-500', 'shake');
+    setTimeout(() => textInput.classList.remove('shake'), 450);
+    textInput.value = '';
+    textInput.focus();
   }
 
   async function submitPin() {
-    if (textInput) { textInput.blur(); textInput.disabled = true; }
-    if (unlockBtn) unlockBtn.disabled = true;
+    const pin = textInput.value.replace(/\D/g, '');
+
+    if (pin.length < 4) {
+      showError('Incorrect PIN');
+      return;
+    }
 
     if (!navigator.onLine) {
       const storedHash = localStorage.getItem('lk_pin_client_hash');
       if (!storedHash) {
         errorMsg.textContent = 'Offline — connect to verify PIN';
-        pin = '';
-        syncTextInput();
-        updateUnlockBtn();
-        if (textInput) { textInput.disabled = false; textInput.focus(); }
         return;
       }
       try {
@@ -165,14 +105,10 @@
         if (hex === storedHash) {
           window.location.replace(NEXT_URL || '/');
         } else {
-          showPinError('Incorrect PIN');
+          showError('Incorrect PIN');
         }
       } catch (_) {
         errorMsg.textContent = 'Offline — cannot verify PIN';
-        pin = '';
-        syncTextInput();
-        updateUnlockBtn();
-        if (textInput) { textInput.disabled = false; textInput.focus(); }
       }
       return;
     }
@@ -193,95 +129,32 @@
           }).catch(() => {});
         window.location.replace(data.redirect || '/');
       } else {
-        showPinError('Incorrect PIN');
+        showError('Incorrect PIN');
       }
     } catch (_) {
       errorMsg.textContent = 'Connection error. Try again.';
-      pin = '';
-      syncTextInput();
-      updateUnlockBtn();
-      if (textInput) { textInput.disabled = false; textInput.focus(); }
     }
   }
 
-  if (textInput) {
-    textInput.addEventListener('input', () => {
-      const numeric = textInput.value.replace(/\D/g, '').slice(0, 8);
-      pin = numeric;
-      textInput.value = numeric;
-      updateUnlockBtn();
+  document.getElementById('pinForm').addEventListener('submit', e => {
+    e.preventDefault();
+    submitPin();
+  });
+
+  textInput.addEventListener('input', () => {
+    const numeric = textInput.value.replace(/\D/g, '').slice(0, 8);
+    textInput.value = numeric;
+    clearError();
+    if (numeric.length === 8) submitPin();
+  });
+
+  textInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      textInput.value = '';
       clearError();
-      if (pin.length === 8) submitPin();
-    });
-
-    textInput.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        pin = '';
-        textInput.value = '';
-        updateUnlockBtn();
-        clearError();
-      }
-    });
-
-    textInput.focus();
-  }
-
-  updateUnlockBtn();
-
-  function toggleResetForm() {
-    const resetForm = document.getElementById('resetForm');
-    const forgotBtn = document.getElementById('forgotPinBtn');
-    const isHidden = resetForm.classList.toggle('hidden');
-    if (forgotBtn) forgotBtn.classList.toggle('hidden', !isHidden);
-    if (!isHidden) {
-      document.getElementById('resetCodeInput')?.focus();
-      document.getElementById('resetError')?.classList.add('hidden');
     }
-  }
+  });
 
-  async function handleResetSubmit() {
-    const resetCodeInput = document.getElementById('resetCodeInput');
-    const resetError = document.getElementById('resetError');
-    const resetErrorText = document.getElementById('resetErrorText');
-    const resetSubmitBtn = document.getElementById('resetSubmitBtn');
-    const resetCode = resetCodeInput?.value.trim() || '';
-
-    if (!resetCode) {
-      resetError?.classList.remove('hidden');
-      if (resetErrorText) resetErrorText.textContent = 'Please enter a reset code';
-      return;
-    }
-
-    if (!navigator.onLine) {
-      resetError?.classList.remove('hidden');
-      if (resetErrorText) resetErrorText.textContent = 'You\'re offline — connect to reset PIN';
-      return;
-    }
-
-    if (resetSubmitBtn) resetSubmitBtn.disabled = true;
-    resetError?.classList.add('hidden');
-
-    try {
-      const res = await fetch('/auth/reset-pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reset_code: resetCode })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        localStorage.removeItem('lk_pin_client_hash');
-        window.location.replace('/settings/');
-      } else {
-        resetError?.classList.remove('hidden');
-        if (resetErrorText) resetErrorText.textContent = data.message || 'Invalid reset code';
-        if (resetSubmitBtn) resetSubmitBtn.disabled = false;
-      }
-    } catch (err) {
-      resetError?.classList.remove('hidden');
-      if (resetErrorText) resetErrorText.textContent = 'Connection error. Try again.';
-      if (resetSubmitBtn) resetSubmitBtn.disabled = false;
-    }
-  }
+  textInput.focus();
 </script>
 {% endblock %}
