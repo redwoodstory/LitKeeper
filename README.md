@@ -1,25 +1,24 @@
 # LitKeeper
 
-This is a web app to save stories from [Literotica](https://www.literotica.com) to EPUB and/or HTML formats.
+LitKeeper is a Progressive Web App (PWA) that lets you download and organize stories from [Literotica](https://www.literotica.com) for offline reading.
 
-This started as a tool to download stories as EPUBs to use on an e-reader. It has evolved to also include an optional interactive library within the app itself. The library allows you to either download EPUBs from the web browser or read your stories in HTML format within the app. As LitKeeper can be installed to your device as a PWA, you can choose to sync your HTML stories offline too.
+Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience alongside offline synchronization.
 
 ## Features
 
 ### Core Functionality
-- Download stories in EPUB format (for e-readers) and/or HTML format (for in-browser reading)
-- Provides customizable fonts, sizes, line spacing, and reading width for HTML reading
-- Retrieves story content and converts to selected format(s)
-- Bundles story category and tags into metadata
-- Generates cover images for EPUB files showing the story title and author name
-- Identifies if the story is part of a series and bundles subsequent stories into a single file
-- Table of contents for easy navigation in multi-chapter stories
-- Provides an API to download stories directly from iOS shortcuts (see example below)
-- Sends notifications when stories are downloaded
-- Checks for new chapters or updates to stories in your library and automatically downloads them on a schedule (randomly-generated in the app code to avoid all users querying the source servers at the same time)
+* **Multi-Format Support:** Download stories as EPUB or HTML, and read either format directly within the app.
+* **Customizable Reader:** Adjust fonts, text size, line spacing, and reading width for a tailored reading experience.
+* **Smart Library Management:** Story categories and tags are automatically bundled into the metadata, enabling easy filtering, sorting, and searching.
+* **Custom Covers:** Automatically generate aesthetic cover images for EPUB files featuring the story title and author.
+* **Automated Series Bundling:** Detects if a story is part of a series, fetches all related parts, and compiles them into a single file. Both formats include a built-in table of contents for easy navigation.
+* **Auto-Updates & Notifications:** Receive alerts when downloads finish. LitKeeper can also check for new chapters and download updates automatically. *(Note: Update schedules are randomized in the code to prevent overwhelming source servers).*
+* **Responsive Design:** Enjoy a mobile-friendly UI that dynamically adapts with bottom navigation and optimized spacing for smaller screens.
 
 ### Progressive Web App (PWA) Features
-Install LitKeeper as a native app on mobile and desktop devices. As a PWA, you can sync HTML stories offline to read without an internet connection. PWA features (offline reading, app installation, OPFS storage) require HTTPS.
+Install LitKeeper natively on your mobile or desktop device to sync HTML stories for complete offline access without an internet connection. 
+
+**Note:** PWA capabilities (offline reading, app installation, OPFS storage) require a secure context (HTTPS). You will likely need to deploy this behind a reverse proxy with an SSL certificate.
 
 
 ## ⚠️ Migrating from V1
@@ -50,8 +49,6 @@ services:
 
       # Notification configuration based on Apprise (supports multiple services)
       # See Apprise docs for full list: https://github.com/caronc/apprise#supported-notifications
-      # - NOTIFICATION_URLS=tgram://BOT_TOKEN/CHAT_ID
-
       # Examples for a few services:
       # - Telegram: tgram://BOT_TOKEN/CHAT_ID
       # - Discord: discord://webhook_id/webhook_token
@@ -110,19 +107,17 @@ Without these bind mounts, your stories and database will be lost when the conta
 
 ### PIN Lock
 
-LitKeeper supports optional PIN locking to secure the app when installed as a PWA on shared devices. This is meant for simple locking and unlocking of the UI; it is not intended to be a hardened security wall. For more security, I recommend moving LitKeeper behind a reverse proxy and using a tool like Authentik, Authelia, etc. 
+LitKeeper supports optional PIN locking to secure the app when installed as a PWA on shared devices. This is meant for simple locking and unlocking of the UI to avoid snooping; it is not intended to be a hardened security wall. For more security, I recommend using a tool like Authentik, Authelia, etc. 
 
-### Forgot Your PIN?
+### PIN Reset
 
-If you forget your PIN, run this command to immediately disable the PIN lock:
+If you forget your PIN, run this command to disable the PIN lock:
 
 ```bash
 docker exec -it <container-name> python reset_pin.py
 ```
 
-Replace `<container-name>` with your actual container name. You can find it by running `docker ps`.
-
-This will disable the PIN lock and allow you to access the app. You can then set a new PIN in Settings.
+Replace `<container-name>` with your actual container name (find it by running `docker ps`).
 
 
 ## API Reference & Integrations
