@@ -1,0 +1,52 @@
+# Local data — never bundle into the image
+app/data/
+app/stories/
+
+# Dev/test artifacts
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment
+.env
+.env.*
+*.env
+venv/
+.venv/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.github/
+
+# Logs
+*.log
+
+# Test / coverage artifacts
+htmlcov/
+.coverage
+.pytest_cache/
+pytest.ini
+
+# Dev-only directories
+tests/
+scripts/
+plans/
+.claude/
+
+# Backup files
+*.backup
+
+# Python packaging artifacts
+*.egg-info/
+dist/
+build/
