@@ -54,6 +54,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
   background: var(--header-bg);
   border-bottom: 1px solid var(--border-color);
   position: fixed;
@@ -124,6 +125,7 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .side-panel.active {
@@ -190,7 +192,7 @@ body {
 .settings-panel {
   display: none;
   position: fixed;
-  top: 4rem;
+  top: calc(4rem + env(safe-area-inset-top, 0px));
   right: 1rem;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -285,10 +287,10 @@ body {
 
 #reader-main {
   position: fixed;
-  top: 80px;
+  top: calc(80px + env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
-  bottom: 60px;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -356,6 +358,7 @@ body {
   background: var(--header-bg);
   border-top: 1px solid var(--border-color);
   padding: 0.5rem 1rem;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
   position: fixed;
   bottom: 0;
   left: 0;
