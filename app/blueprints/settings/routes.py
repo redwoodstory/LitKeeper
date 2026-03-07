@@ -133,6 +133,20 @@ def get_auto_update_schedule() -> ResponseReturnValue:
         return jsonify({"success": False, "message": "Error loading schedule"}), 500
 
 
+@settings.route('/regenerate-covers-new', methods=['POST'])
+def regenerate_covers() -> ResponseReturnValue:
+    try:
+        from app.services.bulk_format_generator import BulkFormatGeneratorService
+        service = BulkFormatGeneratorService()
+        result = service.regenerate_all_covers()
+        if result['failed'] > 0:
+            return f'<p class="text-sm text-yellow-600 mt-2">Done: {result["successful"]} succeeded, {result["failed"]} failed.</p>'
+        return f'<p class="text-sm text-green-600 mt-2">Done: regenerated {result["successful"]} covers.</p>'
+    except Exception as e:
+        log_error(f"Error in regenerate_covers: {str(e)}\n{traceback.format_exc()}")
+        return '<p class="text-sm text-red-600 mt-2">An error occurred. Check the logs.</p>', 500
+
+
 @settings.route('/toggle-auto-update', methods=['POST'])
 def toggle_auto_update() -> ResponseReturnValue:
     try:
