@@ -159,8 +159,8 @@ def toggle_auto_update() -> ResponseReturnValue:
         else:
             auto_update_config = AppConfig(
                 key='auto_update_enabled',
-                value=enabled,
-                value_type='boolean',
+                value='true' if enabled else 'false',
+                value_type='bool',
                 description='Global setting to enable/disable automatic story updates'
             )
             db.session.add(auto_update_config)
