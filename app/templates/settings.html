@@ -161,6 +161,18 @@
           </button>
         </div>
 
+        <div class="mt-4 pt-4 border-t border-slate-100 dark:border-gray-700/60">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="lockTimeoutSelect">Auto-lock after inactivity</label>
+          <select id="lockTimeoutSelect" onchange="updateLockTimeout(this.value)"
+            class="px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            <option value="0" {% if auto_lock_timeout == 0 %}selected{% endif %}>Never (manual lock only)</option>
+            <option value="30" {% if auto_lock_timeout == 30 %}selected{% endif %}>30 minutes</option>
+            <option value="60" {% if auto_lock_timeout == 60 %}selected{% endif %}>1 hour</option>
+            <option value="120" {% if auto_lock_timeout == 120 %}selected{% endif %}>2 hours</option>
+            <option value="240" {% if auto_lock_timeout == 240 %}selected{% endif %}>4 hours</option>
+          </select>
+        </div>
+
         <div id="changePinForm" class="hidden mt-4 pt-4 border-t border-slate-100 dark:border-gray-700/60">
           <form onsubmit="saveChangedPin(); return false;" autocomplete="new-password" novalidate>
             <div class="mb-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -251,7 +263,9 @@
       </p>
 
       <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
-        hx-indicator="#btnCoversNew" id="btnCoversNew" class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+        hx-indicator="#btnCoversNew" id="btnCoversNew"
+        hx-on::after-request="if(event.detail.successful && navigator.serviceWorker?.controller) { navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COVERS_CACHE' }); }"
+        class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
         <span class="htmx-indicator">Regenerating...</span>
         <span class="htmx-not-indicator">Regenerate All Covers</span>
       </button>
@@ -970,6 +984,20 @@
       errorContainer.classList.remove('hidden');
       errorTextEl.textContent = data.message || 'Failed to update PIN';
     }
+  }
+
+  async function updateLockTimeout(minutes) {
+    if (!navigator.onLine) {
+      showToast('You\'re offline — connect to save changes', 'warning');
+      return;
+    }
+    const res = await fetch('/auth/update-timeout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes: parseInt(minutes, 10) })
+    });
+    const data = await res.json();
+    if (!data.success) showToast(data.message || 'Failed to save timeout', 'error');
   }
 
   async function storePinHashLocally(pin) {

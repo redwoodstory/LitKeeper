@@ -148,7 +148,7 @@ def update_timeout():
     data = request.get_json(silent=True) or {}
     try:
         minutes = int(data.get('minutes', 0))
-        if minutes not in (0, 5, 15, 30):
+        if minutes not in (0, 30, 60, 120, 240):
             raise ValueError
     except (ValueError, TypeError):
         return jsonify({'success': False, 'message': 'Invalid timeout value'}), 400
@@ -160,7 +160,7 @@ def update_timeout():
         else:
             db.session.add(AppConfig(
                 key='auto_lock_timeout', value=str(minutes),
-                value_type='int', description='Lock timeout minutes (0=on background)'
+                value_type='int', description='Lock timeout minutes (0=never, >0=inactivity threshold)'
             ))
         db.session.commit()
     except Exception:

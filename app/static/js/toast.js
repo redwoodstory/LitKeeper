@@ -18,9 +18,9 @@ class Toast {
     const toast = document.createElement('div');
     toast.className = `pointer-events-auto transform transition-all duration-300 ease-out translate-y-0 opacity-100 
       px-4 py-3 rounded-lg shadow-lg border flex items-center gap-3 min-w-[300px] max-w-md mx-auto
-      ${type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300' : ''}
-      ${type === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300' : ''}
-      ${type === 'info' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300' : ''}`;
+      ${type === 'success' ? 'bg-green-600 dark:bg-green-700 border-green-700 dark:border-green-600 text-white' : ''}
+      ${type === 'error' ? 'bg-red-600 dark:bg-red-700 border-red-700 dark:border-red-600 text-white' : ''}
+      ${type === 'info' ? 'bg-slate-800 dark:bg-slate-700 border-slate-700 dark:border-slate-600 text-white' : ''}`;
 
     const icon = type === 'success' 
       ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
@@ -31,7 +31,7 @@ class Toast {
     toast.innerHTML = `
       ${icon}
       <span class="flex-1 text-sm font-medium">${message}</span>
-      <button class="text-current opacity-50 hover:opacity-100 transition-opacity" onclick="this.parentElement.remove()">
+      <button class="text-white/70 hover:text-white transition-colors" onclick="this.parentElement.remove()">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>

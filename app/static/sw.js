@@ -536,6 +536,15 @@ self.addEventListener('message', async (event) => {
     event.ports[0].postMessage({ success: deleted });
   }
 
+  if (event.data && event.data.type === 'CLEAR_COVERS_CACHE') {
+    try {
+      await caches.delete(COVERS_CACHE);
+      if (event.ports[0]) event.ports[0].postMessage({ success: true });
+    } catch (error) {
+      if (event.ports[0]) event.ports[0].postMessage({ success: false, error: error.message });
+    }
+  }
+
   if (event.data && event.data.type === 'CLEAR_ALL') {
     try {
       const stories = await opfsStorage.listStories();

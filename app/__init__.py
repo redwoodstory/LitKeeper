@@ -128,7 +128,7 @@ def create_app() -> Flask:
             ('auto_refresh_metadata', 'false', 'bool', 'Auto-refresh missing metadata on startup'),
             ('pin_enabled', 'false', 'bool', 'Whether PIN lock is enabled'),
             ('pin_hash', '', 'string', 'Hashed PIN for lock screen'),
-            ('auto_lock_timeout', '0', 'int', 'Lock timeout minutes (0=on background)'),
+            ('auto_lock_timeout', '0', 'int', 'Lock timeout minutes (0=never, >0=inactivity threshold)'),
         ]
 
         for key, value, value_type, description in config_defaults:
@@ -266,12 +266,10 @@ def create_app() -> Flask:
             return _lock_response()
         timeout_cfg = AppConfig.query.filter_by(key='auto_lock_timeout').first()
         minutes = int(timeout_cfg.value) if timeout_cfg else 0
-        # For background-only locking (minutes=0), use a 30-min server fallback
-        # to catch cases where the JS beacon failed (e.g. no connectivity)
-        threshold = minutes * 60 if minutes > 0 else 1800
-        if time.time() - session.get('last_activity', 0) > threshold:
-            session['pin_unlocked'] = False
-            return _lock_response()
+        if minutes > 0:
+            if time.time() - session.get('last_activity', 0) > minutes * 60:
+                session['pin_unlocked'] = False
+                return _lock_response()
         session['last_activity'] = time.time()
 
     @app.context_processor
