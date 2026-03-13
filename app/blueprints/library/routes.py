@@ -191,6 +191,8 @@ def filter_library() -> ResponseReturnValue:
                 return (story.get('category', '').lower(),)
             elif validated.sort_by == 'length':
                 return (story.get('word_count', 0),)
+            elif validated.sort_by == 'rating':
+                return (story.get('rating') or 0,)
             else:
                 return (story.get('created_at', ''),)
 

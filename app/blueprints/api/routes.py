@@ -650,6 +650,26 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
             "message": "An error occurred while updating metadata"
         }), 500
 
+@api.route("/story/<int:story_id>/rating", methods=['POST'])
+def set_story_rating(story_id: int) -> ResponseReturnValue:
+    from app.models import Story, db
+
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({"success": False, "message": "Story not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    rating = data.get('rating')
+
+    if rating is not None:
+        if not isinstance(rating, int) or rating < 1 or rating > 5:
+            return jsonify({"success": False, "message": "Rating must be 1–5 or null"}), 400
+
+    story.rating = rating
+    db.session.commit()
+    return jsonify({"rating": story.rating})
+
+
 @api.route("/story/toggle-auto-update/<int:story_id>", methods=['POST'])
 def toggle_auto_update(story_id: int) -> ResponseReturnValue:
     try:
@@ -840,6 +860,7 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'created_at': story.created_at,
         'auto_update_enabled': story.auto_update_enabled,
         'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+        'rating': story.rating,
     }
     
     return render_template('components/story_modal.html', story=story_data)

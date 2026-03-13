@@ -53,6 +53,21 @@
 </div>
 {% endif %}
 
+<div class="flex items-center gap-0.5 mb-3" id="storyRatingWidget" data-story-id="{{ story.id }}" data-current-rating="{{ story.rating or 0 }}">
+  {% for i in range(1, 6) %}
+  <button class="rating-star text-2xl leading-none {{ 'text-amber-400' if story.rating and i <= story.rating else 'text-slate-300 dark:text-slate-600' }} focus:outline-none"
+          data-value="{{ i }}"
+          onclick="handleStarClick({{ story.id }}, {{ i }})"
+          aria-label="{{ i }} star{{ 's' if i != 1 else '' }}">★</button>
+  {% endfor %}
+  <button class="clear-rating-btn {{ '' if story.rating else 'hidden' }} ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors duration-150 focus:outline-none"
+          onclick="handleStarClick({{ story.id }}, null)"
+          title="Clear rating">
+    <span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-slate-400 dark:bg-slate-500 text-white" style="font-size:9px">✕</span>
+    Clear
+  </button>
+</div>
+
 <p class="text-xs text-gray-500 dark:text-gray-400">
   Added {{ story.created_at.strftime('%b %d, %Y') }}<br class="md:hidden">
   {% if story.page_count %}<span class="hidden md:inline"> •</span> {{ story.page_count }} page{% if story.page_count != 1 %}s{% endif %}{% endif %}
@@ -266,6 +281,38 @@
 
 <script>
 document.body.style.overflow = 'hidden';
+
+function handleStarClick(storyId, rating) {
+  updateRatingWidget(rating);
+  updateLibraryCardHeart(storyId, rating);
+  fetch(`/api/story/${storyId}/rating`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating })
+  });
+}
+
+function updateRatingWidget(rating) {
+  const widget = document.getElementById('storyRatingWidget');
+  if (!widget) return;
+  widget.dataset.currentRating = rating || 0;
+  widget.querySelectorAll('.rating-star').forEach(btn => {
+    const v = parseInt(btn.dataset.value);
+    const filled = !!(rating && v <= rating);
+    btn.classList.toggle('text-amber-400', filled);
+    btn.classList.toggle('text-slate-300', !filled);
+    btn.classList.toggle('dark:text-slate-600', !filled);
+  });
+  const clearBtn = widget.querySelector('.clear-rating-btn');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !rating);
+}
+
+function updateLibraryCardHeart(storyId, rating) {
+  const card = document.querySelector(`[data-story-id="${storyId}"]`);
+  if (!card) return;
+  const heart = card.querySelector('.heart-badge');
+  if (heart) heart.classList.toggle('hidden', rating !== 5);
+}
 
 document.addEventListener('keydown', function handleEscape(e) {
   if (e.key === 'Escape') {
