@@ -4,6 +4,8 @@ LitKeeper is a Progressive Web App (PWA) that lets you download and organize sto
 
 Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience alongside offline synchronization.
 
+*Note: AI coding assistants were used in the development of this app.*
+
 ## Features
 
 ### Core Functionality
