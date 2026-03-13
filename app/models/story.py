@@ -33,6 +33,7 @@ class Story(BaseModel, TimestampMixin):
     auto_refresh_exclusion_type = db.Column(db.String(50))
 
     rating = db.Column(db.Integer, nullable=True)
+    in_queue = db.Column(db.Boolean, default=False, nullable=False)
 
     author = db.relationship('Author', back_populates='stories', lazy='joined')
     category = db.relationship('Category', back_populates='stories', lazy='joined')
@@ -89,4 +90,5 @@ class Story(BaseModel, TimestampMixin):
             'series_url': self.literotica_series_url,
             'is_series': bool(self.literotica_series_url and self.chapter_count > 1),
             'rating': self.rating,
+            'in_queue': bool(self.in_queue),
         }

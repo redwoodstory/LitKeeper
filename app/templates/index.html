@@ -75,116 +75,131 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
       </svg>
-      View Download Queue
+      View Download History
     </a>
   </div>
 </div>
 
 {% if enable_library %}
 <div class="card">
-  <div class="flex flex-col gap-4 mb-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Library</h2>
-        <p id="libraryCount" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          {% if stories|length == 0 %}
-            No stories yet
-          {% elif stories|length == 1 %}
-            1 story
-          {% else %}
-            {{ stories|length }} stories
-          {% endif %}
-        </p>
-      </div>
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Library</h2>
+      <p id="libraryCount" class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+        {% if stories|length == 0 %}
+          No stories yet
+        {% elif stories|length == 1 %}
+          1 story
+        {% else %}
+          {{ stories|length }} stories
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div id="libraryFilters" class="flex flex-col gap-2 mb-6 sm:flex-row sm:flex-wrap sm:items-center">
+    {# Search — grows to fill available space on desktop #}
+    <div class="relative sm:flex-1 sm:min-w-[180px]">
+      <input type="text"
+             id="searchInput"
+             name="search"
+             placeholder="Search stories..."
+             data-requires-online
+             hx-get="/library/filter"
+             hx-trigger="keyup changed delay:300ms"
+             hx-target="#library-content"
+             hx-include="[name='category'], [name='sort_by'], [name='sort_order']"
+             style="height: 2.5rem; width: 100%"
+             class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
+                    bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                    focus:ring-2 focus:ring-primary focus:border-transparent
+                    placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200">
+      <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+      </svg>
     </div>
 
-    <div id="libraryFilters" class="flex flex-col gap-3">
-      <div class="relative w-full">
-        <input type="text"
-               id="searchInput"
-               name="search"
-               placeholder="Search stories..."
-               data-requires-online
-               hx-get="/library/filter"
-               hx-trigger="keyup changed delay:300ms"
-               hx-target="#library-content"
-               hx-include="[name='category'], [name='sort_by'], [name='sort_order']"
-               style="height: 2.5rem; width: 100%"
-               class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
-                      bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
-                      focus:ring-2 focus:ring-primary focus:border-transparent
-                      placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200">
-        <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    {# Category filter #}
+    <select id="categoryFilter"
+            name="category"
+            data-requires-online
+            hx-get="/library/filter"
+            hx-trigger="change"
+            hx-target="#library-content"
+            hx-include="[name='search'], [name='sort_by'], [name='sort_order']"
+            class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                   bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                   focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                   sm:w-40">
+      <option value="all">All Categories</option>
+      <option value="uncategorized">Uncategorized</option>
+      {% for category in categories %}
+      <option value="{{ category }}">{{ category }}</option>
+      {% endfor %}
+    </select>
+
+    {# Reading Queue toggle #}
+    <button type="button"
+            id="queueFilterToggle"
+            onclick="toggleQueueFilter(this)"
+            class="h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
+                   text-slate-500 dark:text-slate-400
+                   hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400
+                   transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
+            title="Filter by reading queue">
+      <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+      </svg>
+      <span>Reading Queue</span>
+    </button>
+
+    {# Mobile divider between filters and sort #}
+    <hr class="sm:hidden border-slate-200 dark:border-slate-700">
+
+    {# Sort controls — grouped so they stay on one line on mobile; sm:contents dissolves the wrapper on desktop #}
+    <div class="flex items-center gap-2 sm:contents">
+      {# Vertical divider before sort (desktop only) #}
+      <div class="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700 flex-shrink-0 mx-1"></div>
+
+      {# Sort by #}
+      <select id="sortBy"
+              name="sort_by"
+              data-requires-online
+              hx-get="/library/filter"
+              hx-trigger="change"
+              hx-target="#library-content"
+              hx-include="[name='search'], [name='category'], [name='sort_order']"
+              class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                     flex-1 sm:flex-none sm:w-36">
+        <option value="date">Date Added</option>
+        <option value="name">Title</option>
+        <option value="author">Author</option>
+        <option value="category">Category</option>
+        <option value="length">Story Length</option>
+        <option value="rating">Rating</option>
+      </select>
+
+      {# Sort order toggle #}
+      <button type="button"
+              id="sortOrderToggle"
+              name="sort_order"
+              value="desc"
+              data-requires-online
+              hx-get="/library/filter"
+              hx-trigger="click"
+              hx-target="#library-content"
+              hx-include="[name='search'], [name='category'], [name='sort_by'], [name='sort_order']"
+              class="h-10 w-10 rounded-lg border border-slate-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
+                     hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200
+                     flex items-center justify-center flex-shrink-0"
+              title="Descending order">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center gap-2" style="display: flex; align-items: center; gap: 0.5rem">
-          <label for="categoryFilter" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap w-16" style="width: 4rem; flex-shrink: 0">Filter:</label>
-          <select id="categoryFilter"
-                  name="category"
-                  data-requires-online
-                  hx-get="/library/filter"
-                  hx-trigger="change"
-                  hx-target="#library-content"
-                  hx-include="[name='search'], [name='sort_by'], [name='sort_order']"
-                  style="height: 2.5rem; flex: 1; min-width: 0"
-                  class="h-10 pl-4 pr-10 rounded-lg border border-slate-200 dark:border-gray-700
-                         bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
-                         focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                         flex-1">
-            <option value="all">All Categories</option>
-            <option value="uncategorized">Uncategorized</option>
-            {% for category in categories %}
-            <option value="{{ category }}">{{ category }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="flex items-center gap-2" style="display: flex; align-items: center; gap: 0.5rem">
-          <label for="sortBy" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap w-16" style="width: 4rem; flex-shrink: 0">Sort by:</label>
-          <select id="sortBy"
-                  name="sort_by"
-                  data-requires-online
-                  hx-get="/library/filter"
-                  hx-trigger="change"
-                  hx-target="#library-content"
-                  hx-include="[name='search'], [name='category'], [name='sort_order']"
-                  style="height: 2.5rem; flex: 1; min-width: 0"
-                  class="h-10 pl-4 pr-10 rounded-lg border border-slate-200 dark:border-gray-700
-                         bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-base
-                         focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                         flex-1">
-            <option value="date">Date Added</option>
-            <option value="name">Title</option>
-            <option value="author">Author</option>
-            <option value="category">Category</option>
-            <option value="length">Story Length</option>
-            <option value="rating">Rating</option>
-          </select>
-
-          <button type="button"
-                  id="sortOrderToggle"
-                  name="sort_order"
-                  value="desc"
-                  data-requires-online
-                  hx-get="/library/filter"
-                  hx-trigger="click"
-                  hx-target="#library-content"
-                  hx-include="[name='search'], [name='category'], [name='sort_by'], [name='sort_order']"
-                  style="height: 2.5rem; width: 2.5rem"
-                  class="h-10 w-10 rounded-lg border border-slate-200 dark:border-gray-700
-                         bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
-                         hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200
-                         flex items-center justify-center flex-shrink-0"
-                  title="Descending order">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
+      </button>
     </div>
   </div>
 

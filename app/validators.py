@@ -88,6 +88,7 @@ class LibraryFilterRequest(BaseModel):
     category: str = "all"
     sort_by: Literal["name", "date", "author", "category", "length", "rating"] = "date"
     sort_order: Literal["asc", "desc"] = "desc"
+    queue_only: bool = False
 
     @field_validator('search')
     @classmethod

@@ -145,7 +145,8 @@ def filter_library() -> ResponseReturnValue:
             search=request.args.get('search', ''),
             category=request.args.get('category', 'all'),
             sort_by=request.args.get('sort_by', 'date'),
-            sort_order=request.args.get('sort_order', 'desc')
+            sort_order=request.args.get('sort_order', 'desc'),
+            queue_only=request.args.get('queue_only', 'false')
         )
 
         stories = get_library_data()
@@ -182,6 +183,9 @@ def filter_library() -> ResponseReturnValue:
             else:
                 stories = [s for s in stories if s.get('category') == validated.category]
 
+        if validated.queue_only:
+            stories = [s for s in stories if s.get('in_queue')]
+
         def get_sort_key(story: dict) -> tuple:
             if validated.sort_by == 'name':
                 return (story.get('title', '').lower(),)
@@ -209,13 +213,13 @@ def filter_library() -> ResponseReturnValue:
             for s in sample_stories:
                 log_action(f"[SORT DEBUG] After sort: {s.get('title')} - word_count={s.get('word_count')}")
 
-        return render_template("_library_content.html", stories=stories)
+        return render_template("_library_content.html", stories=stories, queue_only=validated.queue_only)
     except ValidationError as e:
         log_error(f"Validation error in library filter: {str(e)}")
-        return render_template("_library_content.html", stories=[])
+        return render_template("_library_content.html", stories=[], queue_only=False)
     except Exception as e:
         log_error(f"Error filtering library: {str(e)}")
-        return render_template("_library_content.html", stories=[])
+        return render_template("_library_content.html", stories=[], queue_only=False)
 
 @library.route("/read/<filename>")
 def read_story(filename: str) -> ResponseReturnValue:

@@ -430,6 +430,8 @@ def generate_epub_format(story_id: int) -> ResponseReturnValue:
                     'created_at': story.created_at,
                     'auto_update_enabled': story.auto_update_enabled,
                     'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+                    'rating': story.rating,
+                    'in_queue': bool(story.in_queue),
                 }
                 return render_template('components/story_modal.html', story=story_data)
 
@@ -473,6 +475,8 @@ def generate_html_format(story_id: int) -> ResponseReturnValue:
                     'created_at': story.created_at,
                     'auto_update_enabled': story.auto_update_enabled,
                     'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+                    'rating': story.rating,
+                    'in_queue': bool(story.in_queue),
                 }
                 return render_template('components/story_modal.html', story=story_data)
 
@@ -670,6 +674,25 @@ def set_story_rating(story_id: int) -> ResponseReturnValue:
     return jsonify({"rating": story.rating})
 
 
+@api.route("/story/<int:story_id>/queue", methods=['POST'])
+def toggle_story_queue(story_id: int) -> ResponseReturnValue:
+    from app.models import Story, db
+
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({"success": False, "message": "Story not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    in_queue = data.get('in_queue')
+
+    if not isinstance(in_queue, bool):
+        return jsonify({"success": False, "message": "in_queue must be a boolean"}), 400
+
+    story.in_queue = in_queue
+    db.session.commit()
+    return jsonify({"in_queue": story.in_queue})
+
+
 @api.route("/story/toggle-auto-update/<int:story_id>", methods=['POST'])
 def toggle_auto_update(story_id: int) -> ResponseReturnValue:
     try:
@@ -861,8 +884,9 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'auto_update_enabled': story.auto_update_enabled,
         'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
         'rating': story.rating,
+        'in_queue': bool(story.in_queue),
     }
-    
+
     return render_template('components/story_modal.html', story=story_data)
 
 @api.route("/story/<int:story_id>/regenerate-cover", methods=['POST'])

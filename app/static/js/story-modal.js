@@ -25,12 +25,14 @@ async function invalidateLibraryCache() {
   }
 }
 
+let _queueFilterActive = false;
+
 function refreshLibrary() {
   const searchInput = document.getElementById('searchInput');
   const categoryFilter = document.getElementById('categoryFilter');
   const sortBy = document.getElementById('sortBy');
   const sortOrderToggle = document.getElementById('sortOrderToggle');
-  
+
   if (searchInput) {
     htmx.trigger(searchInput, 'keyup');
   } else {
@@ -40,7 +42,8 @@ function refreshLibrary() {
       if (categoryFilter) params.append('category', categoryFilter.value);
       if (sortBy) params.append('sort_by', sortBy.value);
       if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
-      
+      if (_queueFilterActive) params.append('queue_only', 'true');
+
       fetch(`/library/filter?${params.toString()}`)
         .then(response => response.text())
         .then(html => {
@@ -55,6 +58,120 @@ function refreshLibrary() {
         });
     }
   }
+}
+
+document.body.addEventListener('htmx:configRequest', function(evt) {
+  if (evt.detail.path === '/library/filter' && _queueFilterActive) {
+    evt.detail.parameters['queue_only'] = 'true';
+  }
+});
+
+window.toggleQueueFilter = function(btn) {
+  _queueFilterActive = !_queueFilterActive;
+
+  const svg = btn.querySelector('svg');
+
+  if (_queueFilterActive) {
+    btn.classList.remove(
+      'border-dashed', 'border-slate-300', 'dark:border-slate-600',
+      'text-slate-500', 'dark:text-slate-400',
+      'hover:border-indigo-400', 'dark:hover:border-indigo-500',
+      'hover:text-indigo-600', 'dark:hover:text-indigo-400'
+    );
+    btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'border-solid', 'hover:bg-indigo-700');
+    if (svg) svg.setAttribute('fill', 'currentColor');
+    btn.title = 'Clear reading queue filter';
+  } else {
+    btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'border-solid', 'hover:bg-indigo-700');
+    btn.classList.add(
+      'border-dashed', 'border-slate-300', 'dark:border-slate-600',
+      'text-slate-500', 'dark:text-slate-400',
+      'hover:border-indigo-400', 'dark:hover:border-indigo-500',
+      'hover:text-indigo-600', 'dark:hover:text-indigo-400'
+    );
+    if (svg) svg.setAttribute('fill', 'none');
+    btn.title = 'Filter by reading queue';
+  }
+
+  // Direct fetch — avoids htmx's `changed` modifier suppressing the request
+  const params = new URLSearchParams();
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const sortBy = document.getElementById('sortBy');
+  const sortOrderToggle = document.getElementById('sortOrderToggle');
+  if (searchInput) params.append('search', searchInput.value);
+  if (categoryFilter) params.append('category', categoryFilter.value);
+  if (sortBy) params.append('sort_by', sortBy.value);
+  if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
+  if (_queueFilterActive) params.append('queue_only', 'true');
+
+  const libraryContent = document.getElementById('library-content');
+  if (libraryContent) {
+    fetch(`/library/filter?${params.toString()}`)
+      .then(r => r.text())
+      .then(html => {
+        libraryContent.outerHTML = html;
+        const newContent = document.getElementById('library-content');
+        if (newContent) htmx.process(newContent);
+      })
+      .catch(err => console.error('[Queue] Filter failed:', err));
+  }
+};
+
+window.handleQueueToggle = function(storyId) {
+  const btn = document.getElementById('queueToggleBtn');
+  if (!btn) return;
+
+  const currentlyInQueue = btn.dataset.inQueue === 'true';
+  const newValue = !currentlyInQueue;
+
+  btn.dataset.inQueue = newValue ? 'true' : 'false';
+  updateQueueButton(btn, newValue);
+  updateLibraryCardQueueBadge(storyId, newValue);
+
+  fetch(`/api/story/${storyId}/queue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ in_queue: newValue })
+  }).then(r => r.json()).then(data => {
+    if (typeof data.in_queue !== 'boolean') {
+      btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
+      updateQueueButton(btn, currentlyInQueue);
+      updateLibraryCardQueueBadge(storyId, currentlyInQueue);
+    }
+  }).catch(() => {
+    btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
+    updateQueueButton(btn, currentlyInQueue);
+    updateLibraryCardQueueBadge(storyId, currentlyInQueue);
+  });
+};
+
+function updateQueueButton(btn, inQueue) {
+  const label = document.getElementById('queueToggleLabel');
+  const svg = btn.querySelector('svg');
+
+  if (label) label.textContent = inQueue ? 'In Queue' : 'Add to Queue';
+  if (svg) svg.setAttribute('fill', inQueue ? 'currentColor' : 'none');
+  btn.title = inQueue ? 'Remove from reading queue' : 'Add to reading queue';
+
+  if (inQueue) {
+    btn.classList.remove('text-indigo-600', 'dark:text-indigo-400', 'hover:text-indigo-700',
+                         'dark:hover:text-indigo-300', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/20',
+                         'border-indigo-200/60', 'dark:border-indigo-700');
+    btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'hover:bg-indigo-700');
+  } else {
+    btn.classList.add('text-indigo-600', 'dark:text-indigo-400', 'hover:text-indigo-700',
+                      'dark:hover:text-indigo-300', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/20',
+                      'border-indigo-200/60', 'dark:border-indigo-700');
+    btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'hover:bg-indigo-700');
+  }
+}
+
+function updateLibraryCardQueueBadge(storyId, inQueue) {
+  const card = document.querySelector(`[data-story-id="${storyId}"]`);
+  if (!card) return;
+  const badge = card.querySelector('.queue-badge');
+  if (badge) badge.classList.toggle('hidden', !inQueue);
 }
 
 document.addEventListener('click', function(e) {
