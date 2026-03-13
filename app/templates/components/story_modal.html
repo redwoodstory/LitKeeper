@@ -290,38 +290,6 @@
 <script>
 document.body.style.overflow = 'hidden';
 
-function handleStarClick(storyId, rating) {
-  updateRatingWidget(rating);
-  updateLibraryCardHeart(storyId, rating);
-  fetch(`/api/story/${storyId}/rating`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rating })
-  });
-}
-
-function updateRatingWidget(rating) {
-  const widget = document.getElementById('storyRatingWidget');
-  if (!widget) return;
-  widget.dataset.currentRating = rating || 0;
-  widget.querySelectorAll('.rating-star').forEach(btn => {
-    const v = parseInt(btn.dataset.value);
-    const filled = !!(rating && v <= rating);
-    btn.classList.toggle('text-amber-400', filled);
-    btn.classList.toggle('text-slate-300', !filled);
-    btn.classList.toggle('dark:text-slate-600', !filled);
-  });
-  const clearBtn = widget.querySelector('.clear-rating-btn');
-  if (clearBtn) clearBtn.classList.toggle('hidden', !rating);
-}
-
-function updateLibraryCardHeart(storyId, rating) {
-  const card = document.querySelector(`[data-story-id="${storyId}"]`);
-  if (!card) return;
-  const heart = card.querySelector('.heart-badge');
-  if (heart) heart.classList.toggle('hidden', rating !== 5);
-}
-
 document.addEventListener('keydown', function handleEscape(e) {
   if (e.key === 'Escape') {
     const modal = document.getElementById('storyModal');

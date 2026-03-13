@@ -118,15 +118,51 @@ window.toggleQueueFilter = function(btn) {
   }
 };
 
-window.handleQueueToggle = function(storyId) {
-  const btn = document.getElementById('queueToggleBtn');
-  if (!btn) return;
+window.handleStarClick = function(storyId, rating) {
+  updateRatingWidget(rating);
+  updateLibraryCardHeart(storyId, rating);
+  fetch(`/api/story/${storyId}/rating`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating })
+  });
+};
 
-  const currentlyInQueue = btn.dataset.inQueue === 'true';
+function updateRatingWidget(rating) {
+  const widgets = document.querySelectorAll('#storyRatingWidget');
+  widgets.forEach(widget => {
+    widget.dataset.currentRating = rating || 0;
+    widget.querySelectorAll('.rating-star').forEach(btn => {
+      const v = parseInt(btn.dataset.value);
+      const filled = !!(rating && v <= rating);
+      btn.classList.toggle('text-amber-400', filled);
+      btn.classList.toggle('text-slate-300', !filled);
+      btn.classList.toggle('dark:text-slate-600', !filled);
+    });
+    const clearBtn = widget.querySelector('.clear-rating-btn');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !rating);
+  });
+}
+
+function updateLibraryCardHeart(storyId, rating) {
+  const card = document.querySelector(`[data-story-id="${storyId}"]`);
+  if (!card) return;
+  const heart = card.querySelector('.heart-badge');
+  if (heart) heart.classList.toggle('hidden', rating !== 5);
+}
+
+window.handleQueueToggle = function(storyId) {
+  const btns = document.querySelectorAll('#queueToggleBtn');
+  if (btns.length === 0) return;
+
+  const firstBtn = btns[0];
+  const currentlyInQueue = firstBtn.dataset.inQueue === 'true';
   const newValue = !currentlyInQueue;
 
-  btn.dataset.inQueue = newValue ? 'true' : 'false';
-  updateQueueButton(btn, newValue);
+  btns.forEach(btn => {
+    btn.dataset.inQueue = newValue ? 'true' : 'false';
+    updateQueueButton(btn, newValue);
+  });
   updateLibraryCardQueueBadge(storyId, newValue);
 
   fetch(`/api/story/${storyId}/queue`, {
@@ -135,19 +171,23 @@ window.handleQueueToggle = function(storyId) {
     body: JSON.stringify({ in_queue: newValue })
   }).then(r => r.json()).then(data => {
     if (typeof data.in_queue !== 'boolean') {
-      btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
-      updateQueueButton(btn, currentlyInQueue);
+      btns.forEach(btn => {
+        btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
+        updateQueueButton(btn, currentlyInQueue);
+      });
       updateLibraryCardQueueBadge(storyId, currentlyInQueue);
     }
   }).catch(() => {
-    btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
-    updateQueueButton(btn, currentlyInQueue);
+    btns.forEach(btn => {
+      btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
+      updateQueueButton(btn, currentlyInQueue);
+    });
     updateLibraryCardQueueBadge(storyId, currentlyInQueue);
   });
 };
 
 function updateQueueButton(btn, inQueue) {
-  const label = document.getElementById('queueToggleLabel');
+  const label = btn.querySelector('#queueToggleLabel');
   const svg = btn.querySelector('svg');
 
   if (label) label.textContent = inQueue ? 'In Queue' : 'Add to Queue';
