@@ -122,8 +122,15 @@ docker exec -it <container-name> python reset_pin.py
 Replace `<container-name>` with your actual container name (find it by running `docker ps`).
 
 
+## CLI Reference
+
+LitKeeper exposes administrative operations (sync, migration, backfill) as Flask CLI commands for maintenance and troubleshooting.
+
+Please see the [CLI Reference](CLI.md) for the full command list and usage examples.
+
+
 ## API Reference & Integrations
 
-LitKeeper provides a REST API for external integrations like iOS Shortcuts, automation tools, or custom scripts. 
+LitKeeper provides a REST API for external integrations like iOS Shortcuts, automation tools, or custom scripts.
 
 Please see the [API Reference & Integrations documentation](API.md) for more details.

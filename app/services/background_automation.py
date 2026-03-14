@@ -5,6 +5,7 @@ import random
 from datetime import datetime
 from typing import Optional
 from app.services.logger import log_action, log_error
+from sqlalchemy import or_
 from app.models import db, Story
 
 
@@ -83,23 +84,26 @@ class BackgroundAutomation:
     
     def _run_loop(self):
         time.sleep(5)
-        
+
+        with self.app.app_context():
+            self._backfill_missing_descriptions()
+
         while self.running:
             try:
                 self.is_processing = True
                 self.last_run_time = datetime.utcnow()
-                
+
                 with self.app.app_context():
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
-                
+
                 self.is_processing = False
                 self.has_completed_first_run = True
             except Exception as e:
                 log_error(f"[AUTOMATION] Error in background automation: {str(e)}")
                 self.is_processing = False
                 self.has_completed_first_run = True
-            
+
             for _ in range(self.check_interval):
                 if not self.running:
                     break
@@ -248,3 +252,44 @@ class BackgroundAutomation:
         except Exception as e:
             db.session.rollback()
             log_error(f"[AUTOMATION] Error auto-refreshing metadata: {str(e)}")
+
+    def _backfill_missing_descriptions(self):
+        """One-time startup backfill: fetch descriptions for auto-update stories that are missing one."""
+        try:
+            from app.services.story_downloader import fetch_story_metadata
+            from app.services.metadata_refresh.rate_limiter import RateLimiter
+
+            stories = Story.query.filter(
+                Story.auto_update_enabled == True,
+                Story.literotica_url.isnot(None),
+                or_(Story.description.is_(None), Story.description == '')
+            ).all()
+
+            if not stories:
+                return
+
+            log_action(f"[AUTOMATION] Startup description backfill: {len(stories)} stories missing descriptions")
+            rate_limiter = RateLimiter(max_requests=5, time_window=60)
+
+            updated = 0
+            for story in stories:
+                if not self.running:
+                    break
+                try:
+                    rate_limiter.wait_if_needed()
+                    metadata = fetch_story_metadata(story.literotica_url)
+                    description = metadata.get('description') if metadata else None
+                    if description:
+                        story.description = description
+                        db.session.commit()
+                        updated += 1
+                        log_action(f"[AUTOMATION] Backfilled description for '{story.title}'")
+                except Exception as e:
+                    db.session.rollback()
+                    log_error(f"[AUTOMATION] Failed to backfill description for '{story.title}': {e}")
+
+            if updated:
+                log_action(f"[AUTOMATION] Startup description backfill complete: {updated}/{len(stories)} updated")
+
+        except Exception as e:
+            log_error(f"[AUTOMATION] Error in startup description backfill: {str(e)}")

@@ -225,7 +225,6 @@ def create_app() -> Flask:
 
     # Register Blueprints
     from .blueprints import api, library, downloads, errors, settings
-    from .blueprints.admin import admin
     from .blueprints.epub import epub
     from .blueprints.auth import auth
     from .blueprints.queue import queue
@@ -234,11 +233,13 @@ def create_app() -> Flask:
     app.register_blueprint(library)
     app.register_blueprint(downloads)
     app.register_blueprint(errors)
-    app.register_blueprint(admin)
     app.register_blueprint(settings)
     app.register_blueprint(epub)
     app.register_blueprint(auth)
     app.register_blueprint(queue)
+
+    from .commands import register_commands
+    register_commands(app)
 
     from flask import request, redirect, url_for, session
     from app.models import AppConfig
