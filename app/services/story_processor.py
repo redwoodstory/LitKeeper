@@ -24,7 +24,8 @@ def _create_story_files(
     author_url: Optional[str],
     page_count: Optional[int],
     formats: list[str],
-    series_url: Optional[str] = None
+    series_url: Optional[str] = None,
+    story_description: Optional[str] = None
 ) -> dict:
     """
     Create story files (EPUB and/or HTML) and save to database.
@@ -41,7 +42,8 @@ def _create_story_files(
                 story_content,
                 get_epub_directory(),
                 story_category=story_category,
-                story_tags=story_tags
+                story_tags=story_tags,
+                story_description=story_description
             )
             created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
             log_action(f"Created EPUB: {epub_file_name}")
@@ -63,7 +65,8 @@ def _create_story_files(
                 chapter_titles=chapter_titles if chapter_titles else None,
                 source_url=source_url,
                 author_url=author_url,
-                page_count=page_count
+                page_count=page_count,
+                story_description=story_description
             )
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")
@@ -82,7 +85,8 @@ def _create_story_files(
             formats=formats,
             series_url=series_url,
             chapter_count=chapter_count,
-            word_count=word_count
+            word_count=word_count,
+            story_description=story_description
         )
 
         formats_str = " and ".join(created_files)
@@ -114,7 +118,8 @@ def _save_to_database(
     formats: list[str],
     series_url: Optional[str] = None,
     chapter_count: int = 1,
-    word_count: Optional[int] = None
+    word_count: Optional[int] = None,
+    story_description: Optional[str] = None
 ) -> None:
     """
     Save story metadata to database only if ENABLE_LIBRARY is true.
@@ -173,7 +178,8 @@ def _save_to_database(
                 word_count=word_count,
                 filename_base=filename_base,
                 imported_at=datetime.utcnow(),
-                metadata_refresh_status='complete' if source_url else 'never'
+                metadata_refresh_status='complete' if source_url else 'never',
+                description=story_description
             )
             db.session.add(story)
             db.session.flush()
@@ -289,10 +295,10 @@ def save_story_with_metadata(
         log_action(f"Saving story with custom metadata: '{title}' by {author}")
 
         if url in _story_cache:
-            story_content, _, _, _, _, story_author_url, story_pages, series_url = _story_cache[url]
+            story_content, _, _, _, _, story_author_url, story_pages, series_url, _ = _story_cache[url]
             del _story_cache[url]
         else:
-            story_content, _, _, _, _, story_author_url, story_pages, series_url = download_story(url)
+            story_content, _, _, _, _, story_author_url, story_pages, series_url, _ = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to retrieve story content from: {url}"
@@ -360,7 +366,7 @@ def download_story_and_create_files(
 
     try:
         log_action(f"Starting download: {url}")
-        story_content, story_title, story_author, story_category, story_tags, story_author_url, story_pages, series_url = download_story(url)
+        story_content, story_title, story_author, story_category, story_tags, story_author_url, story_pages, series_url, story_description = download_story(url)
 
         if not story_content:
             error_msg = f"Failed to download story from: {url}"
@@ -385,7 +391,8 @@ def download_story_and_create_files(
             author_url=story_author_url,
             page_count=story_pages,
             formats=formats,
-            series_url=series_url
+            series_url=series_url,
+            story_description=story_description
         )
 
         if not result['success']:

@@ -432,6 +432,7 @@ def generate_epub_format(story_id: int) -> ResponseReturnValue:
                     'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
                     'rating': story.rating,
                     'in_queue': bool(story.in_queue),
+                    'description': story.description,
                 }
                 return render_template('components/story_modal.html', story=story_data)
 
@@ -477,6 +478,7 @@ def generate_html_format(story_id: int) -> ResponseReturnValue:
                     'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
                     'rating': story.rating,
                     'in_queue': bool(story.in_queue),
+                    'description': story.description,
                 }
                 return render_template('components/story_modal.html', story=story_data)
 
@@ -885,6 +887,7 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
         'rating': story.rating,
         'in_queue': bool(story.in_queue),
+        'description': story.description,
     }
 
     return render_template('components/story_modal.html', story=story_data)

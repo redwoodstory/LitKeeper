@@ -49,12 +49,19 @@ class SeriesPageChecker:
             series_title_elem = soup.find("h1")
             series_title = series_title_elem.get_text(strip=True) if series_title_elem else None
 
+            desc_p = soup.find("p", class_="br_rk")
+            series_description = None
+            if desc_p:
+                first_text = desc_p.find(string=True, recursive=False)
+                series_description = first_text.strip() if first_text else None
+
             log_action(f"Series page check: found {len(parts)} parts")
 
             return {
                 'total_parts': len(parts),
                 'parts': parts,
-                'series_title': series_title
+                'series_title': series_title,
+                'description': series_description
             }
 
         except Exception as e:

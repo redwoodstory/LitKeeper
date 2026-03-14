@@ -157,9 +157,44 @@
                         <p class="text-sm text-slate-600 dark:text-slate-400">Scan existing stories and add missing EPUB/JSON format records</p>
                         <p class="text-xs text-indigo-600 dark:text-indigo-400 mt-2">Run this if stories are missing HTML reading functionality</p>
                     </div>
-                    <button id="btnFixFormats" 
+                    <button id="btnFixFormats"
                             class="ml-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-all duration-200 whitespace-nowrap">
                         Fix Formats
+                    </button>
+                </div>
+            </div>
+
+            <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-slate-900 dark:text-white mb-1">Inject Descriptions into Files</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">Patch description into existing JSON and EPUB files using the database — no re-scraping required</p>
+                    </div>
+                    <button id="btnInjectDescriptions"
+                            class="ml-4 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-all duration-200 whitespace-nowrap">
+                        Inject into Files
+                    </button>
+                </div>
+            </div>
+
+            <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-900/20 dark:to-emerald-900/20">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-slate-900 dark:text-white mb-1">Backfill Descriptions</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">Fetch story descriptions from Literotica. Resets and re-fetches all descriptions each run.</p>
+                        {% if missing_descriptions_count > 0 %}
+                        <p class="text-sm text-teal-600 dark:text-teal-400 mt-2">{{ missing_descriptions_count }} {{ 'story needs' if missing_descriptions_count == 1 else 'stories need' }} a description</p>
+                        {% elif stories_with_url_count > 0 %}
+                        <p class="text-sm text-green-600 dark:text-green-400 mt-2">All {{ stories_with_url_count }} {{ 'story has' if stories_with_url_count == 1 else 'stories have' }} a description — click to re-fetch</p>
+                        {% else %}
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">No stories with a Literotica URL found</p>
+                        {% endif %}
+                        <p id="descriptionBackfillStatus" class="text-sm font-medium mt-2 hidden"></p>
+                    </div>
+                    <button id="btnBackfillDescriptions"
+                            class="ml-4 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-all duration-200 whitespace-nowrap"
+                            {% if stories_with_url_count == 0 %}disabled{% endif %}>
+                        Backfill Descriptions
                     </button>
                 </div>
             </div>
@@ -208,6 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnAddOrphaned.disabled = true;
         btnFullSync.disabled = true;
         if (btnFixFormats) btnFixFormats.disabled = true;
+        if (btnInjectDescriptions) btnInjectDescriptions.disabled = true;
     }
 
     const btnFixFormats = document.getElementById('btnFixFormats');
@@ -300,6 +336,99 @@ document.addEventListener('DOMContentLoaded', function() {
             showMessage('Error: ' + error.message, false);
         }
     });
+
+    const btnInjectDescriptions = document.getElementById('btnInjectDescriptions');
+    if (btnInjectDescriptions) {
+        btnInjectDescriptions.addEventListener('click', async function() {
+            disableButtons();
+            btnInjectDescriptions.textContent = 'Injecting...';
+            try {
+                const response = await fetch('/admin/sync/inject-descriptions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(data.message, true);
+                } else {
+                    showMessage('Error: ' + (data.error || data.message), false);
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, false);
+            }
+        });
+    }
+
+    const btnBackfillDescriptions = document.getElementById('btnBackfillDescriptions');
+    const descriptionBackfillStatus = document.getElementById('descriptionBackfillStatus');
+
+    if (btnBackfillDescriptions && !btnBackfillDescriptions.disabled) {
+        btnBackfillDescriptions.addEventListener('click', async function() {
+            btnBackfillDescriptions.disabled = true;
+            btnBackfillDescriptions.textContent = 'Starting...';
+            descriptionBackfillStatus.className = 'text-sm font-medium mt-2 text-slate-600 dark:text-slate-400';
+            descriptionBackfillStatus.textContent = 'Fetching descriptions from Literotica...';
+            descriptionBackfillStatus.classList.remove('hidden');
+
+            try {
+                const startResp = await fetch('/admin/backfill-descriptions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const startData = await startResp.json();
+
+                if (!startData.success) {
+                    descriptionBackfillStatus.className = 'text-sm font-medium mt-2 text-red-600 dark:text-red-400';
+                    descriptionBackfillStatus.textContent = 'Error: ' + (startData.error || startData.message);
+                    btnBackfillDescriptions.textContent = 'Backfill Descriptions';
+                    btnBackfillDescriptions.disabled = false;
+                    return;
+                }
+
+                if (startData.total === 0) {
+                    descriptionBackfillStatus.className = 'text-sm font-medium mt-2 text-green-600 dark:text-green-400';
+                    descriptionBackfillStatus.textContent = 'All stories already have descriptions.';
+                    btnBackfillDescriptions.textContent = 'Backfill Descriptions';
+                    return;
+                }
+
+                const jobId = startData.job_id;
+                const total = startData.total;
+                btnBackfillDescriptions.textContent = 'Running...';
+
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusResp = await fetch(`/admin/backfill-descriptions/status/${jobId}`);
+                        const status = await statusResp.json();
+
+                        if (!status.success) {
+                            clearInterval(pollInterval);
+                            descriptionBackfillStatus.className = 'text-sm font-medium mt-2 text-red-600 dark:text-red-400';
+                            descriptionBackfillStatus.textContent = 'Error checking status.';
+                            return;
+                        }
+
+                        descriptionBackfillStatus.textContent = `Processing ${status.processed} of ${status.total}...`;
+
+                        if (status.done) {
+                            clearInterval(pollInterval);
+                            descriptionBackfillStatus.className = 'text-sm font-medium mt-2 text-green-600 dark:text-green-400';
+                            descriptionBackfillStatus.textContent = `Done: ${status.updated} updated, ${status.failed} failed`;
+                            btnBackfillDescriptions.textContent = 'Backfill Descriptions';
+                        }
+                    } catch (e) {
+                        clearInterval(pollInterval);
+                    }
+                }, 3000);
+
+            } catch (error) {
+                descriptionBackfillStatus.className = 'text-sm font-medium mt-2 text-red-600 dark:text-red-400';
+                descriptionBackfillStatus.textContent = 'Error: ' + error.message;
+                btnBackfillDescriptions.textContent = 'Backfill Descriptions';
+                btnBackfillDescriptions.disabled = false;
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

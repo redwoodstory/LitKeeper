@@ -53,7 +53,7 @@ class FormatGeneratorService:
 
             log_action(f"Generating HTML/JSON and updating metadata for story: {story.title}")
 
-            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _ = download_story(url)
+            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _, story_description = download_story(url)
 
             if not story_content:
                 return {
@@ -109,7 +109,11 @@ class FormatGeneratorService:
                 if story.author.literotica_url != story_author_url:
                     story.author.literotica_url = story_author_url
                     fields_changed.append('author_url')
-            
+
+            if story_description and story.description != story_description:
+                story.description = story_description
+                fields_changed.append('description')
+
             story.last_metadata_refresh = datetime.utcnow()
             story.metadata_refresh_status = 'success'
 
@@ -126,7 +130,8 @@ class FormatGeneratorService:
                 source_url=url,
                 author_url=story_author_url,
                 page_count=story_pages,
-                filename_base=story.filename_base
+                filename_base=story.filename_base,
+                story_description=story_description
             )
 
             with open(json_path, 'r', encoding='utf-8') as f:
@@ -220,7 +225,8 @@ class FormatGeneratorService:
                 story_content=story_content,
                 output_directory=get_epub_directory(),
                 story_category=story.category.name if story.category else None,
-                story_tags=[tag.name for tag in story.tags]
+                story_tags=[tag.name for tag in story.tags],
+                story_description=story.description
             )
 
             epub_format = StoryFormat(
@@ -292,13 +298,16 @@ class FormatGeneratorService:
 
             log_action(f"Generating HTML/JSON from Literotica for story: {story.title}")
 
-            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _ = download_story(story.literotica_url)
+            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _, story_description = download_story(story.literotica_url)
 
             if not story_content:
                 return {
                     "success": False,
                     "message": "Failed to download story content from Literotica"
                 }
+
+            if story_description and story.description != story_description:
+                story.description = story_description
 
             chapter_titles = extract_chapter_titles(story_content)
 
@@ -313,7 +322,8 @@ class FormatGeneratorService:
                 source_url=story.literotica_url,
                 author_url=story_author_url,
                 page_count=story_pages,
-                filename_base=story.filename_base
+                filename_base=story.filename_base,
+                story_description=story_description
             )
 
             with open(json_path, 'r', encoding='utf-8') as f:

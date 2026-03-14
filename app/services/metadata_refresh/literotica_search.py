@@ -76,7 +76,7 @@ class LiteroticaSearcher:
         self.rate_limiter.wait_if_needed()
 
         try:
-            content, title, author, category, tags, author_url, page_count, series_url = download_story(url)
+            content, title, author, category, tags, author_url, page_count, series_url, description = download_story(url)
 
             if title and author:
                 return {
@@ -87,6 +87,7 @@ class LiteroticaSearcher:
                     "author_url": author_url,
                     "page_count": page_count or 0,
                     "series_url": series_url,
+                    "description": description,
                     "literotica_url": url,
                     "_story_content": content,  # retained for HTML generation, not stored in DB
                 }

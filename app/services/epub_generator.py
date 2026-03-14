@@ -37,7 +37,7 @@ def format_story_content(content: str) -> str:
     formatted_paragraphs = [f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()]
     return css + '\n'.join(formatted_paragraphs)
 
-def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None) -> str:
+def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None, description: Optional[str] = None) -> str:
     """Format metadata content with proper styling."""
     css = """
         <style>
@@ -45,31 +45,20 @@ def format_metadata_content(category: Optional[str] = None, tags: Optional[list[
                 margin: 1em;
                 padding: 0 1em;
             }
-            h1 {
-                margin: 2em 0 1em 0;
-                text-align: center;
-            }
-            .metadata {
-                margin: 1.5em 0;
-                line-height: 1.7;
-                font-size: 1.1em;
-            }
-            .metadata-item {
-                margin: 1em 0;
-            }
-            .metadata-label {
-                font-weight: bold;
-                margin-right: 0.5em;
-            }
         </style>
     """
-    
-    content = f"{css}<h1>Story Information</h1><div class='metadata'>"
+
+    content = f"{css}<h1 style='margin: 2em 0 1em 0; text-align: center;'>Story Information</h1>"
+
+    if description:
+        content += f"<p style='text-align: center; font-style: italic; font-size: 1.05em; line-height: 1.8; margin: 1.5em 0 2em 0;'>{description}</p>"
+
     if category:
-        content += f"<div class='metadata-item'><span class='metadata-label'>Category: </span>{category}</div>"
+        content += f"<p style='margin: 0.75em 0; line-height: 1.6;'><strong>CATEGORY:</strong> {category}</p>"
+
     if tags:
-        content += f"<div class='metadata-item'><span class='metadata-label'>Tags: </span>{', '.join(tags)}</div>"
-    content += "</div>"
+        content += f"<p style='margin: 0.75em 0; line-height: 1.6;'><strong>TAGS:</strong> {', '.join(tags)}</p>"
+
     return content
 
 def create_epub_file(
@@ -79,7 +68,8 @@ def create_epub_file(
     output_directory: str,
     cover_image_path: Optional[str] = None,
     story_category: Optional[str] = None,
-    story_tags: Optional[list[str]] = None
+    story_tags: Optional[list[str]] = None,
+    story_description: Optional[str] = None
 ) -> str:
     """Create an EPUB file from the story content."""
     try:
@@ -119,9 +109,9 @@ def create_epub_file(
         chapters = []
         toc = []
 
-        if story_category or story_tags:
+        if story_category or story_tags or story_description:
             try:
-                metadata_content = format_metadata_content(story_category, story_tags)
+                metadata_content = format_metadata_content(story_category, story_tags, story_description)
                 metadata_chapter = epub.EpubHtml(title='Story Information',
                                                file_name='metadata.xhtml',
                                                content=metadata_content)

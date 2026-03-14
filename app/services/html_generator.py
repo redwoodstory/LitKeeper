@@ -19,7 +19,8 @@ def create_html_file(
     source_url: Optional[str] = None,
     author_url: Optional[str] = None,
     page_count: Optional[int] = None,
-    filename_base: Optional[str] = None
+    filename_base: Optional[str] = None,
+    story_description: Optional[str] = None
 ) -> str:
     """
     Save story data as JSON for dynamic rendering via template.
@@ -85,7 +86,8 @@ def create_html_file(
             'source_url': source_url,
             'author_url': author_url,
             'page_count': page_count,
-            'word_count': word_count
+            'word_count': word_count,
+            'description': story_description
         }
 
         json_path = os.path.join(output_directory, f"{filename_base}.json")

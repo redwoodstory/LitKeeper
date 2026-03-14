@@ -148,6 +148,10 @@ class MetadataRefreshService:
             story.literotica_series_url = metadata['series_url']
             fields_changed.append('series_url')
 
+        if metadata.get('description') and story.description != metadata['description']:
+            story.description = metadata['description']
+            fields_changed.append('description')
+
         story.last_metadata_refresh = datetime.utcnow()
         story.metadata_refresh_status = 'success'
         

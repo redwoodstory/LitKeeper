@@ -156,7 +156,7 @@ class DownloadQueueWorker:
         db.session.commit()
 
         story_data = download_story(item.url)
-        story_content, title, author, category, tags, author_url, page_count, series_url = story_data
+        story_content, title, author, category, tags, author_url, page_count, series_url, story_description = story_data
 
         if not story_content or not title:
             raise Exception("Failed to download story content or extract metadata")
@@ -183,7 +183,8 @@ class DownloadQueueWorker:
             author_url=author_url,
             page_count=page_count,
             formats=item.get_formats(),
-            series_url=series_url
+            series_url=series_url,
+            story_description=story_description
         )
 
         if not result.get('success'):

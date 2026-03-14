@@ -97,6 +97,7 @@ def index() -> ResponseReturnValue:
                     'created_at': _s.created_at,
                     'auto_update_enabled': _s.auto_update_enabled,
                     'is_series': bool(_s.literotica_series_url and _s.chapter_count > 1),
+                    'description': _s.description,
                 }
 
         return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story)
@@ -250,6 +251,9 @@ def read_story(filename: str) -> ResponseReturnValue:
             story_db = Story.query.filter_by(filename_base=filename_base).first()
             story_id = story_db.id if story_db else None
             progress = EpubService.get_reading_progress(story_id) if story_id else None
+
+            if story_db and story_db.description and not story_data.get('description'):
+                story_data['description'] = story_db.description
 
             return render_template('reader.html', story=story_data, story_id=story_id, progress=progress)
 

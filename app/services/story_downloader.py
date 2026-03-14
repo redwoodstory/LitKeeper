@@ -145,7 +145,8 @@ def _download_single_chapter(
         'author_url': None,
         'category': None,
         'tags': [],
-        'page_count': 0
+        'page_count': 0,
+        'description': None
     }
 
     while current_url:
@@ -179,6 +180,13 @@ def _download_single_chapter(
                                    if not tag.text.strip().lower().startswith("inc")]
                 if metadata['category'] and metadata['category'] not in metadata['tags']:
                     metadata['tags'] = [metadata['category']] + metadata['tags']
+
+                og_desc = soup.find("meta", attrs={"property": "og:description"})
+                if og_desc and og_desc.get("content", "").strip():
+                    metadata['description'] = og_desc.get("content").strip()
+                else:
+                    desc_elem = soup.find("div", class_=lambda c: c and "_widget__info_" in str(c))
+                    metadata['description'] = desc_elem.get_text(strip=True) if desc_elem else None
 
             content_div = soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
             if content_div:
@@ -215,7 +223,7 @@ def _download_single_chapter(
 def _download_from_series_page(
     series_url: str,
     session: requests.Session
-) -> Optional[tuple[str, str, str, Optional[str], Optional[list[str]], Optional[str], int, str]]:
+) -> Optional[tuple[str, str, str, Optional[str], Optional[list[str]], Optional[str], int, str, Optional[str]]]:
     """
     Download complete story using series page as source of truth.
 
@@ -236,6 +244,7 @@ def _download_from_series_page(
         series_title = series_info.get('series_title', 'Unknown Series')
         parts = series_info['parts']
         total_parts = len(parts)
+        series_description = series_info.get('description')
 
         log_action(f"Series '{series_title}' has {total_parts} parts")
 
@@ -243,6 +252,7 @@ def _download_from_series_page(
         story_author_url = None
         story_category = None
         story_tags = []
+        story_description = None
         total_pages = 0
         chapter_titles = []
         chapter_contents = []
@@ -271,6 +281,7 @@ def _download_from_series_page(
                 story_author_url = chapter_metadata['author_url']
                 story_category = chapter_metadata['category']
                 story_tags = chapter_metadata['tags']
+                story_description = chapter_metadata.get('description') or series_description
 
             time.sleep(3)
 
@@ -288,14 +299,15 @@ def _download_from_series_page(
             story_tags,
             story_author_url,
             total_pages,
-            series_url
+            series_url,
+            story_description
         )
 
     except Exception as e:
         log_error(f"Error in series-first download: {str(e)}", series_url)
         return None
 
-def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str]]:
+def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str], Optional[str]]:
     """Download and extract the full story content and metadata from the given Literotica URL."""
     try:
         session = get_session()
@@ -332,6 +344,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
         story_category = None
         story_tags = []
         story_author_url = None
+        story_description = None
         series_url = None
         chapter_urls = [url]
         processed_urls = set()
@@ -390,6 +403,13 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                                         if not tag.text.strip().lower().startswith("inc")]
                             if story_category and story_category not in story_tags:
                                 story_tags = [story_category] + story_tags
+
+                            og_desc = soup.find("meta", attrs={"property": "og:description"})
+                            if og_desc and og_desc.get("content", "").strip():
+                                story_description = og_desc.get("content").strip()
+                            else:
+                                desc_elem = soup.find("div", class_=lambda c: c and "_widget__info_" in str(c))
+                                story_description = desc_elem.get_text(strip=True) if desc_elem else None
 
                     content_div = soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
                     if content_div:
@@ -459,22 +479,22 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                 except requests.RequestException as e:
                     error_msg = f"Network error while downloading chapter {current_chapter}: {str(e)}"
                     log_error(error_msg, current_url)
-                    return None, None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None, None
                 except Exception as e:
                     error_msg = f"Error processing chapter {current_chapter}: {str(e)}\n{traceback.format_exc()}"
                     log_error(error_msg, current_url)
-                    return None, None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None, None
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
             story_content += f"\n\nChapter {i}: {title}\n\n{content}"
 
-        return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages, series_url
+        return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages, series_url, story_description
 
     except Exception as e:
         error_msg = f"Unexpected error in download_story: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg, url)
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None
 
 def fetch_story_metadata(url: str) -> dict:
     """
@@ -533,6 +553,13 @@ def fetch_story_metadata(url: str) -> dict:
             href = series_link.get('href', '')
             series_url = href if href.startswith('http') else 'https://www.literotica.com' + href
 
+        og_desc = soup.find("meta", attrs={"property": "og:description"})
+        if og_desc and og_desc.get("content", "").strip():
+            description = og_desc.get("content").strip()
+        else:
+            desc_elem = soup.find('div', class_=lambda c: c and '_widget__info_' in str(c))
+            description = desc_elem.get_text(strip=True) if desc_elem else None
+
         return {
             'title': title,
             'author': author,
@@ -541,6 +568,7 @@ def fetch_story_metadata(url: str) -> dict:
             'tags': tags,
             'page_count': page_count,
             'series_url': series_url,
+            'description': description,
         }
 
     except Exception as e:

@@ -20,3 +20,7 @@ def get_epub_directory() -> str:
 
 def get_html_directory() -> str:
     return os.path.join(get_stories_directory(), "html")
+
+
+def get_archive_directory() -> str:
+    return os.path.join(get_stories_directory(), "archive")

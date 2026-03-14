@@ -53,6 +53,10 @@
 </div>
 {% endif %}
 
+{% if story.description %}
+<p class="text-sm text-gray-700 dark:text-gray-300 mb-3 leading-relaxed italic">{{ story.description }}</p>
+{% endif %}
+
 <div class="flex items-center gap-0.5 mb-3" id="storyRatingWidget" data-story-id="{{ story.id }}" data-current-rating="{{ story.rating or 0 }}">
   {% for i in range(1, 6) %}
   <button class="rating-star text-2xl leading-none {{ 'text-amber-400' if story.rating and i <= story.rating else 'text-slate-300 dark:text-slate-600' }} focus:outline-none"
@@ -225,7 +229,7 @@
 
 <div id="storyModal" class="fixed top-0 left-0 right-0 modal-bottom-inset z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200"
      hx-on:click="if(event.target === event.currentTarget) { document.getElementById('storyModal').remove(); document.body.style.overflow = ''; }">
-  <div id="storyModalSheet" class="w-full md:w-auto md:max-w-4xl md:mx-4 max-h-[88vh] md:max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-2xl md:rounded-xl shadow-2xl overflow-y-auto transform transition-all relative modal-sheet-enter"
+  <div id="storyModalSheet" class="w-full md:w-full md:max-w-4xl md:mx-4 max-h-[88vh] md:max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-2xl md:rounded-xl shadow-2xl overflow-y-auto transform transition-all relative modal-sheet-enter"
        onclick="event.stopPropagation()">
 
     {# Drag handle — mobile only #}

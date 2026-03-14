@@ -17,6 +17,9 @@
       {% endif %}
     </div>
     {% endif %}
+    {% if story.description %}
+    <p class="story-description">{{ story.description }}</p>
+    {% endif %}
   </header>
 
   {% if story.chapters|length > 1 %}
