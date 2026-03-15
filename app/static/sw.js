@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v38';
+const CACHE_VERSION = 'v39';
 const STATIC_CACHE  = `litkeeper-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `litkeeper-dynamic-${CACHE_VERSION}`;
 const COVERS_CACHE  = `litkeeper-covers-${CACHE_VERSION}`;
@@ -372,37 +372,26 @@ async function handleCoverRequest(request) {
 async function handleStoryRequest(request, url) {
   const filename = decodeURIComponent(url.pathname.split('/').pop());
 
-  let opfsInitOk = false;
-  let opfsContent = null;
-  try {
-    opfsInitOk = opfsStorage.initialized || await opfsStorage.init();
-    if (opfsInitOk) opfsContent = await opfsStorage.getStory(filename);
-  } catch (e) {
-    console.error('[SW] OPFS read error:', e);
-  }
-
-  if (opfsContent) {
-    return new Response(opfsContent, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Source': 'OPFS' },
-    });
-  }
-
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
   try {
     const response = await fetch(request);
     if (response?.status === 200) {
       const content = await response.clone().text();
-      if (opfsInitOk) opfsStorage.saveStory(filename, content).catch(() => {});
-      caches.open(DYNAMIC_CACHE).then(c => c.put(request, response.clone()));
+      opfsStorage.init().then(() => opfsStorage.saveStory(filename, content)).catch(() => {});
     }
     return response;
   } catch {
-    const msg = `Story not available offline\n\nfilename: ${filename}\nopfs_init: ${opfsInitOk}\nopfs_read: ${opfsContent !== null ? 'ok' : 'null'}`;
-    return new Response(msg, { status: 503 });
+    const opfsInitOk = opfsStorage.initialized || await opfsStorage.init().catch(() => false);
+    if (opfsInitOk) {
+      const opfsContent = await opfsStorage.getStory(filename).catch(() => null);
+      if (opfsContent) {
+        return new Response(opfsContent, {
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Source': 'OPFS' },
+        });
+      }
+    }
+    const cached = await caches.match(request, { ignoreVary: true });
+    if (cached) return cached;
+    return new Response(`Story not available offline\n\nfilename: ${filename}`, { status: 503 });
   }
 }
 
