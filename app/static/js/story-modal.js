@@ -305,6 +305,27 @@ window.addEpubFormat = async function(storyId, button) {
   }
 };
 
+async function pollFormatJob(jobId, onComplete, onError) {
+  const poll = async () => {
+    try {
+      const resp = await fetch(`/api/format/status/${jobId}`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await resp.json();
+      if (data.status === 'completed') {
+        onComplete(data);
+      } else if (data.status === 'failed') {
+        onError(data.error_message || 'Format generation failed');
+      } else {
+        setTimeout(poll, 5000);
+      }
+    } catch (err) {
+      onError(err.message || 'Polling error');
+    }
+  };
+  setTimeout(poll, 4000);
+}
+
 window.addHtmlFormat = async function(storyId, storyTitle, storyAuthor, button) {
   const originalText = button.innerHTML;
   button.disabled = true;
@@ -312,35 +333,51 @@ window.addHtmlFormat = async function(storyId, storyTitle, storyAuthor, button) 
     <svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
     </svg>
-    Checking...
+    Queuing...
   `;
 
   try {
     const response = await fetch(`/api/format/generate-html/${storyId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'HX-Request': 'true'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
 
     const result = await response.json();
 
-    if (result.success) {
-      showFormatSuccessToast('HTML format created successfully!');
-      if (result.story) {
-        updateModalWithNewStory(result.story);
-      } else {
-        setTimeout(() => window.location.reload(), 1500);
-      }
-    } else if (result.needs_url) {
+    if (result.needs_url) {
       button.innerHTML = originalText;
       button.disabled = false;
-      
       showInlineHtmlProgress(storyId, storyTitle, storyAuthor);
-    } else {
-      throw new Error(result.message || 'Failed to generate HTML');
+      return;
     }
+
+    if (result.success && result.queued) {
+      button.innerHTML = `
+        <svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Generating...
+      `;
+      pollFormatJob(
+        result.job_id,
+        (data) => {
+          showFormatSuccessToast('HTML format created successfully!');
+          if (data.story) {
+            updateModalWithNewStory(data.story);
+          } else {
+            setTimeout(() => window.location.reload(), 1000);
+          }
+        },
+        (errMsg) => {
+          showFormatErrorToast('Failed to generate HTML format');
+          button.innerHTML = originalText;
+          button.disabled = false;
+        }
+      );
+      return;
+    }
+
+    throw new Error(result.message || 'Failed to queue HTML generation');
   } catch (error) {
     console.error('HTML generation error:', error);
     showFormatErrorToast('Failed to generate HTML format');
@@ -503,38 +540,66 @@ window.generateHtmlWithUrl = async function(storyId, url, method, button) {
   try {
     const response = await fetch(`/api/format/generate-html-with-metadata/${storyId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'HX-Request': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, method })
     });
-    
+
     const result = await response.json();
-    
-    if (result.success) {
+
+    if (result.success && result.queued) {
       if (contentDiv) {
         contentDiv.innerHTML = `
           <div class="flex items-center gap-3 mb-3">
-            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            <svg class="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
             </svg>
-            <span class="font-medium text-green-900 dark:text-green-100">HTML format created successfully!</span>
+            <span class="font-medium text-blue-900 dark:text-blue-100">Generating HTML format...</span>
           </div>
-          <p class="text-sm text-green-700 dark:text-green-300">Updating modal...</p>
+          <p class="text-sm text-blue-700 dark:text-blue-300">Working in background — downloading story content</p>
         `;
       }
-      
-      setTimeout(() => {
-        if (result.story) {
-          updateModalContentInPlace(result.story);
-        } else {
-          window.location.reload();
+      pollFormatJob(
+        result.job_id,
+        (data) => {
+          if (contentDiv) {
+            contentDiv.innerHTML = `
+              <div class="flex items-center gap-3 mb-3">
+                <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span class="font-medium text-green-900 dark:text-green-100">HTML format created successfully!</span>
+              </div>
+              <p class="text-sm text-green-700 dark:text-green-300">Updating modal...</p>
+            `;
+          }
+          setTimeout(() => {
+            if (data.story) {
+              updateModalContentInPlace(data.story);
+            } else {
+              window.location.reload();
+            }
+          }, 800);
+        },
+        (errMsg) => {
+          if (contentDiv) {
+            contentDiv.innerHTML = `
+              <div class="flex items-center gap-3 mb-3">
+                <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <span class="font-medium text-red-900 dark:text-red-100">Failed to generate HTML format</span>
+              </div>
+              <p class="text-sm text-red-700 dark:text-red-300">${errMsg}</p>
+            `;
+          }
+          button.innerHTML = originalText;
+          button.disabled = false;
         }
-      }, 800);
-    } else {
-      throw new Error(result.message || 'Failed to generate HTML');
+      );
+      return;
     }
+
+    throw new Error(result.message || 'Failed to queue HTML generation');
   } catch (error) {
     console.error('HTML generation error:', error);
     if (contentDiv) {

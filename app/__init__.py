@@ -73,6 +73,8 @@ def create_app() -> Flask:
                 print("Using temporary key - sessions won't persist")
 
     app.config['SECRET_KEY'] = secret_key
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
 
     app.config['UPLOAD_FOLDER'] = "app/epub_files"  # Directory to store EPUB files
 
@@ -305,5 +307,10 @@ def create_app() -> Flask:
         app.automation = automation
         automation.start()
         atexit.register(automation.stop)
+
+        from app.services.format_queue_worker import FormatQueueWorker
+        format_worker = FormatQueueWorker(app, poll_interval=5)
+        format_worker.start()
+        atexit.register(format_worker.stop)
 
     return app

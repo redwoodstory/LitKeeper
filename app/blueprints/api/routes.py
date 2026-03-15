@@ -411,30 +411,7 @@ def generate_epub_format(story_id: int) -> ResponseReturnValue:
         if result.get('success') and request.headers.get('HX-Request'):
             story = db.session.get(Story, story_id)
             if story:
-                story_data = {
-                    'id': story.id,
-                    'title': story.title,
-                    'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
-                    'category': {'name': story.category.name} if story.category else None,
-                    'tags': [tag.name for tag in story.tags],
-                    'cover': story.cover_filename,
-                    'formats': [fmt.format_type for fmt in story.formats],
-                    'html_file': f"{story.filename_base}.html",
-                    'epub_file': f"{story.filename_base}.epub",
-                    'source_url': story.literotica_url,
-                    'series_url': story.literotica_series_url,
-                    'page_count': story.literotica_page_count,
-                    'word_count': story.word_count,
-                    'chapter_count': story.chapter_count,
-                    'size': next((f.file_size for f in story.formats if f.format_type == 'epub'), None),
-                    'created_at': story.created_at,
-                    'auto_update_enabled': story.auto_update_enabled,
-                    'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
-                    'rating': story.rating,
-                    'in_queue': bool(story.in_queue),
-                    'description': story.description,
-                }
-                return render_template('components/story_modal.html', story=story_data)
+                return render_template('components/story_modal.html', story=_story_to_modal_dict(story))
 
         return jsonify(result)
     except Exception as e:
@@ -448,86 +425,136 @@ def generate_epub_format(story_id: int) -> ResponseReturnValue:
 @api.route("/format/generate-html/<int:story_id>", methods=['POST'])
 def generate_html_format(story_id: int) -> ResponseReturnValue:
     try:
-        from app.services.format_generator import FormatGeneratorService
         from app.models import Story, db
+        from app.models.format_queue import FormatQueueItem
 
-        service = FormatGeneratorService()
-        result = service.generate_html_from_url(story_id)
+        story = db.session.get(Story, story_id)
+        if not story:
+            return jsonify({"success": False, "message": "Story not found"}), 404
 
-        if result.get('success') and request.headers.get('HX-Request'):
-            story = db.session.get(Story, story_id)
-            if story:
-                story_data = {
-                    'id': story.id,
-                    'title': story.title,
-                    'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
-                    'category': {'name': story.category.name} if story.category else None,
-                    'tags': [tag.name for tag in story.tags],
-                    'cover': story.cover_filename,
-                    'formats': [fmt.format_type for fmt in story.formats],
-                    'html_file': f"{story.filename_base}.html",
-                    'epub_file': f"{story.filename_base}.epub",
-                    'source_url': story.literotica_url,
-                    'series_url': story.literotica_series_url,
-                    'page_count': story.literotica_page_count,
-                    'word_count': story.word_count,
-                    'chapter_count': story.chapter_count,
-                    'size': next((f.file_size for f in story.formats if f.format_type == 'epub'), None),
-                    'created_at': story.created_at,
-                    'auto_update_enabled': story.auto_update_enabled,
-                    'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
-                    'rating': story.rating,
-                    'in_queue': bool(story.in_queue),
-                    'description': story.description,
-                }
-                return render_template('components/story_modal.html', story=story_data)
+        if not story.literotica_url:
+            return jsonify({"success": False, "needs_url": True, "message": "Story requires Literotica URL"})
 
-        return jsonify(result)
+        existing = FormatQueueItem.query.filter(
+            FormatQueueItem.story_id == story_id,
+            FormatQueueItem.job_type == 'generate_html',
+            FormatQueueItem.status.in_(['pending', 'processing'])
+        ).first()
+
+        if existing:
+            if request.headers.get('HX-Request'):
+                return render_template('partials/format_generating.html', job=existing.to_dict(), story_id=story_id)
+            return jsonify({"success": True, "queued": True, "job_id": existing.id, "message": "Already queued"})
+
+        job = FormatQueueItem(story_id=story_id, job_type='generate_html')
+        db.session.add(job)
+        db.session.commit()
+
+        log_action(f"Queued HTML generation for story {story_id} (job {job.id})")
+
+        if request.headers.get('HX-Request'):
+            return render_template('partials/format_generating.html', job=job.to_dict(), story_id=story_id)
+
+        return jsonify({"success": True, "queued": True, "job_id": job.id, "message": "HTML generation queued"})
+
     except Exception as e:
-        error_msg = f"Error generating HTML format: {str(e)}\n{traceback.format_exc()}"
+        error_msg = f"Error queuing HTML generation: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while generating HTML format"
-        }), 500
+        return jsonify({"success": False, "message": "An error occurred while queuing HTML generation"}), 500
 
 @api.route("/format/generate-html-with-metadata/<int:story_id>", methods=['POST'])
 def generate_html_with_metadata(story_id: int) -> ResponseReturnValue:
     try:
-        from app.services.format_generator import FormatGeneratorService
-        from app.models import Story
-        
+        from app.models import db
+        from app.models.format_queue import FormatQueueItem
+
         data = request.get_json()
-        url = data.get('url')
-        method = data.get('method', 'manual')
-        
+        url = data.get('url') if data else None
+        method = data.get('method', 'manual') if data else 'manual'
+
         if not url:
-            return jsonify({
-                "success": False,
-                "message": "URL is required"
-            }), 400
+            return jsonify({"success": False, "message": "URL is required"}), 400
 
-        service = FormatGeneratorService()
-        result = service.generate_html_with_metadata(story_id, url, method)
+        existing = FormatQueueItem.query.filter(
+            FormatQueueItem.story_id == story_id,
+            FormatQueueItem.job_type == 'generate_html_with_metadata',
+            FormatQueueItem.status.in_(['pending', 'processing'])
+        ).first()
 
-        if result.get('success') and request.headers.get('HX-Request'):
-            story = Story.query.get(story_id)
-            if story:
-                return jsonify({
-                    "success": True,
-                    "message": result.get('message'),
-                    "fields_changed": result.get('fields_changed', []),
-                    "story": story.to_library_dict()
-                })
+        if existing:
+            return jsonify({"success": True, "queued": True, "job_id": existing.id, "message": "Already queued"})
 
-        return jsonify(result)
+        job = FormatQueueItem(story_id=story_id, job_type='generate_html_with_metadata', url=url, method=method)
+        db.session.add(job)
+        db.session.commit()
+
+        log_action(f"Queued HTML+metadata generation for story {story_id} (job {job.id})")
+
+        return jsonify({"success": True, "queued": True, "job_id": job.id, "message": "HTML generation queued"})
+
     except Exception as e:
-        error_msg = f"Error generating HTML format with metadata: {str(e)}\n{traceback.format_exc()}"
+        error_msg = f"Error queuing HTML+metadata generation: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg)
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while generating HTML format"
-        }), 500
+        return jsonify({"success": False, "message": "An error occurred while queuing HTML generation"}), 500
+
+@api.route("/format/status/<int:job_id>", methods=['GET'])
+def get_format_job_status(job_id: int) -> ResponseReturnValue:
+    """Poll status of a background format generation job."""
+    try:
+        from app.models.format_queue import FormatQueueItem
+        from app.models import Story, db
+
+        job = db.session.get(FormatQueueItem, job_id)
+        if not job:
+            return jsonify({"success": False, "message": "Job not found"}), 404
+
+        if request.headers.get('HX-Request'):
+            if job.status == 'completed':
+                story = db.session.get(Story, job.story_id)
+                if story:
+                    story_data = _story_to_modal_dict(story)
+                    return render_template('components/story_modal.html', story=story_data)
+            if job.status == 'failed':
+                return render_template('partials/format_generating.html', job=job.to_dict(), story_id=job.story_id)
+            return render_template('partials/format_generating.html', job=job.to_dict(), story_id=job.story_id)
+
+        data = job.to_dict()
+        if job.status == 'completed':
+            story = db.session.get(Story, job.story_id)
+            if story:
+                data['story'] = story.to_library_dict()
+        return jsonify({"success": True, **data})
+
+    except Exception as e:
+        log_error(f"Error fetching format job status: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Error fetching job status"}), 500
+
+
+def _story_to_modal_dict(story) -> dict:
+    return {
+        'id': story.id,
+        'title': story.title,
+        'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
+        'category': {'name': story.category.name} if story.category else None,
+        'tags': [tag.name for tag in story.tags],
+        'cover': story.cover_filename,
+        'formats': [fmt.format_type for fmt in story.formats],
+        'html_file': f"{story.filename_base}.html",
+        'epub_file': f"{story.filename_base}.epub",
+        'source_url': story.literotica_url,
+        'series_url': story.literotica_series_url,
+        'page_count': story.literotica_page_count,
+        'word_count': story.word_count,
+        'chapter_count': story.chapter_count,
+        'size': next((f.file_size for f in story.formats if f.format_type == 'epub'), None),
+        'created_at': story.created_at,
+        'auto_update_enabled': story.auto_update_enabled,
+        'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+        'rating': story.rating,
+        'in_queue': bool(story.in_queue),
+        'description': story.description,
+    }
+
 
 @api.route("/story/delete/<int:story_id>", methods=['DELETE'])
 def delete_story(story_id: int) -> ResponseReturnValue:

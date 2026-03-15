@@ -9,6 +9,7 @@ from .migration import MigrationLog, MetadataRefreshLog
 from .config import AppConfig
 from .download_queue import DownloadQueueItem
 from .metadata_refresh_queue import MetadataRefreshQueueItem
+from .format_queue import FormatQueueItem
 
 __all__ = [
     'db',
@@ -26,4 +27,5 @@ __all__ = [
     'AppConfig',
     'DownloadQueueItem',
     'MetadataRefreshQueueItem',
+    'FormatQueueItem',
 ]
