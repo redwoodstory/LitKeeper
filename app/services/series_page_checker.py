@@ -1,69 +1,69 @@
 from __future__ import annotations
-import requests
-from bs4 import BeautifulSoup
-from typing import Optional, Dict, List
+import re
+from typing import Optional, Dict
 from .story_downloader import get_session
 from .logger import log_action, log_error
 
+
 class SeriesPageChecker:
-    """Lightweight checker for Literotica series pages."""
+    """Fetches series metadata via the Literotica internal API."""
 
     def check_series_parts(self, series_url: str) -> Optional[Dict]:
-        """
-        Parse series page to count total parts.
+        series_id = self._extract_series_id(series_url)
+        if not series_id:
+            log_error(f"Could not extract series ID from URL: {series_url}")
+            return None
 
-        Returns:
-            {
-                'total_parts': int,
-                'parts': [{'part_number': int, 'title': str, 'url': str}, ...],
-                'series_title': str
-            }
-        """
         try:
             session = get_session()
-            response = session.get(series_url, timeout=10)
+            api_url = f"https://literotica.com/api/3/series/{series_id}/works"
+            response = session.get(
+                api_url,
+                timeout=10,
+                headers={"Accept": "application/json", "Referer": "https://www.literotica.com/"},
+            )
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, "html.parser")
+            works = response.json()
 
-            series_works_list = soup.find("ul", class_=lambda c: c and "series__works" in str(c))
+            if not works:
+                log_error(f"API returned empty works list for series {series_id}")
+                return {"total_parts": 0, "parts": [], "series_title": "", "description": ""}
 
-            parts = []
-            if series_works_list:
-                list_items = series_works_list.find_all("li")
+            parts = [
+                {
+                    "part_number": i,
+                    "title": work.get("title", f"Part {i}"),
+                    "url": f"https://www.literotica.com/s/{work['url']}",
+                }
+                for i, work in enumerate(works, 1)
+            ]
 
-                for idx, item in enumerate(list_items, 1):
-                    link = item.find("a", href=lambda h: h and "/s/" in h)
-                    if link:
-                        title = link.get_text(strip=True) or f"Part {idx}"
+            series_title = self._fetch_series_title(session, series_url)
+            description = works[0].get("description", "")
 
-                        url = link.get('href', '')
-                        if not url.startswith('http'):
-                            url = 'https://www.literotica.com' + url
-
-                        parts.append({
-                            'part_number': idx,
-                            'title': title,
-                            'url': url
-                        })
-
-            series_title_elem = soup.find("h1")
-            series_title = series_title_elem.get_text(strip=True) if series_title_elem else None
-
-            desc_p = soup.find("p", class_="br_rk")
-            series_description = None
-            if desc_p:
-                first_text = desc_p.find(string=True, recursive=False)
-                series_description = first_text.strip() if first_text else None
-
-            log_action(f"Series page check: found {len(parts)} parts")
-
+            log_action(f"Series API: found {len(parts)} parts for series {series_id}")
             return {
-                'total_parts': len(parts),
-                'parts': parts,
-                'series_title': series_title,
-                'description': series_description
+                "total_parts": len(parts),
+                "parts": parts,
+                "series_title": series_title,
+                "description": description,
             }
 
         except Exception as e:
-            log_error(f"Error checking series page {series_url}: {str(e)}")
+            log_error(f"Error fetching series {series_url}: {str(e)}")
             return None
+
+    def _fetch_series_title(self, session, series_url: str) -> str:
+        try:
+            resp = session.get(series_url, timeout=10)
+            resp.raise_for_status()
+            m = re.search(r"<h1[^>]*>(.*?)</h1>", resp.text, re.DOTALL)
+            if m:
+                return re.sub(r"<[^>]+>", "", m.group(1)).strip()
+        except Exception as e:
+            log_error(f"Could not fetch series title from {series_url}: {str(e)}")
+        return ""
+
+    def _extract_series_id(self, url: str) -> str | None:
+        m = re.search(r"/series/se/(\d+)", url)
+        return m.group(1) if m else None

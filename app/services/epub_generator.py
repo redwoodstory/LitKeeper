@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import re
 import uuid
 import traceback
 import warnings
@@ -122,8 +123,9 @@ def create_epub_file(
                 error_msg = f"Error adding metadata chapter: {str(e)}"
                 log_error(error_msg)
 
-        chapter_texts = story_content.split("\n\nChapter ")
-        
+        from .story_downloader import split_story_chapters
+        chapter_texts = split_story_chapters(story_content)
+
         if chapter_texts[0].strip():
             try:
                 intro_content = format_story_content(chapter_texts[0])
@@ -144,7 +146,7 @@ def create_epub_file(
                     chapter_title = f"Chapter {i}"
                     chapter_content = chapter_text
                 else:
-                    chapter_title = f"Chapter {chapter_text[:title_end]}"
+                    chapter_title = f"Chapter {i}: {chapter_text[:title_end]}"
                     chapter_content = chapter_text[title_end:].strip()
                 
                 formatted_content = format_story_content(chapter_content)

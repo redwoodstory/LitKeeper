@@ -3,9 +3,23 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import random
+import re
 import traceback
 from typing import Optional
 from .logger import log_url, log_error
+
+# ASCII 30 "Record Separator" — structurally impossible in scraped HTML text.
+# Format: \x1eCHAPTER:{n}\x1e{bare_title}\n\n{content}
+CHAPTER_SENTINEL = '\x1e'
+
+def split_story_chapters(content: str) -> list[str]:
+    """Split composite story content into [preamble, ch1, ch2, ...].
+
+    Handles both the sentinel format (new) and the legacy \n\nChapter N: format.
+    """
+    if CHAPTER_SENTINEL in content:
+        return re.split(r'\x1eCHAPTER:\d+\x1e', content)
+    return re.split(r'\n\nChapter \d+: ', content)
 
 def get_random_user_agent() -> str:
     """Return a random User-Agent string from a broad pool of real browser UAs."""
@@ -188,7 +202,10 @@ def _download_single_chapter(
                     desc_elem = soup.find("div", class_=lambda c: c and "_widget__info_" in str(c))
                     metadata['description'] = desc_elem.get_text(strip=True) if desc_elem else None
 
-            content_div = soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
+            content_div = (
+                soup.find(itemprop="articleBody") or
+                soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
+            )
             if content_div:
                 for paragraph in content_div.find_all("p"):
                     chapter_content += paragraph.get_text(strip=True) + "\n\n"
@@ -287,7 +304,7 @@ def _download_from_series_page(
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
-            story_content += f"\n\nChapter {i}: {title}\n\n{content}"
+            story_content += f"{CHAPTER_SENTINEL}CHAPTER:{i}{CHAPTER_SENTINEL}{title}\n\n{content}"
 
         clean_title = _clean_series_title(series_title)
 
@@ -329,10 +346,20 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                     log_url(f"Successfully downloaded via series page")
                     return result
                 else:
+                    if url_type == 'series':
+                        log_error("Series page parsing failed and no fallback available for series URLs", series_url)
+                        return None, None, None, None, None, None, None, None, None
                     log_url("Series download failed, falling back to sequential method")
             except Exception as e:
                 log_error(f"Error in series-first download: {str(e)}", series_url)
+                if url_type == 'series':
+                    log_error("Cannot fall back to sequential download for series URLs", series_url)
+                    return None, None, None, None, None, None, None, None, None
                 log_url("Falling back to sequential chapter download method")
+
+        if url_type == 'series':
+            log_error("Series URL provided but no series_url extracted", url)
+            return None, None, None, None, None, None, None, None, None
 
         log_url("Using sequential chapter download method")
 
@@ -411,7 +438,10 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                                 desc_elem = soup.find("div", class_=lambda c: c and "_widget__info_" in str(c))
                                 story_description = desc_elem.get_text(strip=True) if desc_elem else None
 
-                    content_div = soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
+                    content_div = (
+                        soup.find(itemprop="articleBody") or
+                        soup.find("div", class_=lambda c: c and "_article__content_" in str(c))
+                    )
                     if content_div:
                         if current_page == 1:
                             chapter_titles.append(current_title)
@@ -487,7 +517,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
-            story_content += f"\n\nChapter {i}: {title}\n\n{content}"
+            story_content += f"{CHAPTER_SENTINEL}CHAPTER:{i}{CHAPTER_SENTINEL}{title}\n\n{content}"
 
         return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages, series_url, story_description
 
@@ -590,12 +620,10 @@ def extract_chapter_titles(story_content: str) -> list[str]:
     if not story_content:
         return []
 
+    chapter_texts = split_story_chapters(story_content)
     chapter_titles = []
-    chapter_texts = story_content.split("\n\nChapter ")
-
-    for chapter_text in chapter_texts[1:]:
+    for i, chapter_text in enumerate(chapter_texts[1:], 1):
         title_end = chapter_text.find("\n\n")
         if title_end != -1:
-            chapter_titles.append(f"Chapter {chapter_text[:title_end]}")
-
+            chapter_titles.append(f"Chapter {i}: {chapter_text[:title_end]}")
     return chapter_titles

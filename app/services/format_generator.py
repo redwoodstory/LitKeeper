@@ -6,7 +6,7 @@ from typing import Optional
 from app.models import Story, StoryFormat
 from app.models.base import db
 from app.utils import get_epub_directory, get_html_directory
-from .story_downloader import download_story, extract_chapter_titles
+from .story_downloader import download_story, extract_chapter_titles, CHAPTER_SENTINEL
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
 from .logger import log_action, log_error
@@ -212,10 +212,14 @@ class FormatGeneratorService:
             story_content_parts = []
 
             for chapter in chapters:
-                chapter_title = chapter.get('title', f"Chapter {chapter.get('number', 1)}")
+                num = chapter.get('number', len(story_content_parts) + 1)
+                raw_title = chapter.get('title', f"Part {num}")
+                # Legacy JSON stored "Chapter N: Title" — strip the prefix for bare title
+                import re as _re
+                bare_title = _re.sub(r'^Chapter \d+:\s*', '', raw_title)
                 paragraphs = chapter.get('paragraphs', [])
                 chapter_content = '\n\n'.join(paragraphs)
-                story_content_parts.append(f"\n\nChapter {chapter_title}\n\n{chapter_content}")
+                story_content_parts.append(f"{CHAPTER_SENTINEL}CHAPTER:{num}{CHAPTER_SENTINEL}{bare_title}\n\n{chapter_content}")
 
             story_content = ''.join(story_content_parts)
 

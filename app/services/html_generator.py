@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import re
 import json
 import traceback
 from typing import Optional
@@ -54,16 +55,17 @@ def create_html_file(
         if not os.path.exists(cover_path):
             generate_cover_image(story_title, story_author, cover_path)
 
-        chapter_texts = story_content.split("\n\nChapter ")
+        from .story_downloader import split_story_chapters
+        chapter_texts = split_story_chapters(story_content)
         chapters = []
 
         for i, chapter_text in enumerate(chapter_texts[1:], 1):
             title_end = chapter_text.find("\n\n")
             if title_end != -1:
-                chapter_title = f"Chapter {chapter_text[:title_end]}"
+                chapter_title = chapter_text[:title_end]
                 chapter_content = chapter_text[title_end+2:]
             else:
-                chapter_title = f"Chapter {i}"
+                chapter_title = f"Part {i}"
                 chapter_content = chapter_text
 
             paragraphs = [para.strip() for para in chapter_content.split("\n\n") if para.strip()]

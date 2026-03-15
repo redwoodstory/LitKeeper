@@ -4,7 +4,7 @@ import traceback
 import os
 from datetime import datetime
 from app.utils import get_epub_directory, get_html_directory, sanitize_filename
-from .story_downloader import download_story, extract_chapter_titles
+from .story_downloader import download_story, extract_chapter_titles, split_story_chapters
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
 from .file_operations import copy_to_external_path
@@ -71,7 +71,7 @@ def _create_story_files(
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")
 
-        chapter_count = story_content.count("\n\nChapter ") if story_content else 1
+        chapter_count = max(len(split_story_chapters(story_content)) - 1, 1) if story_content else 1
         word_count = len(story_content.split()) if story_content else 0
 
         _save_to_database(
