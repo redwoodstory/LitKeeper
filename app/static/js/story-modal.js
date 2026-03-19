@@ -4,26 +4,6 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-async function invalidateLibraryCache() {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    try {
-      const messageChannel = new MessageChannel();
-      const promise = new Promise((resolve) => {
-        messageChannel.port1.onmessage = (event) => {
-          resolve(event.data);
-        };
-      });
-      navigator.serviceWorker.controller.postMessage(
-        { type: 'INVALIDATE_LIBRARY_CACHE' },
-        [messageChannel.port2]
-      );
-      await promise;
-      console.log('[Cache] Library cache invalidated');
-    } catch (error) {
-      console.error('[Cache] Failed to invalidate cache:', error);
-    }
-  }
-}
 
 let _queueFilterActive = false;
 
@@ -239,32 +219,6 @@ document.addEventListener('click', function(e) {
     openEditMetadataModal(storyId, title, author, category, tags);
   }
 }, true);
-
-window.syncStory = async function(filename, button) {
-  const originalText = button.innerHTML;
-  button.disabled = true;
-  button.innerHTML = '⏳ Syncing...';
-
-  try {
-    const response = await fetch(`/read/${filename}`);
-    if (response.ok) {
-      button.innerHTML = '✅ Synced!';
-      setTimeout(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-      }, 2000);
-    } else {
-      throw new Error('Failed to fetch story');
-    }
-  } catch (error) {
-    console.error('Sync error:', error);
-    button.innerHTML = '❌ Failed';
-    setTimeout(() => {
-      button.innerHTML = originalText;
-      button.disabled = false;
-    }, 2000);
-  }
-};
 
 window.addEpubFormat = async function(storyId, button) {
   const originalText = button.innerHTML;
@@ -713,24 +667,8 @@ function updateModalContentInPlace(story) {
       addHtmlButton.remove();
     }
     
-    const syncButtonExists = buttons.some(btn => btn.textContent.includes('Sync for Offline'));
-    
-    if (!syncButtonExists) {
-      const syncButton = `
-        <button onclick="syncStoryFromModal('${story.html_file}', this)"
-                class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 inline-flex items-center gap-1.5"
-                title="Cache for offline reading">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-          </svg>
-          Sync for Offline
-        </button>
-      `;
-      
-      secondaryActionsContainer.insertAdjacentHTML('afterbegin', syncButton);
-    }
   }
-  
+
   showFormatSuccessToast('HTML format created successfully!');
 }
 
@@ -742,9 +680,8 @@ window.closeStoryModal = function() {
   }
 };
 
-async function updateModalWithNewStory(story) {
+function updateModalWithNewStory(story) {
   closeStoryModal();
-  await invalidateLibraryCache();
   setTimeout(() => {
     refreshLibrary();
   }, 100);
@@ -890,8 +827,6 @@ window.deleteStory = async function(storyId, storyTitle) {
       document.dispatchEvent(new CustomEvent('storyDeleted', { 
         detail: { storyId: storyId } 
       }));
-      
-      await invalidateLibraryCache();
       
       setTimeout(() => {
         refreshLibrary();

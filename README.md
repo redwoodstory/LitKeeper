@@ -59,6 +59,11 @@ services:
       # - Pushover: pover://user_key/app_token
       - NOTIFICATION_URLS=
 
+      # API token for headless/programmatic access (optional)
+      # Required for iOS app, curl, or automation scripts to authenticate via Bearer token
+      # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+      - LITKEEPER_API_TOKEN=
+
       # External EPUB path (optional)
       # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
       # Example: /path/to/calibre-web/auto-import
@@ -78,6 +83,7 @@ services:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENABLE_LIBRARY` | `true` | Show library UI with story management. Set to `false` for download-only mode (hides library, search, and reader features) |
+| `LITKEEPER_API_TOKEN` | - | Bearer token for API/headless access (iOS app, scripts, automation). When set, API requests must include `Authorization: Bearer <token>` |
 | `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Telegram, Discord, Slack, Email, Pushover, etc.) |
 | `EXTERNAL_EPUB_PATH` | - | Optional path to copy EPUBs for external app integration (e.g., Calibre-Web auto-import) |
 
@@ -107,11 +113,32 @@ Without these bind mounts, your stories and database will be lost when the conta
 
 ## Security
 
-### PIN Lock
+LitKeeper uses a layered security model. The layers you use depend on how you access the app.
 
-LitKeeper supports optional PIN locking to secure the app when installed as a PWA on shared devices. This is meant for simple locking and unlocking of the UI to avoid snooping; it is not intended to be a hardened security wall. For more security, I recommend using a tool like Authentik, Authelia, etc. 
+### Layer 1: Reverse Proxy Authentication (recommended for external access)
 
-### PIN Reset
+For access outside your LAN, run LitKeeper behind a reverse proxy with its own authentication layer (e.g., [Pangolin](https://github.com/fosrl/pangolin), Authentik, Authelia, Nginx + basic auth). The proxy handles external authentication before requests reach LitKeeper. API clients will need to include whatever headers or credentials the proxy requires alongside their normal LitKeeper auth.
+
+### Layer 2: API Token (headless API access)
+
+Set `LITKEEPER_API_TOKEN` in your server's `.env` or `docker-compose.yml` file. Any API client (i.e. the iOS app, curl, iOS Shortcuts, automation scripts) can authenticate by sending the token as:
+
+```
+Authorization: Bearer <your-token>
+```
+
+When this env var is set:
+
+- Requests to API routes without a valid Bearer token and without an active browser session are rejected with HTTP 401.
+- The PIN lock (Layer 3) is **bypassed** for valid Bearer token requests — API clients do not need a PIN session.
+
+### Layer 3: PIN Lock (web UI, casual snooping protection)
+
+LitKeeper supports optional PIN locking for the web UI. This is intended for simple screen-lock behavior (e.g., PWA on a shared device) — it is not a hardened security wall. It applies only to browser sessions and is automatically bypassed for Bearer-token-authenticated API requests.
+
+Enable it under **Settings → Security** in the web UI.
+
+#### PIN Reset
 
 If you forget your PIN, run this command to disable the PIN lock:
 
@@ -119,7 +146,7 @@ If you forget your PIN, run this command to disable the PIN lock:
 docker exec -it <container-name> python reset_pin.py
 ```
 
-Replace `<container-name>` with your actual container name (find it by running `docker ps`).
+Replace `<container-name>` with your actual container name (find it with `docker ps`).
 
 
 ## CLI Reference

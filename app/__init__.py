@@ -243,12 +243,32 @@ def create_app() -> Flask:
     from .commands import register_commands
     register_commands(app)
 
-    from flask import request, redirect, url_for, session
+    from flask import request, redirect, url_for, session, jsonify
     from app.models import AppConfig
+
+    _api_token = os.getenv('LITKEEPER_API_TOKEN', '')
+
+    @app.before_request
+    def enforce_api_token():
+        if not _api_token:
+            return
+        api_prefixes = ('/api/', '/epub/api/', '/epub/file/', '/queue/api/', '/download/')
+        if not request.path.startswith(api_prefixes):
+            return
+        # Valid Bearer token → iOS app, allow through
+        if request.headers.get('Authorization') == f'Bearer {_api_token}':
+            return
+        # No Authorization header → web browser, allow through (enforce_pin_lock handles auth)
+        if not request.headers.get('Authorization'):
+            return
+        return jsonify({'error': 'Unauthorized'}), 401
 
     @app.before_request
     def enforce_pin_lock():
         from flask import make_response as _make_response
+        # Bearer-authenticated requests (iOS app) are already validated by enforce_api_token
+        if _api_token and request.headers.get('Authorization') == f'Bearer {_api_token}':
+            return
         exempt_prefixes = ('/auth/', '/static/', '/favicon', '/settings/theme-preference')
         if request.path.startswith(exempt_prefixes):
             return
@@ -290,6 +310,47 @@ def create_app() -> Flask:
     from app.scheduler import init_scheduler, shutdown_scheduler
     init_scheduler(app)
     atexit.register(shutdown_scheduler)
+
+    def _repair_epub_metadata_background():
+        import threading
+        def _run():
+            with app.app_context():
+                try:
+                    from app.services.bulk_format_generator import BulkFormatGeneratorService
+                    from app.models import Story, StoryFormat, AppConfig
+                    from app.models.base import db
+                    from datetime import datetime
+
+                    # One-time migration: bump updated_at on all epub stories so the
+                    # iOS sync detects the XHTML repair and re-downloads them.
+                    migration_key = 'epub_xhtml_repair_notified'
+                    already_done = AppConfig.query.filter_by(key=migration_key).first()
+                    if not already_done:
+                        epub_story_ids = {
+                            f.story_id for f in StoryFormat.query.filter_by(format_type='epub').all()
+                        }
+                        if epub_story_ids:
+                            now = datetime.utcnow()
+                            Story.query.filter(Story.id.in_(epub_story_ids)).update(
+                                {Story.updated_at: now}, synchronize_session=False
+                            )
+                            flag = AppConfig(
+                                key=migration_key, value='true',
+                                value_type='bool',
+                                description='EPUB XHTML repair updated_at bump has run'
+                            )
+                            db.session.add(flag)
+                            db.session.commit()
+                            print(f"[startup] Bumped updated_at on {len(epub_story_ids)} epub stories for iOS re-sync")
+
+                    result = BulkFormatGeneratorService().repair_all_epub_metadata()
+                    if result['repaired'] > 0:
+                        print(f"[startup] EPUB metadata repair: {result['repaired']} fixed, {result['skipped']} already clean")
+                except Exception as e:
+                    print(f"[startup] EPUB metadata repair error: {e}")
+        threading.Thread(target=_run, daemon=True).start()
+
+    _repair_epub_metadata_background()
 
     if os.getenv('SKIP_BACKGROUND_WORKERS') != 'true':
         from app.services.download_queue_worker import DownloadQueueWorker

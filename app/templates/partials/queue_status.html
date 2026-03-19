@@ -52,9 +52,7 @@
 
 <script>
 (async function() {
-  if (typeof invalidateLibraryCache === 'function' && typeof refreshLibrary === 'function') {
-    await invalidateLibraryCache();
-    
+  if (typeof refreshLibrary === 'function') {
     const storyId = {{ queue_item.story_id if queue_item.story_id else 'null' }};
     
     if (storyId) {

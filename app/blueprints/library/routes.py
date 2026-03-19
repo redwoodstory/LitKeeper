@@ -86,6 +86,7 @@ def index() -> ResponseReturnValue:
                     'tags': [tag.name for tag in _s.tags],
                     'cover': _s.cover_filename,
                     'formats': [fmt.format_type for fmt in _s.formats],
+                    'filename_base': _s.filename_base,
                     'html_file': f"{_s.filename_base}.html",
                     'epub_file': f"{_s.filename_base}.epub",
                     'source_url': _s.literotica_url,
@@ -138,6 +139,18 @@ def sync_banner():
         return '', 204
 
     return render_template("partials/sync_banner_warning.html", sync_status=sync_status)
+
+@library.route('/admin/sync/full', methods=['POST'])
+def sync_full() -> ResponseReturnValue:
+    from app.services.migration.sync_checker import SyncChecker
+    try:
+        checker = SyncChecker()
+        result = checker.full_sync()
+        log_action(f"[SYNC] Full sync completed: {result['records_cleaned']} records cleaned, {result['files_added']} files added.")
+        return '', 200
+    except Exception as e:
+        log_error(f"Error during full sync: {str(e)}\n{traceback.format_exc()}")
+        return '', 500
 
 @library.route("/library/filter", methods=["GET"])
 def filter_library() -> ResponseReturnValue:
@@ -340,11 +353,3 @@ def download_story(format_type: str, filename: str) -> ResponseReturnValue:
             log_error(f"Error sending EPUB download for {epub_filename}: {str(e)}\n{traceback.format_exc()}")
             abort(500)
 
-@library.route("/sw.js")
-def service_worker() -> ResponseReturnValue:
-    static_directory = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static")
-    return send_from_directory(
-        static_directory,
-        "sw.js",
-        mimetype='application/javascript'
-    )

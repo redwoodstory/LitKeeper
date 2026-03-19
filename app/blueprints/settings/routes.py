@@ -147,6 +147,20 @@ def regenerate_covers() -> ResponseReturnValue:
         return '<p class="text-sm text-red-600 mt-2">An error occurred. Check the logs.</p>', 500
 
 
+@settings.route('/repair-epub-metadata', methods=['POST'])
+def repair_epub_metadata() -> ResponseReturnValue:
+    try:
+        from app.services.bulk_format_generator import BulkFormatGeneratorService
+        service = BulkFormatGeneratorService()
+        result = service.repair_all_epub_metadata()
+        if result['errors']:
+            return f'<p class="text-sm text-yellow-600 mt-2">Done: {result["repaired"]} repaired, {result["skipped"]} already clean, {len(result["errors"])} errors.</p>'
+        return f'<p class="text-sm text-green-600 mt-2">Done: {result["repaired"]} repaired, {result["skipped"]} already clean.</p>'
+    except Exception as e:
+        log_error(f"Error in repair_epub_metadata: {str(e)}\n{traceback.format_exc()}")
+        return '<p class="text-sm text-red-600 mt-2">An error occurred. Check the logs.</p>', 500
+
+
 @settings.route('/toggle-auto-update', methods=['POST'])
 def toggle_auto_update() -> ResponseReturnValue:
     try:

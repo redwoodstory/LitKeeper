@@ -96,14 +96,15 @@
         </svg>
         <span>Read HTML</span>
       </a>
-      <a href="/download/html/{{ story.html_file }}"
+      <a href="/download/html/{{ story.filename_base }}"
          data-requires-online
+         hx-boost="false"
          class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all duration-200"
          download>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
         </svg>
-        <span>Download HTML</span>
+        <span>Export HTML</span>
       </a>
     </div>
     {% endif %}
@@ -117,14 +118,15 @@
         </svg>
         <span>Read EPUB</span>
       </a>
-      <a href="/download/epub/{{ story.epub_file }}"
+      <a href="/download/{{ story.epub_file }}"
          data-requires-online
+         hx-boost="false"
          class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all duration-200"
          download>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
         </svg>
-        <span>Download EPUB</span>
+        <span>Export EPUB</span>
       </a>
     </div>
     {% endif %}
@@ -143,17 +145,6 @@
       </svg>
       <span id="queueToggleLabel">{{ 'In Queue' if story.in_queue else 'Add to Queue' }}</span>
     </button>
-    {% if has_html %}
-    <button onclick="syncStory('{{ story.html_file }}', this)"
-            data-sync-filename="{{ story.html_file }}"
-            class="w-full px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md border border-slate-200/60 dark:border-slate-700 transition-all duration-200 flex items-center justify-center gap-1.5"
-            title="Cache for offline reading">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-      </svg>
-      Sync for Offline
-    </button>
-    {% endif %}
     {% if has_epub and not has_html %}
     <button hx-post="/api/format/generate-html/{{ story.id }}"
             hx-target="#storyModal"

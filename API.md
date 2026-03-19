@@ -4,15 +4,31 @@ LitKeeper provides a REST API for external integrations like iOS Shortcuts, auto
 
 ## Authentication
 
-If PIN lock is enabled in Settings → Security, **all API endpoints require an active browser session** — there is no API key or token mechanism. Requests that arrive without a valid session are redirected to the lock screen (HTTP 302), or receive an `HX-Redirect` header if the request came from HTMX.
+LitKeeper supports two authentication mechanisms, which can be used independently or together.
 
-This means:
-- **Browser-based tools** (HTMX, iOS Shortcuts via Safari, etc.) work automatically as long as the session is unlocked.
-- **Headless scripts or external clients** (curl, automation tools) cannot authenticate and will be blocked when PIN lock is on.
+### Bearer Token (headless clients, iOS app)
 
-If you need external API access with PIN lock enabled, disable the PIN or use a reverse proxy with its own authentication in front of LitKeeper and keep PIN lock off.
+Set `LITKEEPER_API_TOKEN` in your `.env` file. Any API client (the iOS app, curl, iOS Shortcuts, scripts) sends it as:
 
-If PIN lock is disabled, the API is open to anyone who can reach your instance — consider a reverse proxy with authentication if it is publicly accessible.
+```
+Authorization: Bearer <your-token>
+```
+
+When this env var is set, all routes under `/api/`, `/epub/api/`, `/epub/file/`, `/queue/api/`, and `/download/` require either a valid Bearer token **or** an active browser session cookie. Requests with neither receive HTTP 401.
+
+Bearer-token-authenticated requests **bypass the PIN lock** entirely — the PIN is a web UI concern only.
+
+If `LITKEEPER_API_TOKEN` is not set, the token check is disabled and the API is open to any client that can reach the server.
+
+### Browser Session + PIN Lock
+
+Browser-based access (web UI, HTMX, iOS Shortcuts via Safari) uses standard Flask session cookies. If PIN lock is enabled under **Settings → Security**, the session must be unlocked before any non-exempt route is accessible. Unauthenticated requests are redirected to the lock screen (HTTP 302), or receive an `HX-Redirect` header for HTMX requests.
+
+### External Access via Reverse Proxy
+
+For access outside your LAN, place LitKeeper behind a reverse proxy with its own authentication (e.g., Pangolin, Authentik, Authelia). The proxy validates external requests before they reach LitKeeper; LitKeeper's own token and PIN layers apply on top.
+
+Headless clients accessing through a proxy must include any headers the proxy requires in addition to the `Authorization: Bearer` header. See the [Security section of the README](README.md#security) for iOS app proxy header configuration.
 
 ## Download Story
 

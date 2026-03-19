@@ -4,7 +4,7 @@
 {% block main_content %}
 <div id="syncBanner"
      hx-get="/sync-banner"
-     hx-trigger="load[navigator.onLine]"
+     hx-trigger="load"
      hx-swap="outerHTML"></div>
 
 <script>
@@ -206,7 +206,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
     <div id="library-content">
     <script>
-      if (navigator.onLine && (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_sort_order'))) {
+      if (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_sort_order')) {
         document.getElementById('library-content').style.visibility = 'hidden';
       }
     </script>

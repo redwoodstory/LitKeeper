@@ -4,6 +4,7 @@ import re
 import uuid
 import traceback
 import warnings
+from html import escape
 import ebooklib.epub as epub
 from typing import Optional
 from app.utils import sanitize_filename, get_cover_directory
@@ -14,53 +15,50 @@ from .cover_generator import generate_cover_image
 warnings.filterwarnings('ignore', category=UserWarning, module='ebooklib')
 warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
 
+_EPUB_CSS = """\
+body { margin: 1em; padding: 0 1em; }
+p { margin: 1.5em 0; line-height: 1.7; font-size: 1.1em; }
+h1 { margin: 2em 0 1em 0; text-align: center; }
+p.description { text-align: center; font-style: italic; font-size: 1.05em; line-height: 1.8; margin: 1.5em 0 2em 0; }
+"""
+
+_XHTML_TEMPLATE = """\
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en" xml:lang="en">
+<head><title>{title}</title><link href="../style/main.css" rel="stylesheet" type="text/css"/></head>
+<body>
+{body}
+</body>
+</html>"""
+
+def _make_css_item() -> epub.EpubItem:
+    return epub.EpubItem(
+        uid='style_main',
+        file_name='style/main.css',
+        media_type='text/css',
+        content=_EPUB_CSS
+    )
+
+def _xhtml(title: str, body: str) -> str:
+    """Wrap body HTML in a complete, valid XHTML document."""
+    return _XHTML_TEMPLATE.format(title=escape(title), body=body)
+
 def format_story_content(content: str) -> str:
-    """Format story content into properly formatted paragraphs for EPUB."""
-    css = """
-        <style>
-            body {
-                margin: 1em;
-                padding: 0 1em;
-            }
-            p {
-                margin: 1.5em 0;
-                line-height: 1.7;
-                font-size: 1.1em;
-            }
-            h1 {
-                margin: 2em 0 1em 0;
-                text-align: center;
-            }
-        </style>
-    """
-    
+    """Return body HTML for story content with all text properly XML-escaped."""
     paragraphs = content.split('\n\n')
-    formatted_paragraphs = [f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()]
-    return css + '\n'.join(formatted_paragraphs)
+    parts = [f'<p>{escape(p.strip())}</p>' for p in paragraphs if p.strip()]
+    return '\n'.join(parts)
 
 def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None, description: Optional[str] = None) -> str:
-    """Format metadata content with proper styling."""
-    css = """
-        <style>
-            body {
-                margin: 1em;
-                padding: 0 1em;
-            }
-        </style>
-    """
-
-    content = f"{css}<h1 style='margin: 2em 0 1em 0; text-align: center;'>Story Information</h1>"
-
+    """Return body HTML for the Story Information page with all text properly XML-escaped."""
+    body = '<h1>Story Information</h1>\n'
     if description:
-        content += f"<p style='text-align: center; font-style: italic; font-size: 1.05em; line-height: 1.8; margin: 1.5em 0 2em 0;'>{description}</p>"
-
+        body += f'<p class="description">{escape(description)}</p>\n'
     if category:
-        content += f"<p style='margin: 0.75em 0; line-height: 1.6;'><strong>CATEGORY:</strong> {category}</p>"
-
+        body += f'<p><strong>CATEGORY:</strong> {escape(category)}</p>\n'
     if tags:
-        content += f"<p style='margin: 0.75em 0; line-height: 1.6;'><strong>TAGS:</strong> {', '.join(tags)}</p>"
-
-    return content
+        body += f'<p><strong>TAGS:</strong> {escape(", ".join(tags))}</p>\n'
+    return body
 
 def create_epub_file(
     story_title: str,
@@ -107,15 +105,18 @@ def create_epub_file(
             error_msg = f"Error adding cover image: {str(e)}"
             log_error(error_msg)
 
+        css_item = _make_css_item()
+        book.add_item(css_item)
+
         chapters = []
         toc = []
 
         if story_category or story_tags or story_description:
             try:
-                metadata_content = format_metadata_content(story_category, story_tags, story_description)
+                metadata_body = format_metadata_content(story_category, story_tags, story_description)
                 metadata_chapter = epub.EpubHtml(title='Story Information',
                                                file_name='metadata.xhtml',
-                                               content=metadata_content)
+                                               content=_xhtml('Story Information', metadata_body))
                 book.add_item(metadata_chapter)
                 chapters.append(metadata_chapter)
                 toc.append(metadata_chapter)
@@ -128,10 +129,10 @@ def create_epub_file(
 
         if chapter_texts[0].strip():
             try:
-                intro_content = format_story_content(chapter_texts[0])
+                intro_body = f'<h1>Introduction</h1>\n{format_story_content(chapter_texts[0])}'
                 intro_chapter = epub.EpubHtml(title='Introduction',
                                             file_name='intro.xhtml',
-                                            content=f'<h1>Introduction</h1>{intro_content}')
+                                            content=_xhtml('Introduction', intro_body))
                 book.add_item(intro_chapter)
                 chapters.append(intro_chapter)
                 toc.append(intro_chapter)
@@ -148,12 +149,11 @@ def create_epub_file(
                 else:
                     chapter_title = f"Chapter {i}: {chapter_text[:title_end]}"
                     chapter_content = chapter_text[title_end:].strip()
-                
-                formatted_content = format_story_content(chapter_content)
+
+                chapter_body = f'<h1>{escape(chapter_title)}</h1>\n{format_story_content(chapter_content)}'
                 chapter = epub.EpubHtml(title=chapter_title,
                                       file_name=f'chapter_{i}.xhtml',
-                                      content=f'<h1>{chapter_title}</h1>{formatted_content}')
-                
+                                      content=_xhtml(chapter_title, chapter_body))
                 book.add_item(chapter)
                 chapters.append(chapter)
                 toc.append(chapter)

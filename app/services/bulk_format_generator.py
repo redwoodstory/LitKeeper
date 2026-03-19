@@ -301,6 +301,48 @@ class BulkFormatGeneratorService:
             "message": summary,
         }
 
+    def repair_all_epub_metadata(self) -> dict:
+        self._write_log("Starting bulk EPUB metadata repair")
+        epub_dir = get_epub_directory()
+        epub_files = [f for f in os.listdir(epub_dir) if f.endswith('.epub')] if os.path.isdir(epub_dir) else []
+        total = len(epub_files)
+        repaired = 0
+        skipped = 0
+        errors: list[dict] = []
+
+        self._write_log(f"Found {total} EPUB files to inspect")
+
+        for filename in epub_files:
+            epub_path = os.path.join(epub_dir, filename)
+            try:
+                modified = EpubService.repair_metadata_chapter(epub_path)
+                if modified:
+                    repaired += 1
+                    self._write_log(f"✓ Repaired: {filename}")
+                    # Touch story.updated_at so the iOS sync detects the change
+                    filename_base = filename[:-5]  # strip .epub
+                    story = Story.query.filter_by(filename_base=filename_base).first()
+                    if story:
+                        story.updated_at = datetime.utcnow()
+                        db.session.commit()
+                else:
+                    skipped += 1
+            except Exception as e:
+                error_msg = f"✗ Error repairing {filename}: {str(e)}"
+                self._write_log(error_msg, "error")
+                errors.append({"filename": filename, "error": str(e)})
+
+        summary = f"EPUB metadata repair complete: {repaired} repaired, {skipped} skipped, {len(errors)} errors out of {total} total"
+        self._write_log(summary)
+        return {
+            "success": True,
+            "total": total,
+            "repaired": repaired,
+            "skipped": skipped,
+            "errors": errors,
+            "message": summary,
+        }
+
     def get_generation_log(self) -> dict:
         if not os.path.exists(self.log_file):
             return {

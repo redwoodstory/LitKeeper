@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>if (!navigator.onLine) document.documentElement.dataset.offline = '';</script>
-
   <title>{% block title %}{{ story.title }} - {{ story.author }}{% endblock %}</title>
 
   {% block stylesheets %}
@@ -99,13 +97,13 @@
     {% block download_button %}
     <div class="settings-group" id="downloadSection">
       <div class="download-buttons">
-        <a href="/download/html/{{ request.path.split('/')[-1] }}" class="download-btn" download>
+        <a href="/download/html/{{ request.path.split('/')[-1].replace('.html', '').replace('.json', '') }}" class="download-btn" hx-boost="false" download>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
           </svg>
           HTML
         </a>
-        <a href="/download/epub/{{ request.path.split('/')[-1] }}" class="download-btn" download>
+        <a href="/download/{{ request.path.split('/')[-1].replace('.html', '.epub').replace('.json', '.epub') }}" class="download-btn" hx-boost="false" download>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
           </svg>

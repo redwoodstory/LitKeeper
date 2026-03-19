@@ -1,7 +1,7 @@
 from __future__ import annotations
 from flask import render_template, jsonify, request, send_file, abort, current_app
 from . import epub
-from app.models import Story
+from app.models import Story, ReadingProgress
 from app.services.epub_service import EpubService
 from app.utils.security import sanitize_zip_path
 from app.services.logger import log_error
@@ -98,6 +98,46 @@ def serve_epub_resource(story_id: int, filepath: str):
             )
     except zipfile.BadZipFile:
         abort(500, description="Invalid EPUB file")
+
+@epub.route('/api/progress/bulk', methods=['GET'])
+def get_progress_bulk():
+    ids_param = request.args.get('ids', '')
+    if not ids_param:
+        return jsonify({'progress': {}})
+    try:
+        story_ids = [int(i) for i in ids_param.split(',') if i.strip()]
+    except ValueError:
+        return jsonify({'error': 'Invalid ids parameter'}), 400
+
+    records = ReadingProgress.query.filter(ReadingProgress.story_id.in_(story_ids)).all()
+    progress_map = {r.story_id: r for r in records}
+
+    result = {}
+    for story_id in story_ids:
+        p = progress_map.get(story_id)
+        if p:
+            result[str(story_id)] = {
+                'current_chapter': p.current_chapter,
+                'current_paragraph': p.current_paragraph,
+                'scroll_position': p.scroll_position,
+                'is_completed': p.is_completed,
+                'last_read_at': p.last_read_at.isoformat() if p.last_read_at else None,
+                'cfi': p.cfi,
+                'percentage': p.percentage
+            }
+        else:
+            result[str(story_id)] = {
+                'current_chapter': 1,
+                'current_paragraph': 0,
+                'scroll_position': 0,
+                'is_completed': False,
+                'last_read_at': None,
+                'cfi': None,
+                'percentage': None
+            }
+
+    return jsonify({'progress': result})
+
 
 @epub.route('/api/progress/<int:story_id>', methods=['GET'])
 def get_progress(story_id: int):

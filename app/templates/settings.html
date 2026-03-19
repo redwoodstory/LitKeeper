@@ -4,8 +4,6 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/sync.js" defer></script>
-<script src="/static/js/sw-status.js" defer></script>
 {% endblock %}
 
 {% block main_content %}
@@ -14,24 +12,6 @@
   <p class="text-sm text-gray-500 dark:text-gray-400">Manage your library and application settings</p>
 </div>
 
-<div id="offlineBanner"
-     class="hidden mb-4 flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-sm">
-  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" stroke-width="2"/>
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-      d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
-  </svg>
-  <span>You're offline — most settings changes won't be saved until you reconnect.</span>
-</div>
-<script>
-  (function () {
-    const banner = document.getElementById('offlineBanner');
-    function sync() { banner.classList.toggle('hidden', navigator.onLine); }
-    window.addEventListener('online', sync);
-    window.addEventListener('offline', sync);
-    sync();
-  })();
-</script>
 
 <div class="space-y-4 mb-8">
 
@@ -264,7 +244,6 @@
 
       <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
         hx-indicator="#btnCoversNew" id="btnCoversNew"
-        hx-on::after-request="if(event.detail.successful && navigator.serviceWorker?.controller) { navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COVERS_CACHE' }); }"
         class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
         <span class="htmx-indicator">Regenerating...</span>
         <span class="htmx-not-indicator">Regenerate All Covers</span>
@@ -275,64 +254,6 @@
   </div>
   {% endif %}
 
-  {% if enable_library %}
-  <div class="card">
-    <section id="offlineReadingSection">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M12 12h.01M6.343 17.657a9 9 0 010-12.728M9.172 14.828a5 5 0 010-7.072" />
-        </svg>
-        Offline Reading
-      </h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Cache all HTML stories in your browser for offline reading. Only stories not yet cached will be fetched —
-        subsequent syncs are fast.
-      </p>
-
-      <div class="flex flex-wrap gap-3 mb-4">
-        <button id="syncAllStories" onclick="startOfflineSync()"
-          class="w-full sm:w-auto px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-          </svg>
-          Sync All Offline
-        </button>
-        <button id="cancelSync" onclick="cancelOfflineSync()"
-          class="hidden w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 font-medium">
-          Cancel
-        </button>
-        <button id="clearOfflineBtn" onclick="initiateClearOffline()"
-          class="w-full sm:w-auto px-4 py-2 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-800 transition-all duration-200 font-medium inline-flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-          </svg>
-          Clear All Offline
-        </button>
-      </div>
-
-      <div id="clearOfflineConfirm" class="hidden mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-between gap-4">
-        <p class="text-sm text-red-700 dark:text-red-300">Remove all downloaded stories from your device?</p>
-        <div class="flex gap-2 flex-shrink-0">
-          <button onclick="confirmClearOffline()" class="px-3 py-1 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors">Remove</button>
-          <button onclick="cancelClearOffline()" class="px-3 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors">Cancel</button>
-        </div>
-      </div>
-
-      <div id="syncProgress" class="hidden space-y-2">
-        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-          <div id="syncProgressBar"
-            class="bg-purple-500 h-2 rounded-full transition-all duration-300 ease-out"
-            style="width: 0%"></div>
-        </div>
-        <p id="syncStatusText" class="text-sm text-gray-600 dark:text-gray-400"></p>
-      </div>
-
-    </section>
-  </div>
-  {% endif %}
 
 </div>
 
@@ -479,11 +400,6 @@
     if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {
       return;
     }
-    if (!navigator.onLine) {
-      showToast('You\'re offline — connect to save changes', 'warning');
-      return;
-    }
-
     const btn = document.getElementById('resetAllExclusionsBtn');
     const originalText = btn.textContent;
 
@@ -515,11 +431,6 @@
     if (!confirm('Clear all reading progress?\n\nThis will reset all reading positions for all stories. All stories will start from the beginning when you next open them.\n\nThis action cannot be undone.')) {
       return;
     }
-    if (!navigator.onLine) {
-      showToast('You\'re offline — connect to save changes', 'warning');
-      return;
-    }
-
     const btn = document.getElementById('clearReadingProgress');
     const originalText = btn.textContent;
 
@@ -666,11 +577,6 @@
   }
 
   async function toggleGlobalAutoUpdate() {
-    if (!navigator.onLine) {
-      showToast('You\'re offline — connect to save changes', 'warning');
-      return;
-    }
-
     const toggle = document.getElementById('autoUpdateToggle');
     const currentState = toggle.getAttribute('aria-checked') === 'true';
 
@@ -699,183 +605,6 @@
       initializeThemeButtons();
     }
   });
-  async function startOfflineSync() {
-    if (!navigator.onLine) {
-      showToast('You\'re offline — connect to download stories for offline reading', 'warning');
-      return;
-    }
-    if (!navigator.serviceWorker) {
-      showToast('Service Workers are not supported in this browser.', 'error');
-      return;
-    }
-
-    const syncBtn = document.getElementById('syncAllStories');
-    const cancelBtn = document.getElementById('cancelSync');
-    const progressDiv = document.getElementById('syncProgress');
-    const progressBar = document.getElementById('syncProgressBar');
-    const statusText = document.getElementById('syncStatusText');
-
-    syncBtn.disabled = true;
-    progressDiv.classList.remove('hidden');
-    progressBar.style.width = '0%';
-    statusText.textContent = 'Waiting for Service Worker…';
-
-    let swTarget;
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      swTarget = registration.active;
-    } catch (err) {
-      statusText.textContent = 'Service Worker failed to activate. Please refresh and try again.';
-      syncBtn.disabled = false;
-      progressDiv.classList.add('hidden');
-      return;
-    }
-
-    cancelBtn.classList.remove('hidden');
-    statusText.textContent = 'Fetching story list…';
-
-    let readerUrls = [];
-    let epubUrls = [];
-    let coverUrls = [];
-    try {
-      const res = await fetch('/api/offline/story-urls');
-      const data = await res.json();
-      readerUrls = data.reader_urls || data.urls || [];
-      epubUrls = data.epub_urls || [];
-      coverUrls = data.cover_urls || [];
-      if (!data.success) {
-        statusText.textContent = data.message || 'Failed to fetch story list.';
-        syncBtn.disabled = false;
-        cancelBtn.classList.add('hidden');
-        return;
-      }
-      const totalSyncable = readerUrls.length + epubUrls.length;
-      if (totalSyncable === 0) {
-        statusText.textContent = 'No stories found to cache.';
-        syncBtn.disabled = false;
-        cancelBtn.classList.add('hidden');
-        return;
-      }
-      statusText.textContent = `Starting sync of ${readerUrls.length} stor${readerUrls.length === 1 ? 'y' : 'ies'}…`;
-    } catch (err) {
-      statusText.textContent = `Error: ${err.message}`;
-      syncBtn.disabled = false;
-      cancelBtn.classList.add('hidden');
-      return;
-    }
-
-    // Track story-level progress separately from EPUB sub-items
-    const storyTotal = readerUrls.length;
-    let storyDone = 0;
-    let storyCached = 0;
-    let storySkipped = 0;
-
-    const messageChannel = new MessageChannel();
-
-    messageChannel.port1.onmessage = (event) => {
-      const msg = event.data;
-
-      if (msg.cancelled) {
-        progressBar.style.width = '100%';
-        progressBar.classList.replace('bg-purple-500', 'bg-gray-400');
-        statusText.textContent = `Cancelled — ${storyCached} saved, ${storySkipped} already saved.`;
-        syncBtn.disabled = false;
-        cancelBtn.classList.add('hidden');
-        return;
-      }
-
-      if (msg.complete) {
-        progressBar.style.width = '100%';
-        const storyFailed = msg.failedUrls?.filter(u => u.startsWith('/read/')).length ?? 0;
-        const hadFailures = storyFailed > 0;
-        progressBar.classList.replace('bg-purple-500', hadFailures ? 'bg-amber-500' : 'bg-green-500');
-        const parts = [];
-        if (storyCached) parts.push(`${storyCached} saved`);
-        if (storySkipped) parts.push(`${storySkipped} already saved`);
-        if (storyFailed) parts.push(`${storyFailed} failed`);
-        statusText.textContent = `${hadFailures ? '⚠️' : '✅'} Done — ${parts.join(', ')}.`;
-        if (hadFailures && msg.failedUrls?.length) {
-          const failedStories = msg.failedUrls.filter(u => u.startsWith('/read/'));
-          if (failedStories.length) {
-            const detail = document.createElement('details');
-            detail.className = 'mt-2 text-xs text-amber-700 dark:text-amber-400';
-            detail.innerHTML = `<summary class="cursor-pointer font-medium">Show failed stories (${failedStories.length})</summary>
-              <ul class="mt-1 ml-3 space-y-0.5 list-disc">${failedStories.map(u =>
-                `<li>${u.split('/').pop().replace('.html','').replace(/_/g,' ')}</li>`).join('')}</ul>`;
-            statusText.after(detail);
-          }
-        }
-        if (window.offlineIndicators) window.offlineIndicators.applyOfflineBadges();
-        syncBtn.disabled = false;
-        cancelBtn.classList.add('hidden');
-        return;
-      }
-
-      if (msg.url?.startsWith('/read/')) {
-        // Story-level item: advance the progress bar
-        storyDone++;
-        if (msg.skipped) storySkipped++; else storyCached++;
-        const pct = Math.round((storyDone / storyTotal) * 100);
-        progressBar.style.width = `${pct}%`;
-        const label = msg.url.split('/').pop().replace('.html', '').replace(/_/g, ' ');
-        statusText.textContent = msg.skipped
-          ? `Skipped ${storyDone}/${storyTotal} — ${label} (already saved)`
-          : `Saving ${storyDone}/${storyTotal} — ${label}`;
-      } else if (msg.url?.startsWith('/epub/')) {
-        // EPUB files: silent background work, bar stays full, no story count change
-        statusText.textContent = `Syncing EPUB files…`;
-      }
-    };
-
-    swTarget.postMessage(
-      { type: 'SYNC_ALL_STORIES', reader_urls: readerUrls, epub_urls: epubUrls, cover_urls: coverUrls, urls: readerUrls },
-      [messageChannel.port2]
-    );
-  }
-
-  function cancelOfflineSync() {
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.ready.then(reg => {
-        const target = reg.active || navigator.serviceWorker.controller;
-        if (target) target.postMessage({ type: 'CANCEL_SYNC' });
-      });
-    }
-    document.getElementById('cancelSync').classList.add('hidden');
-    document.getElementById('syncStatusText').textContent = 'Cancelling…';
-  }
-
-  function initiateClearOffline() {
-    document.getElementById('clearOfflineConfirm').classList.remove('hidden');
-    document.getElementById('clearOfflineBtn').classList.add('hidden');
-  }
-
-  function cancelClearOffline() {
-    document.getElementById('clearOfflineConfirm').classList.add('hidden');
-    document.getElementById('clearOfflineBtn').classList.remove('hidden');
-  }
-
-  async function confirmClearOffline() {
-    const confirmDiv = document.getElementById('clearOfflineConfirm');
-    confirmDiv.querySelector('p').textContent = 'Removing…';
-    confirmDiv.querySelectorAll('button').forEach(b => b.disabled = true);
-
-    const result = await window.offlineIndicators?.clearAllOffline() ?? { cleared: 0 };
-
-    confirmDiv.classList.add('hidden');
-    document.getElementById('clearOfflineBtn').classList.remove('hidden');
-
-    const statusDiv = document.getElementById('syncProgress');
-    const statusText = document.getElementById('syncStatusText');
-    const progressBar = document.getElementById('syncProgressBar');
-    statusDiv.classList.remove('hidden');
-    progressBar.style.width = '100%';
-    progressBar.className = 'bg-gray-400 h-2 rounded-full transition-all duration-300 ease-out';
-    statusText.textContent = result.error
-      ? `Error clearing offline storage: ${result.error}`
-      : `Cleared ${result.cleared} file${result.cleared === 1 ? '' : 's'} from offline storage.`;
-
-    if (window.offlineIndicators) window.offlineIndicators.applyOfflineBadges();
-  }
 
   function validatePinInput(pin, confirm, errorContainer, errorTextEl) {
     if (!/^\d{4,8}$/.test(pin)) {
@@ -900,12 +629,6 @@
     const errorTextEl = document.getElementById('pinSetupErrorText');
     
     if (!validatePinInput(pin, confirm, errorContainer, errorTextEl)) return;
-    
-    if (!navigator.onLine) {
-      errorContainer.classList.remove('hidden');
-      errorTextEl.textContent = 'You\'re offline — connect to enable PIN lock';
-      return;
-    }
 
     try {
       const res = await fetch('/auth/set-pin', {
@@ -931,10 +654,6 @@
 
   async function removePin() {
     if (!confirm('Remove PIN lock? The app will be accessible without authentication.')) return;
-    if (!navigator.onLine) {
-      showToast('You\'re offline — connect to save changes', 'warning');
-      return;
-    }
 
     const res = await fetch('/auth/remove-pin', {
       method: 'POST',
@@ -964,11 +683,6 @@
     const errorContainer = document.getElementById('changePinError');
     const errorTextEl = document.getElementById('changePinErrorText');
     if (!validatePinInput(pin, confirm, errorContainer, errorTextEl)) return;
-    if (!navigator.onLine) {
-      errorContainer.classList.remove('hidden');
-      errorTextEl.textContent = 'You\'re offline — connect to change PIN';
-      return;
-    }
 
     const res = await fetch('/auth/set-pin', {
       method: 'POST',
@@ -987,10 +701,6 @@
   }
 
   async function updateLockTimeout(minutes) {
-    if (!navigator.onLine) {
-      showToast('You\'re offline — connect to save changes', 'warning');
-      return;
-    }
     const res = await fetch('/auth/update-timeout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

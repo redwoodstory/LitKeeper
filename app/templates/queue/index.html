@@ -79,7 +79,7 @@
          hx-get="/queue/partials/list"
          hx-trigger="every 2s"
          hx-swap="innerHTML">
-      {% with pending=queue_pending, processing=queue_processing, completed=queue_completed, failed=queue_failed %}
+      {% with items=queue_items %}
         {% include 'queue/partials/queue_list.html' %}
       {% endwith %}
     </div>

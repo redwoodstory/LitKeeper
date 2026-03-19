@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import re
 import zipfile
 import xml.etree.ElementTree as ET
 import warnings
@@ -191,5 +192,93 @@ class EpubService:
 
         except Exception as e:
             error_msg = f"Error updating EPUB cover: {str(e)}\n{traceback.format_exc()}"
+            log_error(error_msg)
+            return False
+
+    _XHTML_WRAPPER = (
+        "<?xml version='1.0' encoding='utf-8'?>\n"
+        '<html xmlns="http://www.w3.org/1999/xhtml" '
+        'xmlns:epub="http://www.idpf.org/2007/ops" lang="en" xml:lang="en">\n'
+        "<head><title>{title}</title>"
+        '<link href="../style/main.css" rel="stylesheet" type="text/css"/>'
+        "</head>\n<body>\n{body}\n</body>\n</html>"
+    )
+
+    @staticmethod
+    def _repair_xhtml(content: str, fallback_title: str) -> tuple[str, bool]:
+        """Return (repaired_content, was_changed).
+
+        Fixes two classes of defect that cause Readium's strict XML parser to fail:
+        1. Bare fragment (no root element) — wraps in a complete XHTML document.
+        2. <style> block inside <body> — strips it out.
+        """
+        changed = False
+
+        # Strip <style> blocks wherever they appear
+        stripped = re.sub(r'<style[\s\S]*?</style>', '', content, flags=re.IGNORECASE)
+        if stripped != content:
+            content = stripped
+            changed = True
+
+        # If there is no XML/HTML root, the file is a bare fragment — wrap it
+        if not content.lstrip().startswith('<'):
+            # empty after stripping — nothing useful
+            return content, changed
+
+        first_tag = content.lstrip()[:5].lower()
+        if not (first_tag.startswith('<?xml') or first_tag.startswith('<html')):
+            # Extract title from first <h1> if present, else use fallback
+            h1 = re.search(r'<h1[^>]*>(.*?)</h1>', content, re.IGNORECASE | re.DOTALL)
+            title = re.sub(r'<[^>]+>', '', h1.group(1)).strip() if h1 else fallback_title
+            content = EpubService._XHTML_WRAPPER.format(title=title, body=content.strip())
+            changed = True
+
+        return content, changed
+
+    @staticmethod
+    def repair_metadata_chapter(epub_path: str) -> bool:
+        """Repair all XHTML chapters in an existing EPUB so Readium can parse them.
+
+        Returns True if any file was modified, False if already clean or on error.
+        """
+        try:
+            if not os.path.exists(epub_path):
+                return False
+
+            import tempfile
+            import shutil
+
+            replacements: dict[str, bytes] = {}
+            with zipfile.ZipFile(epub_path, 'r') as zf:
+                for name in zf.namelist():
+                    if not name.endswith('.xhtml'):
+                        continue
+                    original = zf.read(name).decode('utf-8')
+                    fallback = name.rsplit('/', 1)[-1].replace('.xhtml', '').replace('_', ' ').title()
+                    repaired, changed = EpubService._repair_xhtml(original, fallback)
+                    if changed:
+                        replacements[name] = repaired.encode('utf-8')
+
+            if not replacements:
+                return False
+
+            temp_dir = tempfile.mkdtemp()
+            temp_epub = os.path.join(temp_dir, 'temp.epub')
+            try:
+                with zipfile.ZipFile(epub_path, 'r') as zip_in:
+                    with zipfile.ZipFile(temp_epub, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                        for item in zip_in.infolist():
+                            if item.filename in replacements:
+                                zip_out.writestr(item.filename, replacements[item.filename])
+                            else:
+                                zip_out.writestr(item, zip_in.read(item.filename))
+                shutil.move(temp_epub, epub_path)
+                return True
+            finally:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+
+        except Exception as e:
+            error_msg = f"Error repairing EPUB chapters: {str(e)}\n{traceback.format_exc()}"
             log_error(error_msg)
             return False

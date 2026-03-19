@@ -20,6 +20,10 @@ services:
       # Set to false to hide library UI (download-only mode)
       - ENABLE_LIBRARY=true
 
+      # API token for headless/programmatic access (iOS app, scripts, automation)
+      # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+      #- LITKEEPER_API_TOKEN=
+
       # Configure notification services based on Apprise: https://github.com/caronc/apprise#supported-notifications
       #- NOTIFICATION_URLS=
 

@@ -9,6 +9,7 @@ from app.services.story_downloader import download_story, fetch_story_metadata
 from app.services.metadata_refresh_service import MetadataRefreshService
 from pydantic import ValidationError
 import os
+import base64
 from datetime import datetime
 import traceback
 import json
@@ -267,6 +268,8 @@ def download() -> ResponseReturnValue:
 def get_library() -> ResponseReturnValue:
     try:
         stories = get_library_data()
+        for s in stories:
+            print(f"[LK-API] Story '{s['title']}' (id={s['id']}) tags={s['tags']}")
         return jsonify({"stories": stories})
     except Exception as e:
         log_error(f"Error fetching library: {str(e)}\n{traceback.format_exc()}")
@@ -539,6 +542,7 @@ def _story_to_modal_dict(story) -> dict:
         'tags': [tag.name for tag in story.tags],
         'cover': story.cover_filename,
         'formats': [fmt.format_type for fmt in story.formats],
+        'filename_base': story.filename_base,
         'html_file': f"{story.filename_base}.html",
         'epub_file': f"{story.filename_base}.epub",
         'source_url': story.literotica_url,
@@ -596,7 +600,8 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         author_name = data.get('author', '').strip()
         category_name = data.get('category', '').strip()
         tags = data.get('tags', [])
-        
+        description = data.get('description', '').strip()
+
         if not title:
             return jsonify({
                 "success": False,
@@ -627,7 +632,8 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
             story.category = None
         
         story.set_tags(tags)
-        
+        story.description = description if description else None
+
         db.session.commit()
         
         log_action(f"Updated metadata for story {story_id}: {title}")
@@ -901,6 +907,7 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'tags': [tag.name for tag in story.tags],
         'cover': story.cover_filename,
         'formats': [fmt.format_type for fmt in story.formats],
+        'filename_base': story.filename_base,
         'html_file': f"{story.filename_base}.html",
         'epub_file': f"{story.filename_base}.epub",
         'source_url': story.literotica_url,
@@ -973,71 +980,66 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
             "message": "Failed to regenerate cover"
         }), 500
 
-@api.route("/offline/story-urls", methods=['GET'])
-def get_offline_story_urls() -> ResponseReturnValue:
-    """Return all URLs needed for offline reading.
+@api.route("/download/bulk", methods=['GET'])
+def download_bulk() -> ResponseReturnValue:
+    """Bulk content download — returns base64-encoded epub, html, and cover for each requested story ID.
 
-    Returns three lists:
-    - reader_urls: /read/<filename> JSON reader pages (all stories)
-    - epub_urls:   /epub/reader/<id> page + /epub/file/<id> binary (epub stories only)
-    - cover_urls:  /api/cover/<filename>.jpg (all stories, for proactive caching)
-
-    Caching all three lists gives full offline support.
+    Used by the iOS app to fetch multiple stories in a single request, avoiding per-story
+    requests that trigger CrowdSec rate-limiting rules.
     """
+    from app.models import Story
+
+    ids_param = request.args.get('ids', '')
+    if not ids_param:
+        return jsonify({'stories': {}})
+
     try:
-        from app.models import Story, StoryFormat
+        story_ids = [int(i) for i in ids_param.split(',') if i.strip()]
+    except ValueError:
+        return jsonify({'error': 'Invalid ids parameter'}), 400
 
-        # Both 'html' and 'json' format types produce a /read/*.html reader page.
-        # EPUB-only stories (no html/json format) have no reader URL and are excluded.
-        html_story_ids = {
-            row.story_id
-            for row in StoryFormat.query.with_entities(StoryFormat.story_id)
-            .filter(StoryFormat.format_type.in_(['html', 'json'])).all()
-        }
-        all_stories = Story.query.with_entities(Story.id, Story.filename_base, Story.cover_filename).all()
-        reader_urls = [
-            f"/read/{row.filename_base}.html"
-            for row in all_stories
-            if row.id in html_story_ids and row.filename_base
-        ]
+    if not story_ids:
+        return jsonify({'stories': {}})
 
-        # All stories with an epub format get epub URLs (including EPUB-only ones)
-        epub_story_ids = {
-            row.story_id
-            for row in StoryFormat.query.with_entities(StoryFormat.story_id)
-            .filter(StoryFormat.format_type == 'epub').all()
-        }
-        epub_urls = []
-        for row in all_stories:
-            if row.id in epub_story_ids:
-                epub_urls.append(f"/epub/reader/{row.id}")
-                epub_urls.append(f"/epub/file/{row.id}")
+    stories = Story.query.filter(Story.id.in_(story_ids)).all()
+    epub_dir = get_epub_directory()
+    html_dir = get_html_directory()
+    cover_dir = get_cover_directory()
 
-        # Cover images for every story — proactively cached during sync so they
-        # show offline even for stories the user hasn't scrolled past.
-        cover_urls = [
-            f"/api/cover/{row.cover_filename if row.cover_filename else row.filename_base + '.jpg'}"
-            for row in all_stories
-            if row.filename_base
-        ]
+    result = {}
+    for story in stories:
+        entry = {}
 
-        return jsonify({
-            "success": True,
-            "reader_urls": reader_urls,
-            "epub_urls": epub_urls,
-            "cover_urls": cover_urls,
-            "count": len(reader_urls) + len(epub_urls) + len(cover_urls),
-            # Legacy key — keep for any old clients
-            "urls": reader_urls,
-        })
+        epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
+        if os.path.exists(epub_path):
+            try:
+                with open(epub_path, 'rb') as f:
+                    entry['epub'] = base64.b64encode(f.read()).decode('ascii')
+                entry['epub_filename'] = f"{story.filename_base}.epub"
+            except Exception as e:
+                log_error(f"Bulk download: error reading epub for story {story.id}: {e}")
 
-    except Exception as e:
-        log_error(f"Error fetching offline story URLs: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({
-            "success": False,
-            "message": "An error occurred while fetching story URLs",
-            "reader_urls": [],
-            "epub_urls": [],
-            "cover_urls": [],
-            "urls": [],
-        }), 500
+        html_path = os.path.join(html_dir, f"{story.filename_base}.json")
+        if os.path.exists(html_path):
+            try:
+                with open(html_path, 'rb') as f:
+                    entry['html'] = base64.b64encode(f.read()).decode('ascii')
+                entry['html_filename'] = f"{story.filename_base}.json"
+            except Exception as e:
+                log_error(f"Bulk download: error reading html for story {story.id}: {e}")
+
+        cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+        cover_path = os.path.join(cover_dir, cover_filename)
+        if os.path.exists(cover_path):
+            try:
+                with open(cover_path, 'rb') as f:
+                    entry['cover'] = base64.b64encode(f.read()).decode('ascii')
+                entry['cover_filename'] = cover_filename
+            except Exception as e:
+                log_error(f"Bulk download: error reading cover for story {story.id}: {e}")
+
+        result[str(story.id)] = entry
+
+    return jsonify({'stories': result})
+
+
