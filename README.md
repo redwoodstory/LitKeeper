@@ -2,7 +2,7 @@
 
 LitKeeper is a self-hosted web app that lets you download and organize stories from [Literotica](https://www.literotica.com) for offline reading.
 
-Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience. A native iOS companion app is also available — see [LitKeeper for iOS](../litkeeper-ios/README.md).
+Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience. A native iOS companion app is also available — see [LitKeeper for iOS](https://github.com/redwoodstory/litkeeper-ios).
 
 *Note: AI coding assistants were used in the development of this app.*
 
