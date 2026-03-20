@@ -1,8 +1,8 @@
 # LitKeeper
 
-LitKeeper is a Progressive Web App (PWA) that lets you download and organize stories from [Literotica](https://www.literotica.com) for offline reading.
+LitKeeper is a self-hosted web app that lets you download and organize stories from [Literotica](https://www.literotica.com) for offline reading.
 
-Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience alongside offline synchronization.
+Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience. A native iOS companion app is also available — see [LitKeeper for iOS](../litkeeper-ios/README.md).
 
 *Note: AI coding assistants were used in the development of this app.*
 
@@ -16,12 +16,6 @@ Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolve
 * **Automated Series Bundling:** Detects if a story is part of a series, fetches all related parts, and compiles them into a single file. Both formats include a built-in table of contents for easy navigation.
 * **Auto-Updates & Notifications:** Receive alerts when downloads finish. LitKeeper can also check for new chapters and download updates automatically. *(Note: Update schedules are randomized in the code to prevent overwhelming source servers).*
 * **Responsive Design:** Enjoy a mobile-friendly UI that dynamically adapts with bottom navigation and optimized spacing for smaller screens.
-
-### Progressive Web App (PWA) Features
-Install LitKeeper natively on your mobile or desktop device to sync HTML stories for complete offline access without an internet connection. 
-
-**Note:** PWA capabilities (offline reading, app installation, OPFS storage) require a secure context (HTTPS). You will likely need to deploy this behind a reverse proxy with an SSL certificate.
-
 
 ## ⚠️ Migrating from V1
 
@@ -134,7 +128,7 @@ When this env var is set:
 
 ### Layer 3: PIN Lock (web UI, casual snooping protection)
 
-LitKeeper supports optional PIN locking for the web UI. This is intended for simple screen-lock behavior (e.g., PWA on a shared device) — it is not a hardened security wall. It applies only to browser sessions and is automatically bypassed for Bearer-token-authenticated API requests.
+LitKeeper supports optional PIN locking for the web UI. This is intended for simple screen-lock behavior (e.g., a shared device) — it is not a hardened security wall. It applies only to browser sessions and is automatically bypassed for Bearer-token-authenticated API requests.
 
 Enable it under **Settings → Security** in the web UI.
 
