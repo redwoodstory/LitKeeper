@@ -5,9 +5,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 import warnings
 import traceback
-from typing import Optional, Dict, List, Any
-from ebooklib import epub
-from flask import current_app
+from typing import Optional
 from app.models import Story, ReadingProgress
 from app.models.base import db
 from datetime import datetime
@@ -32,58 +30,6 @@ class EpubService:
         if os.path.exists(epub_path):
             return epub_path
         return None
-    
-    @staticmethod
-    def parse_epub_metadata(story: Story) -> Optional[Dict[str, Any]]:
-        """Parse EPUB file and extract metadata for the reader."""
-        epub_path = EpubService.get_epub_path(story)
-        if not epub_path:
-            return None
-        
-        try:
-            book = epub.read_epub(epub_path, options={'ignore_ncx': True})
-            
-            metadata = {
-                'title': story.title,
-                'author': story.author.name if story.author else 'Unknown',
-                'identifier': book.get_metadata('DC', 'identifier'),
-                'language': book.get_metadata('DC', 'language'),
-                'spine': [],
-                'toc': []
-            }
-            
-            for item_id, linear in book.spine:
-                item = book.get_item_with_id(item_id)
-                if item and isinstance(item, epub.EpubHtml):
-                    metadata['spine'].append({
-                        'id': item_id,
-                        'href': item.get_name(),
-                        'title': item.get_title() or item_id
-                    })
-            
-            def parse_toc_item(toc_item):
-                if isinstance(toc_item, tuple):
-                    section, children = toc_item
-                    return {
-                        'title': section.title,
-                        'href': section.href,
-                        'children': [parse_toc_item(child) for child in children]
-                    }
-                else:
-                    return {
-                        'title': toc_item.title,
-                        'href': toc_item.href,
-                        'children': []
-                    }
-            
-            if book.toc:
-                metadata['toc'] = [parse_toc_item(item) for item in book.toc]
-            
-            return metadata
-            
-        except Exception as e:
-            current_app.logger.error(f"Error parsing EPUB metadata for story {story.id}: {str(e)}")
-            return None
     
     @staticmethod
     def get_reading_progress(story_id: int) -> Optional[ReadingProgress]:
