@@ -386,6 +386,73 @@
 
     // Wait for layout to settle before restoring
     requestAnimationFrame(() => requestAnimationFrame(restorePosition));
+
+    // --- Navigate to specific paragraph (from highlights) ---
+    if (typeof window.TARGET_CHAPTER !== 'undefined' && typeof window.TARGET_PARA !== 'undefined') {
+      const ch1based = window.TARGET_CHAPTER + 1;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const target = document.querySelector(`[data-chapter="${ch1based}"][data-para="${window.TARGET_PARA}"]`);
+        if (target) {
+          setTimeout(() => {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('highlight-flash');
+            setTimeout(() => target.classList.remove('highlight-flash'), 2000);
+          }, 300);
+        }
+      }));
+    }
+
+    // --- Save quote ---
+    function showQuoteToast(message) {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.className = 'quote-toast';
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('quote-toast--visible'));
+      setTimeout(() => {
+        toast.classList.remove('quote-toast--visible');
+        setTimeout(() => toast.remove(), 300);
+      }, 2200);
+    }
+
+    const saveQuoteBtn = document.getElementById('saveQuoteBtn');
+    if (saveQuoteBtn) {
+      saveQuoteBtn.addEventListener('click', async () => {
+        const sel = window.getSelection();
+        const text = sel?.toString().trim();
+        if (!text) { showQuoteToast('Select text within the story first'); return; }
+
+        const anchorNode = sel.anchorNode?.nodeType === Node.TEXT_NODE
+          ? sel.anchorNode.parentElement : sel.anchorNode;
+        const para = anchorNode?.closest('[data-para]');
+        if (!para) { showQuoteToast('Select text within a paragraph'); return; }
+
+        const chapterNum = parseInt(para.dataset.chapter, 10); // 1-based in HTML
+        const chapterIndex = chapterNum - 1;                    // 0-based for DB
+        const paragraphIndex = parseInt(para.dataset.para, 10);
+
+        try {
+          const resp = await fetch('/api/highlights', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              story_id: storyId,
+              chapter_index: chapterIndex,
+              paragraph_index: paragraphIndex,
+              quote_text: text
+            })
+          });
+          if (resp.ok) {
+            sel.removeAllRanges();
+            showQuoteToast('Quote saved');
+          } else {
+            showQuoteToast('Could not save quote');
+          }
+        } catch (_) {
+          showQuoteToast('Could not save quote');
+        }
+      });
+    }
   }
 
 })();

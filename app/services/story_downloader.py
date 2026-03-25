@@ -208,7 +208,13 @@ def _download_single_chapter(
             )
             if content_div:
                 for paragraph in content_div.find_all("p"):
-                    chapter_content += paragraph.get_text(strip=True) + "\n\n"
+                    # Literotica's SSR wraps formatted paragraphs in a bare outer <p data-hk>
+                    # containing a real inner <p align="center"> etc. Python's html.parser
+                    # preserves this nesting (unlike browsers which auto-close the outer <p>),
+                    # causing every such paragraph to appear twice. Skip the outer wrapper.
+                    if paragraph.find("p"):
+                        continue
+                    chapter_content += paragraph.decode_contents().strip() + "\n\n"
 
             page_count += 1
 

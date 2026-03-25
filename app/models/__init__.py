@@ -5,6 +5,7 @@ from .tag import Tag, story_tags
 from .story import Story
 from .story_format import StoryFormat
 from .reader import ReadingProgress
+from .highlight import Highlight
 from .migration import MigrationLog, MetadataRefreshLog
 from .config import AppConfig
 from .download_queue import DownloadQueueItem
@@ -22,6 +23,7 @@ __all__ = [
     'Story',
     'StoryFormat',
     'ReadingProgress',
+    'Highlight',
     'MigrationLog',
     'MetadataRefreshLog',
     'AppConfig',

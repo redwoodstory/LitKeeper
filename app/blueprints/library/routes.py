@@ -268,7 +268,10 @@ def read_story(filename: str) -> ResponseReturnValue:
             if story_db and story_db.description and not story_data.get('description'):
                 story_data['description'] = story_db.description
 
-            return render_template('reader.html', story=story_data, story_id=story_id, progress=progress)
+            target_chapter = request.args.get('chapter', type=int)
+            target_para = request.args.get('para', type=int)
+            return render_template('reader.html', story=story_data, story_id=story_id, progress=progress,
+                                   target_chapter=target_chapter, target_para=target_para)
 
         except Exception as e:
             log_error(f"Error loading story {json_filename}: {str(e)}\n{traceback.format_exc()}")

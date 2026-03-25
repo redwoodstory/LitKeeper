@@ -14,6 +14,7 @@ from datetime import datetime
 import traceback
 import json
 from typing import Optional
+from sqlalchemy.orm import joinedload
 
 api = Blueprint('api', __name__, url_prefix='/api')
 
@@ -1041,5 +1042,70 @@ def download_bulk() -> ResponseReturnValue:
         result[str(story.id)] = entry
 
     return jsonify({'stories': result})
+
+
+# ---------------------------------------------------------------------------
+# Highlights / saved quotes
+# ---------------------------------------------------------------------------
+
+def _serialize_highlight(h) -> dict:
+    return {
+        'id': h.id,
+        'story_id': h.story_id,
+        'story_title': h.story.title if h.story else None,
+        'story_author': h.story.author.name if h.story and h.story.author else None,
+        'filename_base': h.story.filename_base if h.story else None,
+        'chapter_index': h.chapter_index,
+        'paragraph_index': h.paragraph_index,
+        'quote_text': h.quote_text,
+        'note': h.note,
+        'created_at': h.created_at.isoformat() if h.created_at else None,
+    }
+
+
+@api.route('/highlights', methods=['GET'])
+def get_highlights() -> ResponseReturnValue:
+    from app.models import Highlight, Story
+    records = (Highlight.query
+               .options(joinedload(Highlight.story).joinedload(Story.author))
+               .order_by(Highlight.created_at.desc())
+               .all())
+    return jsonify({'highlights': [_serialize_highlight(h) for h in records]})
+
+
+@api.route('/highlights', methods=['POST'])
+def create_highlight() -> ResponseReturnValue:
+    from app.models import Highlight, Story, db
+    data = request.get_json(silent=True) or {}
+    story_id = data.get('story_id')
+    chapter_index = data.get('chapter_index')
+    paragraph_index = data.get('paragraph_index')
+    quote_text = data.get('quote_text', '').strip()
+
+    if not story_id or chapter_index is None or paragraph_index is None or not quote_text:
+        return jsonify({'error': 'story_id, chapter_index, paragraph_index, and quote_text are required'}), 400
+
+    story = Story.query.get_or_404(story_id)
+
+    highlight = Highlight(
+        story_id=story.id,
+        chapter_index=int(chapter_index),
+        paragraph_index=int(paragraph_index),
+        quote_text=quote_text,
+        note=data.get('note'),
+    )
+    db.session.add(highlight)
+    db.session.commit()
+
+    return jsonify({'success': True, 'id': highlight.id}), 201
+
+
+@api.route('/highlights/<int:highlight_id>', methods=['DELETE'])
+def delete_highlight(highlight_id: int) -> ResponseReturnValue:
+    from app.models import Highlight, db
+    highlight = Highlight.query.get_or_404(highlight_id)
+    db.session.delete(highlight)
+    db.session.commit()
+    return '', 204
 
 

@@ -226,7 +226,7 @@ def create_app() -> Flask:
             return dt.strftime('%b %d, %Y')
 
     # Register Blueprints
-    from .blueprints import api, library, downloads, errors, settings
+    from .blueprints import api, library, downloads, errors, settings, highlights
     from .blueprints.epub import epub
     from .blueprints.auth import auth
     from .blueprints.queue import queue
@@ -239,6 +239,7 @@ def create_app() -> Flask:
     app.register_blueprint(epub)
     app.register_blueprint(auth)
     app.register_blueprint(queue)
+    app.register_blueprint(highlights)
 
     from .commands import register_commands
     register_commands(app)

@@ -46,7 +46,7 @@ def _xhtml(title: str, body: str) -> str:
 def format_story_content(content: str) -> str:
     """Return body HTML for story content with all text properly XML-escaped."""
     paragraphs = content.split('\n\n')
-    parts = [f'<p>{escape(p.strip())}</p>' for p in paragraphs if p.strip()]
+    parts = [f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()]
     return '\n'.join(parts)
 
 def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None, description: Optional[str] = None) -> str:
