@@ -6,11 +6,22 @@
 {{ super() }}
 {% endblock %}
 
+{% block header %}
+<header class="mb-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="font-playfair text-3xl font-medium text-gray-900 dark:text-white tracking-wide">
+        Settings
+      </h2>
+      <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+        Manage your library and application settings
+      </p>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
 {% block main_content %}
-<div class="mb-6">
-  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Settings</h2>
-  <p class="text-sm text-gray-500 dark:text-gray-400">Manage your library and application settings</p>
-</div>
 
 
 <div class="space-y-4 mb-8">
@@ -69,7 +80,7 @@
         Security
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Protect the app with a numeric PIN. Useful when installed as a PWA on a shared device.
+        Protect the web interface with a numeric PIN.
       </p>
 
       {% if not pin_enabled %}

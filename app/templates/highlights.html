@@ -67,6 +67,7 @@
         <div class="flex items-center gap-2 flex-shrink-0">
           {% if h.story and h.story.filename_base %}
           <a href="/read/{{ h.story.filename_base }}.json?chapter={{ h.chapter_index }}&para={{ h.paragraph_index }}"
+             hx-boost="false"
              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-all duration-200"
              title="Read in context">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

@@ -543,12 +543,13 @@ a:hover {
 
 /* --- Highlight flash animation (navigate to quote) --- */
 @keyframes highlight-flash {
-  0%   { background-color: rgba(250, 204, 21, 0.45); }
+  0%   { background-color: rgba(250, 204, 21, 0.55); }
+  60%  { background-color: rgba(250, 204, 21, 0.55); }
   100% { background-color: transparent; }
 }
 
 .highlight-flash {
-  animation: highlight-flash 2s ease-out forwards;
+  animation: highlight-flash 3.5s ease-out forwards;
   border-radius: 3px;
 }
 

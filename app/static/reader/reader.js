@@ -384,22 +384,20 @@
       }
     }
 
-    // Wait for layout to settle before restoring
-    requestAnimationFrame(() => requestAnimationFrame(restorePosition));
-
     // --- Navigate to specific paragraph (from highlights) ---
     if (typeof window.TARGET_CHAPTER !== 'undefined' && typeof window.TARGET_PARA !== 'undefined') {
       const ch1based = window.TARGET_CHAPTER + 1;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const target = document.querySelector(`[data-chapter="${ch1based}"][data-para="${window.TARGET_PARA}"]`);
         if (target) {
-          setTimeout(() => {
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            target.classList.add('highlight-flash');
-            setTimeout(() => target.classList.remove('highlight-flash'), 2000);
-          }, 300);
+          target.scrollIntoView({ behavior: 'instant', block: 'center' });
+          target.classList.add('highlight-flash');
+          setTimeout(() => target.classList.remove('highlight-flash'), 3500);
         }
       }));
+    } else {
+      // Only restore reading position when not jumping to a specific quote
+      requestAnimationFrame(() => requestAnimationFrame(restorePosition));
     }
 
     // --- Save quote ---
