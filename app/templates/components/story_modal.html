@@ -72,6 +72,20 @@
   </button>
 </div>
 
+{% if story.reading_progress %}
+{% set pct_display = (story.reading_progress.percentage * 100) | round | int %}
+<div class="mb-3">
+  <div class="flex items-center justify-between mb-1.5">
+    <span class="text-xs text-gray-500 dark:text-gray-400">{{ 'Completed' if story.reading_progress.is_completed else 'Reading progress' }}</span>
+    <span class="text-xs font-medium {{ 'text-emerald-600 dark:text-emerald-400' if story.reading_progress.is_completed else 'text-gray-600 dark:text-gray-400' }}">{{ pct_display }}%</span>
+  </div>
+  <div class="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+    <div class="h-full rounded-full {{ 'bg-emerald-500' if story.reading_progress.is_completed else 'bg-blue-500' }}"
+         style="width: {{ pct_display }}%"></div>
+  </div>
+</div>
+{% endif %}
+
 <p class="text-xs text-gray-500 dark:text-gray-400">
   Added {{ story.created_at.strftime('%b %d, %Y') }}<br class="md:hidden">
   {% if story.page_count %}<span class="hidden md:inline"> •</span> {{ story.page_count }} page{% if story.page_count != 1 %}s{% endif %}{% endif %}

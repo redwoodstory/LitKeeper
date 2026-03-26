@@ -44,6 +44,7 @@ class EpubService:
         scroll_position: int = None,
         is_completed: bool = None,
         cfi: str = None,
+        paragraph_id: str = None,
         percentage: float = None
     ) -> ReadingProgress:
         """Update or create reading progress for a story."""
@@ -59,6 +60,8 @@ class EpubService:
                 progress.is_completed = is_completed
             if cfi is not None:
                 progress.cfi = cfi
+            if paragraph_id is not None:
+                progress.paragraph_id = paragraph_id
             if percentage is not None:
                 progress.percentage = percentage
             progress.last_read_at = datetime.utcnow()

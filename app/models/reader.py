@@ -11,6 +11,7 @@ class ReadingProgress(BaseModel, TimestampMixin):
     current_paragraph = db.Column(db.Integer, default=0)
     scroll_position = db.Column(db.Integer, default=0)
     cfi = db.Column(db.Text)
+    paragraph_id = db.Column(db.Text)
     percentage = db.Column(db.Float)
 
     last_read_at = db.Column(db.DateTime, index=True)

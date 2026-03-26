@@ -34,12 +34,14 @@
   {% endif %}
 
   <div class="story-content">
+    {% set ns = namespace(para_idx=0) %}
     {% for chapter in story.chapters %}
     <section class="chapter" id="chapter-{{ chapter.number }}">
       <h2 class="chapter-title">{{ chapter.title }}</h2>
       <div class="chapter-content">
         {% for paragraph in chapter.paragraphs %}
-        <p data-chapter="{{ chapter.number }}" data-para="{{ loop.index0 }}">{{ paragraph | safe }}</p>
+        <p id="para-{{ ns.para_idx }}" data-chapter="{{ chapter.number }}" data-para="{{ loop.index0 }}">{{ paragraph | safe }}</p>
+        {% set ns.para_idx = ns.para_idx + 1 %}
         {% endfor %}
       </div>
     </section>
@@ -55,7 +57,7 @@
 {% if story_id %}
 <script>
   window.STORY_ID = {{ story_id }};
-  window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'percentage': progress.percentage} | tojson | safe }}{% else %}null{% endif %};
+  window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'paragraph_id': progress.paragraph_id, 'percentage': progress.percentage, 'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else none} | tojson | safe }}{% else %}null{% endif %};
   {% if target_chapter is not none %}
   window.TARGET_CHAPTER = {{ target_chapter }};
   window.TARGET_PARA = {{ target_para if target_para is not none else 0 }};

@@ -28,6 +28,7 @@ def get_progress_bulk():
                 'is_completed': p.is_completed,
                 'last_read_at': p.last_read_at.isoformat() if p.last_read_at else None,
                 'cfi': p.cfi,
+                'paragraph_id': p.paragraph_id,
                 'percentage': p.percentage
             }
         else:
@@ -38,6 +39,7 @@ def get_progress_bulk():
                 'is_completed': False,
                 'last_read_at': None,
                 'cfi': None,
+                'paragraph_id': None,
                 'percentage': None
             }
 
@@ -58,6 +60,7 @@ def get_progress(story_id: int):
             'is_completed': False,
             'last_read_at': None,
             'cfi': None,
+            'paragraph_id': None,
             'percentage': None
         })
 
@@ -68,6 +71,7 @@ def get_progress(story_id: int):
         'is_completed': progress.is_completed,
         'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else None,
         'cfi': progress.cfi,
+        'paragraph_id': progress.paragraph_id,
         'percentage': progress.percentage
     })
 
@@ -84,6 +88,7 @@ def update_progress(story_id: int):
         scroll_position=data.get('scroll_position'),
         is_completed=data.get('is_completed'),
         cfi=data.get('cfi'),
+        paragraph_id=data.get('paragraph_id'),
         percentage=data.get('percentage')
     )
 
@@ -94,5 +99,6 @@ def update_progress(story_id: int):
         'scroll_position': progress.scroll_position,
         'is_completed': progress.is_completed,
         'cfi': progress.cfi,
+        'paragraph_id': progress.paragraph_id,
         'percentage': progress.percentage
     })

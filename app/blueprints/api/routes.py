@@ -923,6 +923,10 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'rating': story.rating,
         'in_queue': bool(story.in_queue),
         'description': story.description,
+        'reading_progress': {
+            'percentage': story.reading_progress.percentage,
+            'is_completed': story.reading_progress.is_completed,
+        } if story.reading_progress and story.reading_progress.percentage else None,
     }
 
     return render_template('components/story_modal.html', story=story_data)

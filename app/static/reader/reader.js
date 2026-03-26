@@ -261,12 +261,13 @@
 
     let pendingSync = false;
 
-    async function saveProgress(chapter, para, scrollPos, pct) {
+    async function saveProgress(chapter, para, scrollPos, pct, paragraphId) {
       const payload = {
         current_chapter: chapter,
         current_paragraph: para,
         scroll_position: scrollPos,
-        percentage: pct
+        percentage: pct,
+        paragraph_id: paragraphId || null
       };
 
       // Save locally first (offline resilience)
@@ -312,7 +313,8 @@
             current_chapter: record.current_chapter,
             current_paragraph: record.current_paragraph,
             scroll_position: record.scroll_position,
-            percentage: record.percentage
+            percentage: record.percentage,
+            paragraph_id: record.paragraph_id || null
           })
         });
         pendingSync = false;
@@ -340,13 +342,15 @@
         const p = getTopVisibleParagraph();
         const chapter = p ? parseInt(p.dataset.chapter, 10) : 1;
         const para = p ? parseInt(p.dataset.para, 10) : 0;
-        saveProgress(chapter, para, Math.round(window.scrollY), pct);
+        const paragraphId = p ? p.id : null;
+        saveProgress(chapter, para, Math.round(window.scrollY), pct, paragraphId);
       }, 1500);
     }, { passive: true });
 
     // --- Restore position on load ---
-    // Prefer IndexedDB (updated on every scroll, survives offline) over the
-    // server-embedded INITIAL_PROGRESS (stale if the page was served from cache).
+    // Compare timestamps: prefer whichever source is newer (local IndexedDB or server).
+    // This ensures that progress made on iOS (stored on server) takes precedence over
+    // a stale local IndexedDB entry from a previous web session.
     async function restorePosition() {
       let progress = initialProgress;
 
@@ -358,15 +362,34 @@
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => resolve(null);
         });
-        if (local?.timestamp) progress = local;
+        if (local?.timestamp) {
+          if (progress?.last_read_at) {
+            // Use whichever is newer
+            if (new Date(local.timestamp) >= new Date(progress.last_read_at)) {
+              progress = local;
+            }
+            // else keep server data (e.g. iOS read further)
+          } else {
+            progress = local;
+          }
+        }
       } catch (_) {}
 
       if (!progress) return;
 
-      const { current_chapter: chapter, current_paragraph: para, percentage: pct } = progress;
+      const { paragraph_id: paragraphId, current_chapter: chapter, current_paragraph: para, percentage: pct } = progress;
 
-      // If we have valid chapter-level data (HTML reader saved it), jump to that paragraph.
-      // chapter === 0 means the progress came from the EPUB reader which always writes 0.
+      // Priority 1: global paragraph ID (synced from iOS or saved by this reader)
+      if (paragraphId) {
+        const el = document.getElementById(paragraphId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'instant', block: 'start' });
+          return;
+        }
+      }
+
+      // Priority 2: chapter + paragraph index (HTML reader coordinate)
+      // chapter === 0 means progress came from the EPUB reader which always writes 0.
       if (chapter && chapter > 0) {
         const target = document.querySelector(`[data-chapter="${chapter}"][data-para="${para}"]`);
         if (target) {
@@ -375,7 +398,7 @@
         }
       }
 
-      // Fallback: use percentage (works cross-format)
+      // Priority 3: percentage fallback (works cross-format)
       if (pct && pct > 0) {
         const scrollable = document.documentElement.scrollHeight - window.innerHeight;
         if (scrollable > 0) {
