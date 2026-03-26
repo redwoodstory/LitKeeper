@@ -198,3 +198,13 @@ class TestLibraryFilterRequest:
         """Test that Unicode characters in search are preserved."""
         request = LibraryFilterRequest(search="Café Story")
         assert request.search == "café story"
+
+    def test_sort_by_last_opened_valid(self) -> None:
+        """Test that sort_by='last_opened' is accepted."""
+        request = LibraryFilterRequest(sort_by="last_opened")
+        assert request.sort_by == "last_opened"
+
+    def test_sort_by_invalid_raises_error(self) -> None:
+        """Test that an unknown sort_by value raises a validation error."""
+        with pytest.raises(ValidationError):
+            LibraryFilterRequest(sort_by="unknown_field")

@@ -211,6 +211,9 @@ def filter_library() -> ResponseReturnValue:
                 return (story.get('word_count', 0),)
             elif validated.sort_by == 'rating':
                 return (story.get('rating') or 0,)
+            elif validated.sort_by == 'last_opened':
+                # Stories never opened (None) should sort last when descending
+                return (story.get('last_opened_at') or '',)
             else:
                 return (story.get('created_at', ''),)
 
@@ -265,8 +268,14 @@ def read_story(filename: str) -> ResponseReturnValue:
             story_id = story_db.id if story_db else None
             progress = EpubService.get_reading_progress(story_id) if story_id else None
 
-            if story_db and story_db.description and not story_data.get('description'):
-                story_data['description'] = story_db.description
+            if story_db:
+                from datetime import datetime
+                from app.models import db
+                story_db.last_opened_at = datetime.utcnow()
+                db.session.commit()
+                
+                if story_db.description and not story_data.get('description'):
+                    story_data['description'] = story_db.description
 
             target_chapter = request.args.get('chapter', type=int)
             target_para = request.args.get('para', type=int)

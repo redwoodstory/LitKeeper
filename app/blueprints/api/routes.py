@@ -713,6 +713,7 @@ def set_story_rating(story_id: int) -> ResponseReturnValue:
 @api.route("/story/<int:story_id>/queue", methods=['POST'])
 def toggle_story_queue(story_id: int) -> ResponseReturnValue:
     from app.models import Story, db
+    from datetime import datetime
 
     story = Story.query.get(story_id)
     if not story:
@@ -725,8 +726,52 @@ def toggle_story_queue(story_id: int) -> ResponseReturnValue:
         return jsonify({"success": False, "message": "in_queue must be a boolean"}), 400
 
     story.in_queue = in_queue
+    
+    if in_queue:
+        queued_at_str = data.get('queued_at')
+        if queued_at_str:
+            try:
+                from datetime import datetime as dt
+                story.queued_at = dt.fromisoformat(queued_at_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                story.queued_at = datetime.utcnow()
+        else:
+            story.queued_at = datetime.utcnow()
+    else:
+        story.queued_at = None
+    
     db.session.commit()
-    return jsonify({"in_queue": story.in_queue})
+    return jsonify({
+        "in_queue": story.in_queue,
+        "queued_at": story.queued_at.isoformat() if story.queued_at else None
+    })
+
+
+@api.route("/story/<int:story_id>/last_opened", methods=['POST'])
+def update_last_opened(story_id: int) -> ResponseReturnValue:
+    from app.models import Story, db
+    from datetime import datetime as dt
+
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({"success": False, "message": "Story not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    last_opened_at_str = data.get('last_opened_at')
+    
+    if last_opened_at_str:
+        try:
+            story.last_opened_at = dt.fromisoformat(last_opened_at_str.replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            story.last_opened_at = datetime.utcnow()
+    else:
+        story.last_opened_at = datetime.utcnow()
+    
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "last_opened_at": story.last_opened_at.isoformat() if story.last_opened_at else None
+    })
 
 
 @api.route("/story/toggle-auto-update/<int:story_id>", methods=['POST'])

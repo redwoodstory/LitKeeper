@@ -1,8 +1,10 @@
 from __future__ import annotations
-from flask import jsonify, request, abort
+from flask import jsonify, request, abort, send_from_directory
 from . import epub
 from app.models import Story, ReadingProgress
 from app.services.epub_service import EpubService
+from app.utils import get_epub_directory
+from datetime import datetime
 
 @epub.route('/api/progress/bulk', methods=['GET'])
 def get_progress_bulk():
@@ -102,3 +104,19 @@ def update_progress(story_id: int):
         'paragraph_id': progress.paragraph_id,
         'percentage': progress.percentage
     })
+
+@epub.route('/file/<int:story_id>', methods=['GET'])
+def serve_epub_file(story_id: int):
+    """Serve EPUB file for a story and track last_opened_at."""
+    from app.models import db
+    
+    story = Story.query.get_or_404(story_id)
+    
+    # Update last_opened_at timestamp
+    story.last_opened_at = datetime.utcnow()
+    db.session.commit()
+    
+    epub_directory = get_epub_directory()
+    epub_filename = f"{story.filename_base}.epub"
+    
+    return send_from_directory(epub_directory, epub_filename, as_attachment=False, mimetype='application/epub+zip')

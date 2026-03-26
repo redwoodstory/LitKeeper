@@ -34,6 +34,8 @@ class Story(BaseModel, TimestampMixin):
 
     rating = db.Column(db.Integer, nullable=True)
     in_queue = db.Column(db.Boolean, default=False, nullable=False)
+    queued_at = db.Column(db.DateTime, nullable=True, index=True)
+    last_opened_at = db.Column(db.DateTime, nullable=True, index=True)
     description = db.Column(db.Text, nullable=True)
 
     author = db.relationship('Author', back_populates='stories', lazy='joined')
@@ -95,5 +97,7 @@ class Story(BaseModel, TimestampMixin):
             'is_series': bool(self.literotica_series_url and self.chapter_count > 1),
             'rating': self.rating,
             'in_queue': bool(self.in_queue),
+            'queued_at': self.queued_at.isoformat() if self.queued_at else None,
+            'last_opened_at': self.last_opened_at.isoformat() if self.last_opened_at else None,
             'description': self.description,
         }
