@@ -1,7 +1,8 @@
 from __future__ import annotations
+import os
 from flask import jsonify, request, abort, send_from_directory
 from . import epub
-from app.models import Story, ReadingProgress
+from app.models import Story, ReadingProgress, StoryFormat
 from app.services.epub_service import EpubService
 from app.utils import get_epub_directory
 from datetime import datetime
@@ -105,6 +106,18 @@ def update_progress(story_id: int):
         'percentage': progress.percentage
     })
 
+@epub.route('/api/progress/<int:story_id>', methods=['DELETE'])
+def reset_progress(story_id: int):
+    """Reset reading progress for a story."""
+    from app.models import db
+    Story.query.get_or_404(story_id)
+    progress = ReadingProgress.query.filter_by(story_id=story_id).first()
+    if progress:
+        db.session.delete(progress)
+        db.session.commit()
+    return jsonify({'success': True})
+
+
 @epub.route('/file/<int:story_id>', methods=['GET'])
 def serve_epub_file(story_id: int):
     """Serve EPUB file for a story and track last_opened_at."""
@@ -116,7 +129,10 @@ def serve_epub_file(story_id: int):
     story.last_opened_at = datetime.utcnow()
     db.session.commit()
     
-    epub_directory = get_epub_directory()
-    epub_filename = f"{story.filename_base}.epub"
-    
+    epub_format = StoryFormat.query.filter_by(story_id=story_id, format_type='epub').first()
+    if not epub_format or not os.path.exists(epub_format.file_path):
+        abort(404)
+
+    epub_directory = os.path.dirname(epub_format.file_path)
+    epub_filename = os.path.basename(epub_format.file_path)
     return send_from_directory(epub_directory, epub_filename, as_attachment=False, mimetype='application/epub+zip')

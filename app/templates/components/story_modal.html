@@ -83,6 +83,14 @@
     <div class="h-full rounded-full {{ 'bg-emerald-500' if story.reading_progress.is_completed else 'bg-blue-500' }}"
          style="width: {{ pct_display }}%"></div>
   </div>
+  {% if pct_display > 0 %}
+  <div class="flex justify-end mt-1.5">
+    <button onclick="resetReadingProgress({{ story.id }})"
+            class="text-xs text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors duration-150">
+      Reset progress
+    </button>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -318,6 +326,15 @@
 
 <script>
 document.body.style.overflow = 'hidden';
+
+async function resetReadingProgress(storyId) {
+  if (!confirm('Reset your reading progress for this story?')) return;
+  const res = await fetch(`/epub/api/progress/${storyId}`, { method: 'DELETE' });
+  if (!res.ok) return;
+  document.getElementById('storyModal').remove();
+  document.body.style.overflow = '';
+  htmx.ajax('GET', `/api/story/${storyId}/modal`, { target: 'body', swap: 'beforeend' });
+}
 
 document.addEventListener('keydown', function handleEscape(e) {
   if (e.key === 'Escape') {

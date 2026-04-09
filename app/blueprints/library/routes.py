@@ -243,125 +243,103 @@ def read_story(filename: str) -> ResponseReturnValue:
     if not filename:
         abort(404)
 
-    html_directory = get_html_directory()
-
     if filename.endswith('.html'):
-        json_filename = filename.replace('.html', '.json')
+        filename_base = filename[:-5]
     elif filename.endswith('.json'):
-        json_filename = filename
+        filename_base = filename[:-5]
     else:
         abort(404)
 
-    if not validate_file_in_directory(html_directory, json_filename):
+    if not validate_file_in_directory(get_html_directory(), filename_base):
         log_error(f"Path traversal blocked in read: {filename}")
         abort(403)
 
-    json_path = os.path.join(html_directory, json_filename)
-
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                story_data = json.load(f)
-
-            filename_base = json_filename[:-5]
-            story_db = Story.query.filter_by(filename_base=filename_base).first()
-            story_id = story_db.id if story_db else None
-            progress = EpubService.get_reading_progress(story_id) if story_id else None
-
-            if story_db:
-                from datetime import datetime
-                from app.models import db
-                story_db.last_opened_at = datetime.utcnow()
-                db.session.commit()
-                
-                if story_db.description and not story_data.get('description'):
-                    story_data['description'] = story_db.description
-
-            target_chapter = request.args.get('chapter', type=int)
-            target_para = request.args.get('para', type=int)
-            return render_template('reader.html', story=story_data, story_id=story_id, progress=progress,
-                                   target_chapter=target_chapter, target_para=target_para)
-
-        except Exception as e:
-            log_error(f"Error loading story {json_filename}: {str(e)}\n{traceback.format_exc()}")
-            abort(500)
-
-    elif filename.endswith('.html') and os.path.exists(os.path.join(html_directory, filename)):
-        return send_from_directory(html_directory, filename)
-
-    else:
+    # Look up the story by filename_base, then get the actual file path from StoryFormat.
+    from app.models import StoryFormat
+    story_db = Story.query.filter_by(filename_base=filename_base).first()
+    if not story_db:
         abort(404)
+
+    json_fmt = StoryFormat.query.filter_by(story_id=story_db.id, format_type='json').first()
+    if not json_fmt or not os.path.exists(json_fmt.file_path):
+        abort(404)
+
+    try:
+        with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
+            story_data = json.load(f)
+
+        progress = EpubService.get_reading_progress(story_db.id)
+
+        from datetime import datetime
+        from app.models import db
+        story_db.last_opened_at = datetime.utcnow()
+        db.session.commit()
+
+        if story_db.description and not story_data.get('description'):
+            story_data['description'] = story_db.description
+
+        target_chapter = request.args.get('chapter', type=int)
+        target_para = request.args.get('para', type=int)
+        return render_template('reader.html', story=story_data, story_id=story_db.id, progress=progress,
+                               target_chapter=target_chapter, target_para=target_para)
+
+    except Exception as e:
+        log_error(f"Error loading story {filename_base}: {str(e)}\n{traceback.format_exc()}")
+        abort(500)
 
 @library.route("/download/<format_type>/<filename>")
 def download_story(format_type: str, filename: str) -> ResponseReturnValue:
-    if not filename:
+    if not filename or format_type not in ['html', 'epub']:
         abort(404)
 
-    if format_type not in ['html', 'epub']:
+    # Extract filename_base from the URL slug (strip any extension).
+    for ext in ('.html', '.json', '.epub'):
+        if filename.endswith(ext):
+            filename_base = filename[:-len(ext)]
+            break
+    else:
         abort(404)
 
-    html_directory = get_html_directory()
+    if not validate_file_in_directory(get_html_directory(), filename_base):
+        log_error(f"Path traversal blocked in download: {filename}")
+        abort(403)
+
+    from app.models import StoryFormat
+    story_db = Story.query.filter_by(filename_base=filename_base).first()
+    if not story_db:
+        abort(404)
 
     if format_type == 'html':
-        if filename.endswith('.html'):
-            json_filename = filename.replace('.html', '.json')
-        elif filename.endswith('.json'):
-            json_filename = filename
-        else:
-            abort(404)
-
-        if not validate_file_in_directory(html_directory, json_filename):
-            log_error(f"Path traversal blocked in download: {filename}")
-            abort(403)
-
-        json_path = os.path.join(html_directory, json_filename)
-
-        if not os.path.exists(json_path):
+        json_fmt = StoryFormat.query.filter_by(story_id=story_db.id, format_type='json').first()
+        if not json_fmt or not os.path.exists(json_fmt.file_path):
             abort(404)
 
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
                 story_data = json.load(f)
 
             html_content = render_template('download.html', story=story_data)
-
             response = make_response(html_content)
             response.headers['Content-Type'] = 'text/html; charset=utf-8'
-
             safe_title = "".join(c for c in story_data.get('title', 'story') if c.isalnum() or c in (' ', '-', '_')).strip()
             safe_title = safe_title.replace(' ', '_')
             response.headers['Content-Disposition'] = f'attachment; filename="{safe_title}.html"'
-
             return response
 
         except Exception as e:
-            log_error(f"Error creating HTML download for {json_filename}: {str(e)}\n{traceback.format_exc()}")
+            log_error(f"Error creating HTML download for {filename_base}: {str(e)}\n{traceback.format_exc()}")
             abort(500)
 
     elif format_type == 'epub':
-        epub_directory = get_epub_directory()
-
-        if filename.endswith('.epub'):
-            epub_filename = filename
-        elif filename.endswith('.html'):
-            epub_filename = filename.replace('.html', '.epub')
-        elif filename.endswith('.json'):
-            epub_filename = filename.replace('.json', '.epub')
-        else:
-            abort(404)
-
-        if not validate_file_in_directory(epub_directory, epub_filename):
-            log_error(f"Path traversal blocked in download: {filename}")
-            abort(403)
-
-        epub_path = os.path.join(epub_directory, epub_filename)
-
-        if not os.path.exists(epub_path):
+        epub_fmt = StoryFormat.query.filter_by(story_id=story_db.id, format_type='epub').first()
+        if not epub_fmt or not os.path.exists(epub_fmt.file_path):
             abort(404)
 
         try:
+            epub_directory = os.path.dirname(epub_fmt.file_path)
+            epub_filename = os.path.basename(epub_fmt.file_path)
             return send_from_directory(epub_directory, epub_filename, as_attachment=True, mimetype='application/epub+zip')
         except Exception as e:
-            log_error(f"Error sending EPUB download for {epub_filename}: {str(e)}\n{traceback.format_exc()}")
+            log_error(f"Error sending EPUB download for {filename_base}: {str(e)}\n{traceback.format_exc()}")
             abort(500)
 

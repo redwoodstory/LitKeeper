@@ -130,21 +130,26 @@ class FormatGeneratorService:
                 source_url=url,
                 author_url=story_author_url,
                 page_count=story_pages,
-                filename_base=story.filename_base,
+                filename_base=f"{story.id}_{story.filename_base}",
                 story_description=story_description
             )
 
             with open(json_path, 'r', encoding='utf-8') as f:
                 json_data = json.load(f)
 
-            json_format = StoryFormat(
-                story_id=story.id,
-                format_type='json',
-                file_path=json_path,
-                file_size=os.path.getsize(json_path),
-                json_data=json.dumps(json_data)
-            )
-            db.session.add(json_format)
+            existing_json = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+            if existing_json:
+                existing_json.file_path = json_path
+                existing_json.file_size = os.path.getsize(json_path)
+                existing_json.json_data = json.dumps(json_data)
+            else:
+                db.session.add(StoryFormat(
+                    story_id=story.id,
+                    format_type='json',
+                    file_path=json_path,
+                    file_size=os.path.getsize(json_path),
+                    json_data=json.dumps(json_data)
+                ))
             db.session.commit()
 
             log_action(f"Successfully generated HTML/JSON and updated metadata for story: {story.title}")
@@ -230,16 +235,21 @@ class FormatGeneratorService:
                 output_directory=get_epub_directory(),
                 story_category=story.category.name if story.category else None,
                 story_tags=[tag.name for tag in story.tags],
-                story_description=story.description
+                story_description=story.description,
+                filename_base=f"{story.id}_{story.filename_base}",
             )
 
-            epub_format = StoryFormat(
-                story_id=story.id,
-                format_type='epub',
-                file_path=epub_path,
-                file_size=os.path.getsize(epub_path)
-            )
-            db.session.add(epub_format)
+            existing_epub = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
+            if existing_epub:
+                existing_epub.file_path = epub_path
+                existing_epub.file_size = os.path.getsize(epub_path)
+            else:
+                db.session.add(StoryFormat(
+                    story_id=story.id,
+                    format_type='epub',
+                    file_path=epub_path,
+                    file_size=os.path.getsize(epub_path)
+                ))
             db.session.commit()
 
             log_action(f"Successfully generated EPUB for story: {story.title}")
@@ -326,21 +336,26 @@ class FormatGeneratorService:
                 source_url=story.literotica_url,
                 author_url=story_author_url,
                 page_count=story_pages,
-                filename_base=story.filename_base,
+                filename_base=f"{story.id}_{story.filename_base}",
                 story_description=story_description
             )
 
             with open(json_path, 'r', encoding='utf-8') as f:
                 json_data = json.load(f)
 
-            json_format = StoryFormat(
-                story_id=story.id,
-                format_type='json',
-                file_path=json_path,
-                file_size=os.path.getsize(json_path),
-                json_data=json.dumps(json_data)
-            )
-            db.session.add(json_format)
+            existing_json = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+            if existing_json:
+                existing_json.file_path = json_path
+                existing_json.file_size = os.path.getsize(json_path)
+                existing_json.json_data = json.dumps(json_data)
+            else:
+                db.session.add(StoryFormat(
+                    story_id=story.id,
+                    format_type='json',
+                    file_path=json_path,
+                    file_size=os.path.getsize(json_path),
+                    json_data=json.dumps(json_data)
+                ))
             db.session.commit()
 
             log_action(f"Successfully generated HTML/JSON for story: {story.title}")

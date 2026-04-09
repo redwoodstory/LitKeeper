@@ -655,16 +655,12 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
                 cover_regenerated = True
                 log_action(f"Auto-regenerated cover for story: {story.title}")
                 
-                has_epub = any(f.format_type == 'epub' for f in story.formats)
-                if has_epub:
-                    epub_directory = get_epub_directory()
-                    epub_path = os.path.join(epub_directory, f"{story.filename_base}.epub")
-                    
-                    if os.path.exists(epub_path):
-                        if EpubService.update_epub_cover(epub_path, cover_path):
-                            epub_updated = True
-                            log_action(f"Updated EPUB cover for story: {story.title}")
-                
+                epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+                if epub_fmt and os.path.exists(epub_fmt.file_path):
+                    if EpubService.update_epub_cover(epub_fmt.file_path, cover_path):
+                        epub_updated = True
+                        log_action(f"Updated EPUB cover for story: {story.title}")
+
                 if not story.cover_filename:
                     story.cover_filename = cover_filename
                     db.session.commit()
@@ -998,18 +994,13 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
         log_action(f"Regenerated cover for story: {story.title}")
         
         epub_updated = False
-        has_epub = any(f.format_type == 'epub' for f in story.formats)
-        
-        if has_epub:
-            epub_directory = get_epub_directory()
-            epub_path = os.path.join(epub_directory, f"{story.filename_base}.epub")
-            
-            if os.path.exists(epub_path):
-                if EpubService.update_epub_cover(epub_path, cover_path):
-                    epub_updated = True
-                    log_action(f"Updated EPUB cover for story: {story.title}")
-                else:
-                    log_error(f"Failed to update EPUB cover for story: {story.title}")
+        epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+        if epub_fmt and os.path.exists(epub_fmt.file_path):
+            if EpubService.update_epub_cover(epub_fmt.file_path, cover_path):
+                epub_updated = True
+                log_action(f"Updated EPUB cover for story: {story.title}")
+            else:
+                log_error(f"Failed to update EPUB cover for story: {story.title}")
         
         if not story.cover_filename:
             story.cover_filename = cover_filename
@@ -1060,21 +1051,21 @@ def download_bulk() -> ResponseReturnValue:
     for story in stories:
         entry = {}
 
-        epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
-        if os.path.exists(epub_path):
+        epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+        if epub_fmt and os.path.exists(epub_fmt.file_path):
             try:
-                with open(epub_path, 'rb') as f:
+                with open(epub_fmt.file_path, 'rb') as f:
                     entry['epub'] = base64.b64encode(f.read()).decode('ascii')
-                entry['epub_filename'] = f"{story.filename_base}.epub"
+                entry['epub_filename'] = os.path.basename(epub_fmt.file_path)
             except Exception as e:
                 log_error(f"Bulk download: error reading epub for story {story.id}: {e}")
 
-        html_path = os.path.join(html_dir, f"{story.filename_base}.json")
-        if os.path.exists(html_path):
+        json_fmt = next((f for f in story.formats if f.format_type == 'json'), None)
+        if json_fmt and os.path.exists(json_fmt.file_path):
             try:
-                with open(html_path, 'rb') as f:
+                with open(json_fmt.file_path, 'rb') as f:
                     entry['html'] = base64.b64encode(f.read()).decode('ascii')
-                entry['html_filename'] = f"{story.filename_base}.json"
+                entry['html_filename'] = os.path.basename(json_fmt.file_path)
             except Exception as e:
                 log_error(f"Bulk download: error reading html for story {story.id}: {e}")
 

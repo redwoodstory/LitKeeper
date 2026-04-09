@@ -353,6 +353,33 @@ def create_app() -> Flask:
 
     _repair_epub_metadata_background()
 
+    def _migrate_filenames_background():
+        import threading
+        def _run():
+            with app.app_context():
+                try:
+                    from app.models import AppConfig
+                    from app.models.base import db
+                    migration_key = 'filenames_id_prefix_migrated'
+                    already_done = AppConfig.query.filter_by(key=migration_key).first()
+                    if already_done:
+                        return
+                    from app.services.migration.migrate_filenames_to_id_prefix import migrate_filenames_to_id_prefix
+                    result = migrate_filenames_to_id_prefix()
+                    flag = AppConfig(
+                        key=migration_key, value='true',
+                        value_type='bool',
+                        description='Story files renamed to {id}_{filename_base} format'
+                    )
+                    db.session.add(flag)
+                    db.session.commit()
+                    print(f"[startup] Filename migration: {result.get('message', result)}")
+                except Exception as e:
+                    print(f"[startup] Filename migration error: {e}")
+        threading.Thread(target=_run, daemon=True).start()
+
+    _migrate_filenames_background()
+
     if os.getenv('SKIP_BACKGROUND_WORKERS') != 'true':
         from app.services.download_queue_worker import DownloadQueueWorker
         worker = DownloadQueueWorker(app, poll_interval=5)

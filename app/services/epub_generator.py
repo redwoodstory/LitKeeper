@@ -68,7 +68,8 @@ def create_epub_file(
     cover_image_path: Optional[str] = None,
     story_category: Optional[str] = None,
     story_tags: Optional[list[str]] = None,
-    story_description: Optional[str] = None
+    story_description: Optional[str] = None,
+    filename_base: Optional[str] = None,
 ) -> str:
     """Create an EPUB file from the story content."""
     try:
@@ -173,7 +174,8 @@ def create_epub_file(
         book.toc = toc
         book.spine = ['nav'] + chapters
 
-        epub_path = os.path.join(output_directory, f"{sanitize_filename(story_title)}.epub")
+        output_base = filename_base if filename_base is not None else sanitize_filename(story_title)
+        epub_path = os.path.join(output_directory, f"{output_base}.epub")
         epub.write_epub(epub_path, book, {
             'epub3_pages': False,
             'ignore_ncx': True

@@ -452,3 +452,4 @@ def register_commands(app):
         click.echo('Running update check...')
         check_all_stories_for_updates(app)
         click.echo('Done.')
+

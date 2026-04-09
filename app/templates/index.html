@@ -175,6 +175,21 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
       <span>Reading Queue</span>
     </button>
 
+    {# Category labels toggle #}
+    <button type="button"
+            id="categoryLabelToggle"
+            onclick="toggleCategoryLabels(this)"
+            class="h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
+                   text-slate-500 dark:text-slate-400
+                   hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400
+                   transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
+            title="Show category labels on covers">
+      <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+      </svg>
+      <span>Categories</span>
+    </button>
+
     {# Mobile divider between filters and sort #}
     <hr class="sm:hidden border-slate-200 dark:border-slate-700">
 
@@ -252,6 +267,46 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   </div>
 </div>
 {% endif %}
+
+<style>
+#library.show-categories .story-category-label { display: block !important; }
+</style>
+
+<script>
+function toggleCategoryLabels(btn) {
+  const library = document.getElementById('library');
+  const active = library.classList.toggle('show-categories');
+  localStorage.setItem('library_show_categories', active ? '1' : '0');
+  btn.classList.toggle('border-purple-400', active);
+  btn.classList.toggle('dark:border-purple-500', active);
+  btn.classList.toggle('text-purple-600', active);
+  btn.classList.toggle('dark:text-purple-400', active);
+  btn.classList.toggle('border-dashed', !active);
+  btn.classList.toggle('border-slate-300', !active);
+  btn.classList.toggle('dark:border-slate-600', !active);
+  btn.classList.toggle('text-slate-500', !active);
+  btn.classList.toggle('dark:text-slate-400', !active);
+}
+
+(function restoreCategoryToggle() {
+  if (localStorage.getItem('library_show_categories') !== '1') return;
+  const library = document.getElementById('library');
+  const btn = document.getElementById('categoryLabelToggle');
+  if (library) library.classList.add('show-categories');
+  if (btn) {
+    btn.classList.remove('border-dashed', 'border-slate-300', 'dark:border-slate-600', 'text-slate-500', 'dark:text-slate-400');
+    btn.classList.add('border-purple-400', 'dark:border-purple-500', 'text-purple-600', 'dark:text-purple-400');
+  }
+})();
+
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  if (e.detail.target && e.detail.target.id === 'library-content') {
+    if (localStorage.getItem('library_show_categories') === '1') {
+      document.getElementById('library').classList.add('show-categories');
+    }
+  }
+});
+</script>
 
 {% if open_modal_story %}
 {% with story = open_modal_story %}
