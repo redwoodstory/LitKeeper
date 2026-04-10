@@ -17,13 +17,20 @@ depends_on = None
 
 
 def upgrade():
-    # Add queued_at column to stories table
-    op.add_column('stories', sa.Column('queued_at', sa.DateTime(), nullable=True))
-    op.create_index(op.f('ix_stories_queued_at'), 'stories', ['queued_at'], unique=False)
-    
-    # Add last_opened_at column to stories table
-    op.add_column('stories', sa.Column('last_opened_at', sa.DateTime(), nullable=True))
-    op.create_index(op.f('ix_stories_last_opened_at'), 'stories', ['last_opened_at'], unique=False)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_columns = {col['name'] for col in inspector.get_columns('stories')}
+    existing_indexes = {idx['name'] for idx in inspector.get_indexes('stories')}
+
+    if 'queued_at' not in existing_columns:
+        op.add_column('stories', sa.Column('queued_at', sa.DateTime(), nullable=True))
+    if 'ix_stories_queued_at' not in existing_indexes:
+        op.create_index(op.f('ix_stories_queued_at'), 'stories', ['queued_at'], unique=False)
+
+    if 'last_opened_at' not in existing_columns:
+        op.add_column('stories', sa.Column('last_opened_at', sa.DateTime(), nullable=True))
+    if 'ix_stories_last_opened_at' not in existing_indexes:
+        op.create_index(op.f('ix_stories_last_opened_at'), 'stories', ['last_opened_at'], unique=False)
 
 
 def downgrade():

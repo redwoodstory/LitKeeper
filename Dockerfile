@@ -47,7 +47,7 @@ WORKDIR /litkeeper
 # Copy files
 COPY app app/
 COPY migrations migrations/
-COPY run.py gunicorn.docker.conf.py startup.sh .
+COPY run.py gunicorn.docker.conf.py startup.sh ./
 
 # Create required directories
 RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
