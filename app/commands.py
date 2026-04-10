@@ -5,6 +5,7 @@ from flask.cli import AppGroup
 sync_cli = AppGroup('sync', help='Database/file sync operations.')
 migration_cli = AppGroup('migration', help='Database migration operations.')
 backfill_cli = AppGroup('backfill', help='Data backfill operations.')
+redownload_cli = AppGroup('redownload', help='Re-download story content from source.')
 
 
 def _get_sync_checker():
@@ -440,10 +441,78 @@ def backfill_series_urls():
     click.echo(f'Done. Results: {results}')
 
 
+@redownload_cli.command('all')
+@click.option('--dry-run', is_flag=True, default=False, help='Preview what would be enqueued without adding to queue.')
+def redownload_all(dry_run: bool):
+    """Enqueue all stories with a Literotica URL for re-download."""
+    from app.models import Story, DownloadQueueItem
+    from app.models.base import db
+
+    stories = Story.query.filter(Story.literotica_url.isnot(None)).order_by(Story.title.asc()).all()
+    if not stories:
+        click.echo('No stories with a Literotica URL found.')
+        return
+
+    click.echo(f'Found {len(stories)} stories to re-download.')
+
+    if dry_run:
+        for story in stories:
+            click.echo(f'  [DRY RUN] Would enqueue: {story.title} — {story.literotica_url}')
+        click.echo('[DRY RUN] No items added to queue.')
+        return
+
+    if not click.confirm(f'Enqueue all {len(stories)} stories for re-download?'):
+        click.echo('Aborted.')
+        return
+
+    enqueued = 0
+    skipped = 0
+    for story in stories:
+        already_pending = DownloadQueueItem.query.filter_by(
+            url=story.literotica_url, status='pending'
+        ).first()
+        if already_pending:
+            click.echo(f'  Skipping (already pending): {story.title}')
+            skipped += 1
+            continue
+
+        item = DownloadQueueItem(url=story.literotica_url, status='pending')
+        item.set_formats(['epub', 'json'])
+        db.session.add(item)
+        enqueued += 1
+
+    db.session.commit()
+    click.echo(f'Done. Enqueued: {enqueued}, Skipped (already pending): {skipped}.')
+    click.echo('The download queue worker will process them at up to 5 per minute.')
+
+
+@redownload_cli.command('cancel')
+def redownload_cancel():
+    """Remove all pending download queue jobs (in-progress download completes first)."""
+    from app.models import DownloadQueueItem
+    from app.models.base import db
+
+    pending = DownloadQueueItem.query.filter_by(status='pending').all()
+    if not pending:
+        click.echo('No pending jobs in the queue.')
+        return
+
+    count = len(pending)
+    if not click.confirm(f'Delete {count} pending job(s) from the queue?'):
+        click.echo('Aborted.')
+        return
+
+    for item in pending:
+        db.session.delete(item)
+    db.session.commit()
+    click.echo(f'Removed {count} pending job(s). Any in-progress download will finish normally.')
+
+
 def register_commands(app):
     app.cli.add_command(sync_cli)
     app.cli.add_command(migration_cli)
     app.cli.add_command(backfill_cli)
+    app.cli.add_command(redownload_cli)
 
     @app.cli.command('update-check')
     def update_check():

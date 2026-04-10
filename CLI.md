@@ -64,6 +64,28 @@ Retroactively populate missing data for existing stories.
 
 ---
 
+## redownload — Re-download story content
+
+Re-enqueue stories for a fresh download from their source URL. Useful after a scraping fix to regenerate story files with corrected content.
+
+| Command | Description |
+|---------|-------------|
+| `flask redownload all` | Enqueue every story with a Literotica URL for re-download (prompts for confirmation) |
+| `flask redownload all --dry-run` | Preview which stories would be enqueued without adding anything to the queue |
+| `flask redownload cancel` | Remove all pending re-download jobs from the queue (any in-progress download completes first) |
+
+> **Note:** Jobs are processed by the download queue worker at up to 5 per minute. A currently in-progress download cannot be interrupted — `cancel` only removes jobs that haven't started yet.
+
+**Example workflow:**
+```bash
+docker exec -it litkeeper flask redownload all --dry-run
+docker exec -it litkeeper flask redownload all
+# later, if you want to stop:
+docker exec -it litkeeper flask redownload cancel
+```
+
+---
+
 ## update-check
 
 Manually trigger the story update checker (normally runs on a schedule).

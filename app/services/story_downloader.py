@@ -453,7 +453,9 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                             chapter_titles.append(current_title)
 
                         for paragraph in content_div.find_all("p"):
-                            current_chapter_content += paragraph.get_text(strip=True) + "\n\n"
+                            if paragraph.find("p"):
+                                continue
+                            current_chapter_content += paragraph.decode_contents().strip() + "\n\n"
 
                     total_pages += 1
                     next_page_link = None
