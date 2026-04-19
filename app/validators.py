@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, HttpUrl, field_validator, Field
 from typing import Literal
+from urllib.parse import urlparse
 
 class StoryDownloadRequest(BaseModel):
     """Validation schema for story download requests."""
@@ -17,10 +18,21 @@ class StoryDownloadRequest(BaseModel):
         if not v:
             raise ValueError("URL cannot be empty")
 
-        if not v.startswith("https://www.literotica.com/"):
+        parsed = urlparse(v)
+
+        # Validate scheme
+        if parsed.scheme != "https":
+            raise ValueError("Only HTTPS URLs are allowed")
+
+        host = parsed.netloc.lower()
+
+        # Allow literotica.com and all subdomains (e.g. german.literotica.com)
+        if not (host == "literotica.com" or host.endswith(".literotica.com")):
             raise ValueError("Only Literotica URLs are allowed")
 
-        if '/s/' not in v and '/series/se/' not in v:
+        # Validate path
+        path = parsed.path
+        if "/s/" not in path and "/series/se/" not in path:
             raise ValueError("URL must be a story chapter (/s/) or series page (/series/se/)")
 
         return v

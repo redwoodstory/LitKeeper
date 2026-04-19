@@ -1,31 +1,17 @@
 services:
   litkeeper:
-    image: ghcr.io/redwoodstory/litkeeper:latest
-    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
 
-    # Run as non-root user
-    # user: "1000:1000"
+    restart: unless-stopped
 
     ports:
       - "5000:5000"
       
     volumes:
-      # Set /data mount to persist database and secret key
       - ./data:/litkeeper/app/data
-      
-      # Set /stories mount for all story-related files (epubs, html, covers)
       - ./stories:/litkeeper/app/stories
       
     environment:
-      # Set to false to hide library UI (download-only mode)
       - ENABLE_LIBRARY=true
-
-      # API token for headless/programmatic access (iOS app, scripts, automation)
-      # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
-      #- LITKEEPER_API_TOKEN=
-
-      # Configure notification services based on Apprise: https://github.com/caronc/apprise#supported-notifications
-      #- NOTIFICATION_URLS=
-
-      # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
-      #- EXTERNAL_EPUB_PATH=/path/to/calibre-web/auto-import
