@@ -24,23 +24,18 @@
 {% endblock %}
 
 {% block main_content %}
-<div id="syncBanner"
-     hx-get="/sync-banner"
-     hx-trigger="load"
-     hx-swap="outerHTML"></div>
-
+{% if sync_status and not sync_status.in_sync %}
+{% include 'partials/sync_banner_warning.html' %}
+{% endif %}
 <script>
 function dismissSyncBanner() {
   sessionStorage.setItem('syncBannerDismissed', 'true');
   const banner = document.getElementById('syncBanner');
-  if (banner) {
-    banner.classList.add('hidden');
-  }
+  if (banner) banner.classList.add('hidden');
 }
-
 if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
-  const bannerContainer = document.getElementById('syncBanner');
-  if (bannerContainer) bannerContainer.style.display = 'none';
+  const banner = document.getElementById('syncBanner');
+  if (banner) banner.classList.add('hidden');
 }
 </script>
 
@@ -308,6 +303,9 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
 });
 </script>
 
+{% endblock %}
+
+{% block modal_content %}
 {% if open_modal_story %}
 {% with story = open_modal_story %}
 {% include 'components/story_modal.html' %}

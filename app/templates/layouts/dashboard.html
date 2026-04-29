@@ -177,6 +177,12 @@
   {% block main_content %}{% endblock %}
 </div>
 
+<div id="modal-container"
+     x-data
+     @keydown.escape.window="if ($el.children.length) { $el.innerHTML = ''; document.body.style.overflow = ''; document.body.style.paddingRight = ''; }">
+  {% block modal_content %}{% endblock %}
+</div>
+
 {% include 'components/metadata_refresh_modal.html' %}
 
 {% set p = request.path %}

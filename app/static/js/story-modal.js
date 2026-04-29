@@ -4,6 +4,28 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+document.addEventListener('pointerdown', function(e) {
+  const card = e.target.closest('[data-story-id]');
+  if (card) (new Image()).src = '/api/story/' + card.dataset.storyId + '/cover';
+});
+
+window.closeStoryModal = function() {
+  const container = document.getElementById('modal-container');
+  if (container) {
+    container.innerHTML = '';
+  }
+  document.body.style.overflow = '';
+  document.body.style.paddingRight = '';
+};
+
+window.resetReadingProgress = async function(storyId) {
+  if (!confirm('Reset your reading progress for this story?')) return;
+  const res = await fetch(`/epub/api/progress/${storyId}`, { method: 'DELETE' });
+  if (!res.ok) return;
+  closeStoryModal();
+  htmx.ajax('GET', `/api/story/${storyId}/modal`, { target: '#modal-container', swap: 'innerHTML' });
+};
+
 
 let _queueFilterActive = false;
 
@@ -27,11 +49,8 @@ function refreshLibrary() {
       fetch(`/library/filter?${params.toString()}`)
         .then(response => response.text())
         .then(html => {
-          libraryContent.outerHTML = html;
-          const newLibraryContent = document.getElementById('library-content');
-          if (newLibraryContent) {
-            htmx.process(newLibraryContent);
-          }
+          libraryContent.innerHTML = html;
+          htmx.process(libraryContent);
         })
         .catch(error => {
           console.error('[Library] Failed to refresh:', error);
@@ -94,9 +113,8 @@ window.toggleQueueFilter = function(btn) {
     fetch(url)
       .then(r => r.text())
       .then(html => {
-        libraryContent.outerHTML = html;
-        const newContent = document.getElementById('library-content');
-        if (newContent) htmx.process(newContent);
+        libraryContent.innerHTML = html;
+        htmx.process(libraryContent);
       })
       .catch(err => console.error('[Queue] Filter failed:', err));
   }
@@ -676,13 +694,7 @@ function updateModalContentInPlace(story) {
   showFormatSuccessToast('HTML format created successfully!');
 }
 
-window.closeStoryModal = function() {
-  const modal = document.getElementById('storyModal');
-  if (modal) {
-    modal.remove();
-    document.body.style.overflow = '';
-  }
-};
+// closeStoryModal is defined at the top of this file
 
 function updateModalWithNewStory(story) {
   closeStoryModal();
@@ -789,21 +801,18 @@ window.deleteStory = async function(storyId, storyTitle) {
   
   const modal = document.getElementById('storyModal');
   if (modal) {
-    const modalContent = modal.querySelector('.p-6.md\\:p-8');
-    if (modalContent) {
-      const loadingOverlay = document.createElement('div');
-      loadingOverlay.id = 'deleteLoadingOverlay';
-      loadingOverlay.className = 'absolute inset-0 bg-white/90 dark:bg-gray-800/90 flex items-center justify-center z-10 rounded-xl';
-      loadingOverlay.innerHTML = `
-        <div class="text-center">
-          <svg class="w-12 h-12 mx-auto mb-3 text-red-600 dark:text-red-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-          </svg>
-          <p class="text-gray-900 dark:text-white font-medium">Deleting story...</p>
-        </div>
-      `;
-      modal.querySelector('div > div').appendChild(loadingOverlay);
-    }
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'deleteLoadingOverlay';
+    loadingOverlay.className = 'absolute inset-0 bg-white/90 dark:bg-gray-800/90 flex items-center justify-center z-10 rounded-xl';
+    loadingOverlay.innerHTML = `
+      <div class="text-center">
+        <svg class="w-12 h-12 mx-auto mb-3 text-red-600 dark:text-red-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        <p class="text-gray-900 dark:text-white font-medium">Deleting story...</p>
+      </div>
+    `;
+    modal.querySelector('div > div').appendChild(loadingOverlay);
   }
   
   try {
@@ -953,33 +962,27 @@ async function saveMetadataChanges(storyId) {
       
       if (result.cover_regenerated) {
         const timestamp = new Date().getTime();
-        const modal = document.getElementById('storyModal');
-        if (modal) {
+        const container = document.getElementById('modal-container');
+        if (container) {
           try {
             const modalResponse = await fetch(`/api/story/${storyId}/modal?t=${timestamp}`);
             if (modalResponse.ok) {
               const modalHtml = await modalResponse.text();
-              modal.outerHTML = modalHtml;
-              
-              const newModal = document.getElementById('storyModal');
-              if (newModal && result.cover_filename) {
-                const coverImg = newModal.querySelector('img[alt*="cover"]');
-                if (coverImg) {
-                  const coverSrc = coverImg.src.split('?')[0];
-                  coverImg.src = `${coverSrc}?t=${timestamp}`;
-                }
+              container.innerHTML = modalHtml;
+              htmx.process(container);
+
+              const coverImg = container.querySelector(`img[src*="/api/story/${storyId}/cover"]`);
+              if (coverImg) {
+                coverImg.src = `/api/story/${storyId}/cover?t=${timestamp}`;
               }
             }
           } catch (modalError) {
             console.error('Error refreshing modal:', modalError);
           }
         }
-        
-        if (result.cover_filename) {
-          htmx.trigger(document.body, 'coverRegenerated', { 
-            storyId: storyId, 
-            coverFilename: result.cover_filename 
-          });
+
+        if (result.cover_regenerated) {
+          htmx.trigger(document.body, 'coverRegenerated', { storyId: storyId });
         }
         
         showToast('Metadata updated successfully', 'success');
@@ -1033,15 +1036,11 @@ async function saveMetadataChanges(storyId) {
 }
 
 document.body.addEventListener('coverRegenerated', function(evt) {
-  const { storyId, coverFilename } = evt.detail;
+  const { storyId } = evt.detail;
   const timestamp = new Date().getTime();
-  
-  const libraryCovers = document.querySelectorAll(`img[src*="${coverFilename}"]`);
+  const libraryCovers = document.querySelectorAll(`img[src*="/api/story/${storyId}/cover"]`);
   libraryCovers.forEach(img => {
-    if (!img.closest('#storyModal')) {
-      const currentSrc = img.src.split('?')[0];
-      img.src = `${currentSrc}?t=${timestamp}`;
-    }
+    img.src = `/api/story/${storyId}/cover?t=${timestamp}`;
   });
 });
 

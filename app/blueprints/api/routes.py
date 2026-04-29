@@ -276,6 +276,35 @@ def get_library() -> ResponseReturnValue:
         log_error(f"Error fetching library: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"stories": []})
 
+@api.route("/story/<int:story_id>/cover")
+def get_story_cover(story_id: int) -> ResponseReturnValue:
+    from app.models import Story
+    from app.services import extract_cover_from_epub
+
+    story = Story.query.get_or_404(story_id)
+    cover_directory = get_cover_directory()
+    filename = story.cover_filename or f"{story.filename_base}.jpg"
+
+    if not validate_file_in_directory(cover_directory, filename):
+        log_error(f"Path traversal blocked in cover for story {story_id}: {filename}")
+        abort(403)
+
+    cover_path = os.path.join(cover_directory, filename)
+    os.makedirs(cover_directory, exist_ok=True)
+
+    if os.path.exists(cover_path):
+        return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+
+    epub_path = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
+    if os.path.exists(epub_path):
+        try:
+            if extract_cover_from_epub(epub_path, cover_path):
+                return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        except Exception as e:
+            log_error(f"Error extracting cover from EPUB for story {story_id}: {str(e)}")
+
+    abort(404)
+
 @api.route("/cover/<filename>")
 def get_cover(filename: str) -> ResponseReturnValue:
     from app.services import generate_cover_image, extract_cover_from_epub

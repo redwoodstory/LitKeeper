@@ -258,10 +258,8 @@
 </div>
 {% endmacro %}
 
-{% set cover_filename = story.cover if story.cover else (story.html_file.replace('.html', '.jpg') if story.html_file else story.epub_file.replace('.epub', '.jpg')) %}
-
 <div id="storyModal" class="fixed top-0 left-0 right-0 modal-bottom-inset z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200"
-     hx-on:click="if(event.target === event.currentTarget) { document.getElementById('storyModal').remove(); document.body.style.overflow = ''; }">
+     hx-on:click="if(event.target === event.currentTarget) { closeStoryModal(); }">
   <div id="storyModalSheet" class="w-full md:w-full md:max-w-4xl md:mx-4 max-h-[88vh] md:max-h-[90vh] bg-white dark:bg-gray-800 rounded-t-2xl md:rounded-xl shadow-2xl overflow-y-auto transform transition-all relative modal-sheet-enter"
        onclick="event.stopPropagation()">
 
@@ -270,7 +268,7 @@
       <div class="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></div>
     </div>
 
-    <button onclick="document.getElementById('storyModal').remove(); document.body.style.overflow = '';"
+    <button onclick="closeStoryModal();"
             class="hidden md:flex absolute top-4 right-4 z-20 w-8 h-8 items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-200"
             aria-label="Close modal">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,10 +282,10 @@
         <div class="flex flex-row gap-4 mb-5">
           <div class="flex-shrink-0 w-20 h-28 rounded-lg border-2 border-white/80 dark:border-white/10 overflow-hidden bg-slate-200 dark:bg-slate-700"
                style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
-            <img src="/api/cover/{{ cover_filename }}"
-                 alt="{{ story.title }}"
-                 class="w-full h-full object-cover opacity-0 transition-opacity duration-300"
-                 onload="this.classList.remove('opacity-0')">
+            <img src="/api/story/{{ story.id }}/cover"
+                 alt=""
+                 class="w-full h-full object-cover"
+                 onerror="this.style.display='none'">
           </div>
           <div class="flex-1 min-w-0">
             {{ story_info_section(story) }}
@@ -300,10 +298,10 @@
       <div class="hidden md:flex flex-row gap-6">
         <div class="flex-shrink-0 w-48 h-64 rounded-lg border-2 border-white/80 dark:border-white/10 overflow-hidden bg-slate-200 dark:bg-slate-700"
              style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
-          <img src="/api/cover/{{ cover_filename }}"
+          <img src="{{ story.cover_data_url if story.cover_data_url else '/api/story/' ~ story.id ~ '/cover' }}"
                alt="{{ story.title }}"
-               class="w-full h-full object-cover opacity-0 transition-opacity duration-300"
-               onload="this.classList.remove('opacity-0')">
+               class="w-full h-full object-cover"
+               onerror="this.style.display='none'">
         </div>
         <div class="flex-1 min-w-0">
           {{ story_info_section(story) }}
@@ -327,24 +325,9 @@
 </style>
 
 <script>
+const _scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+document.body.style.paddingRight = _scrollbarWidth + 'px';
 document.body.style.overflow = 'hidden';
-
-async function resetReadingProgress(storyId) {
-  if (!confirm('Reset your reading progress for this story?')) return;
-  const res = await fetch(`/epub/api/progress/${storyId}`, { method: 'DELETE' });
-  if (!res.ok) return;
-  document.getElementById('storyModal').remove();
-  document.body.style.overflow = '';
-  htmx.ajax('GET', `/api/story/${storyId}/modal`, { target: 'body', swap: 'beforeend' });
-}
-
-document.addEventListener('keydown', function handleEscape(e) {
-  if (e.key === 'Escape') {
-    const modal = document.getElementById('storyModal');
-    if (modal) { modal.remove(); document.body.style.overflow = ''; }
-    document.removeEventListener('keydown', handleEscape);
-  }
-});
 
 // Swipe-to-dismiss for mobile sheet
 (function() {
@@ -386,8 +369,7 @@ document.addEventListener('keydown', function handleEscape(e) {
       sheet.style.transform = 'translateY(100%)';
       overlay.style.opacity = '0';
       setTimeout(() => {
-        overlay.remove();
-        document.body.style.overflow = '';
+        closeStoryModal();
       }, 280);
     } else {
       sheet.style.transform = 'translateY(0)';

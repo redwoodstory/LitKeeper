@@ -97,17 +97,17 @@
        data-story-filename="{{ story.filename_base }}.html"
        {% if 'epub' in story.formats %}data-epub-story-id="{{ story.id }}"{% endif %}
        hx-get="/api/story/{{ story.id }}/modal"
-       hx-target="body"
-       hx-swap="beforeend"
+       hx-target="#modal-container"
+       hx-swap="innerHTML"
+       hx-disabled-elt="this"
        hx-on::error="this.classList.add('opacity-50'); console.error('[Story Card] Failed to load modal for story {{ story.id }}'); showToast && showToast('Failed to load story. Please refresh.', 'error')"
-       hx-on::load="this.classList.remove('opacity-50')">
+       hx-on::after-request="this.classList.remove('opacity-50')">
     <div class="relative">
       <div class="aspect-[3/4] overflow-hidden rounded-lg border-2 border-white/80 dark:border-white/10 transition-all duration-200 bg-slate-200 dark:bg-slate-700"
            style="box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);"
            onmouseenter="this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)'"
            onmouseleave="this.style.boxShadow='0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)'">
-        {% set cover_filename = story.cover if story.cover else story.filename_base + '.jpg' %}
-        <img src="/api/cover/{{ cover_filename }}"
+        <img src="/api/story/{{ story.id }}/cover"
              alt="{{ story.title }}"
              class="w-full h-full object-cover opacity-0 transition-opacity duration-300"
              loading="lazy"

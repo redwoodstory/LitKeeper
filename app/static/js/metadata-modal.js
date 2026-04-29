@@ -11,6 +11,8 @@ class MetadataModal {
         this.onSaveCallback = onSave;
         this.render();
         this.attachEventListeners();
+        const _scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        document.body.style.paddingRight = _scrollbarWidth + 'px';
         document.body.style.overflow = 'hidden';
     }
 
@@ -21,6 +23,7 @@ class MetadataModal {
         }
         document.removeEventListener('keydown', this.boundHandleEscape);
         document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
     }
 
     render() {
