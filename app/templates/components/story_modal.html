@@ -282,11 +282,12 @@
       {# Mobile layout: compact header row + full-width actions below #}
       <div class="md:hidden flex flex-col">
         <div class="flex flex-row gap-4 mb-5">
-          <div class="flex-shrink-0">
+          <div class="flex-shrink-0 w-20 h-28 rounded-lg border-2 border-white/80 dark:border-white/10 overflow-hidden bg-slate-200 dark:bg-slate-700"
+               style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
             <img src="/api/cover/{{ cover_filename }}"
-                 alt="{{ story.title }} cover"
-                 class="w-20 h-28 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
-                 style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
+                 alt="{{ story.title }}"
+                 class="w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                 onload="this.classList.remove('opacity-0')">
           </div>
           <div class="flex-1 min-w-0">
             {{ story_info_section(story) }}
@@ -297,11 +298,12 @@
 
       {# Desktop layout: large cover + info+actions in right column #}
       <div class="hidden md:flex flex-row gap-6">
-        <div class="flex-shrink-0">
+        <div class="flex-shrink-0 w-48 h-64 rounded-lg border-2 border-white/80 dark:border-white/10 overflow-hidden bg-slate-200 dark:bg-slate-700"
+             style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
           <img src="/api/cover/{{ cover_filename }}"
-               alt="{{ story.title }} cover"
-               class="w-48 h-64 object-cover rounded-lg border-2 border-white/80 dark:border-white/10"
-               style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
+               alt="{{ story.title }}"
+               class="w-full h-full object-cover opacity-0 transition-opacity duration-300"
+               onload="this.classList.remove('opacity-0')">
         </div>
         <div class="flex-1 min-w-0">
           {{ story_info_section(story) }}

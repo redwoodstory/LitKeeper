@@ -96,7 +96,8 @@ def create_app() -> Flask:
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
-        'pool_recycle': 3600,
+        'pool_recycle': 1800,
+        'pool_timeout': 30,
         'connect_args': {
             'timeout': 30,
             'check_same_thread': False,
@@ -379,6 +380,52 @@ def create_app() -> Flask:
         threading.Thread(target=_run, daemon=True).start()
 
     _migrate_filenames_background()
+
+    def _backfill_missing_covers_background():
+        import threading
+        def _run():
+            import time
+            time.sleep(10)  # Let filename migration and other startup tasks settle first
+            with app.app_context():
+                try:
+                    from app.models import Story
+                    from app.utils import get_cover_directory
+                    from app.services.cover_generator import generate_cover_image, extract_cover_from_epub
+
+                    cover_dir = get_cover_directory()
+                    os.makedirs(cover_dir, exist_ok=True)
+
+                    stories = Story.query.all()
+                    generated = 0
+
+                    for story in stories:
+                        cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                        cover_path = os.path.join(cover_dir, cover_filename)
+
+                        if os.path.exists(cover_path):
+                            continue
+
+                        author_name = story.author.name if story.author else 'Unknown Author'
+
+                        epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+                        if epub_fmt and os.path.exists(epub_fmt.file_path):
+                            try:
+                                if extract_cover_from_epub(epub_fmt.file_path, cover_path):
+                                    generated += 1
+                                    continue
+                            except Exception:
+                                pass
+
+                        generate_cover_image(story.title, author_name, cover_path)
+                        generated += 1
+
+                    if generated > 0:
+                        print(f"[startup] Cover backfill: generated {generated} missing covers")
+                except Exception as e:
+                    print(f"[startup] Cover backfill error: {e}")
+        threading.Thread(target=_run, daemon=True).start()
+
+    _backfill_missing_covers_background()
 
     if os.getenv('SKIP_BACKGROUND_WORKERS') != 'true':
         from app.services.download_queue_worker import DownloadQueueWorker

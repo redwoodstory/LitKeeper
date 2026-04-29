@@ -222,7 +222,38 @@ class DatabaseMigrator:
             db.session.rollback()
             raise Exception(f"Failed to commit story '{metadata.get('title')}': {str(e)}")
 
+        self._generate_cover(story, file_group, metadata)
+
         return story
+
+    def _generate_cover(self, story: Story, file_group: dict, metadata: dict) -> None:
+        """Generate a cover image for a newly migrated story if one doesn't already exist."""
+        try:
+            from app.utils import get_cover_directory
+            from app.services.cover_generator import generate_cover_image, extract_cover_from_epub
+
+            cover_dir = get_cover_directory()
+            os.makedirs(cover_dir, exist_ok=True)
+
+            cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+            cover_path = os.path.join(cover_dir, cover_filename)
+
+            if os.path.exists(cover_path):
+                return
+
+            author_name = metadata.get('author', 'Unknown Author')
+
+            epub_format = next((f for f in file_group.get('formats', []) if f['type'] == 'epub'), None)
+            if epub_format and os.path.exists(epub_format['path']):
+                try:
+                    if extract_cover_from_epub(epub_format['path'], cover_path):
+                        return
+                except Exception:
+                    pass
+
+            generate_cover_image(story.title, author_name, cover_path)
+        except Exception as e:
+            log_error(f"Failed to generate cover for '{story.title}': {str(e)}")
 
     def _log_migration(self, file_group: dict, status: str, story_id: Optional[int] = None, error: Optional[str] = None):
         """Log migration result for a file"""

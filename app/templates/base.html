@@ -226,6 +226,25 @@
   {% block scripts %}
   <script src="/static/js/theme.js" defer></script>
   <script src="/static/js/toast.js" defer></script>
+  <script>
+    // Global HTMX error handler - shows toast when requests fail after inactivity
+    document.addEventListener('htmx:sendError', function(evt) {
+      console.error('[HTMX] Send error:', evt.detail);
+      showToast('Network error. Please refresh the page and try again.', 'error');
+    });
+    document.addEventListener('htmx:responseError', function(evt) {
+      console.error('[HTMX] Response error:', evt.detail);
+      var status = evt.detail.xhr?.status || 0;
+      if (status === 0) {
+        showToast('Connection lost. Please refresh the page.', 'error');
+      } else if (status >= 500) {
+        showToast('Server error. Please try again later.', 'error');
+      }
+    });
+    document.addEventListener('htmx:onLoadError', function(evt) {
+      console.error('[HTMX] Load error:', evt.detail);
+    });
+  </script>
   {% endblock %}
 
 

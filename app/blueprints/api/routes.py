@@ -313,6 +313,12 @@ def get_cover(filename: str) -> ResponseReturnValue:
             author = story_data.get('author', 'Unknown Author')
         except Exception as e:
             log_error(f"Error reading JSON metadata: {str(e)}")
+    else:
+        from app.models import Story
+        story_db = Story.query.filter_by(filename_base=sanitized_title).first()
+        if story_db:
+            title = story_db.title
+            author = story_db.author.name if story_db.author else 'Unknown Author'
 
     if os.path.exists(epub_path):
         try:
@@ -545,7 +551,7 @@ def _story_to_modal_dict(story) -> dict:
         'formats': [fmt.format_type for fmt in story.formats],
         'filename_base': story.filename_base,
         'html_file': f"{story.filename_base}.html",
-        'epub_file': f"{story.filename_base}.epub",
+        'epub_file': os.path.basename(next((f.file_path for f in story.formats if f.format_type == 'epub'), '')) or None,
         'source_url': story.literotica_url,
         'series_url': story.literotica_series_url,
         'page_count': story.literotica_page_count,
@@ -951,7 +957,7 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'formats': [fmt.format_type for fmt in story.formats],
         'filename_base': story.filename_base,
         'html_file': f"{story.filename_base}.html",
-        'epub_file': f"{story.filename_base}.epub",
+        'epub_file': os.path.basename(next((f.file_path for f in story.formats if f.format_type == 'epub'), '')) or None,
         'source_url': story.literotica_url,
         'series_url': story.literotica_series_url,
         'page_count': story.literotica_page_count,

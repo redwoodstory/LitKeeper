@@ -14,19 +14,25 @@ def download_html(filename_base: str) -> ResponseReturnValue:
     if not filename_base:
         abort(404)
 
-    html_dir = get_html_directory()
-    json_filename = f"{filename_base}.json"
+    # Look up the story by filename_base and get the actual JSON path from the DB,
+    # because files on disk use the "{id}_{filename_base}.json" naming scheme.
+    from app.models import Story, StoryFormat
+    story = Story.query.filter_by(filename_base=filename_base).first()
+    if not story:
+        abort(404)
 
-    if not validate_file_in_directory(html_dir, json_filename):
+    json_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+    if not json_fmt or not os.path.exists(json_fmt.file_path):
+        abort(404)
+
+    # Security: ensure resolved path stays inside the html directory
+    html_dir = get_html_directory()
+    if not validate_file_in_directory(html_dir, os.path.basename(json_fmt.file_path)):
         log_error(f"Path traversal blocked in html download: {filename_base}")
         abort(403)
 
-    json_path = os.path.join(html_dir, json_filename)
-    if not os.path.exists(json_path):
-        abort(404)
-
     try:
-        with open(json_path, 'r', encoding='utf-8') as f:
+        with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
             story_data = json.load(f)
     except Exception as e:
         log_error(f"Error reading story data for html download {filename_base}: {e}")

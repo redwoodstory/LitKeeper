@@ -22,15 +22,6 @@ h1 { margin: 2em 0 1em 0; text-align: center; }
 p.description { text-align: center; font-style: italic; font-size: 1.05em; line-height: 1.8; margin: 1.5em 0 2em 0; }
 """
 
-_XHTML_TEMPLATE = """\
-<?xml version='1.0' encoding='utf-8'?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en" xml:lang="en">
-<head><title>{title}</title><link href="../style/main.css" rel="stylesheet" type="text/css"/></head>
-<body>
-{body}
-</body>
-</html>"""
-
 def _make_css_item() -> epub.EpubItem:
     return epub.EpubItem(
         uid='style_main',
@@ -39,9 +30,31 @@ def _make_css_item() -> epub.EpubItem:
         content=_EPUB_CSS
     )
 
-def _xhtml(title: str, body: str) -> str:
-    """Wrap body HTML in a complete, valid XHTML document."""
-    return _XHTML_TEMPLATE.format(title=escape(title), body=body)
+def _xhtml(title: str, body: str) -> bytes:
+    """Return a complete, valid XHTML document as UTF-8 bytes.
+
+    Two deliberate choices:
+    - String concatenation instead of str.format(): story content may contain
+      {word} patterns that str.format() misinterprets as named placeholders,
+      raising KeyError and silently dropping the chapter via except/continue.
+    - Returns bytes, not str: ebooklib's EpubHtml.get_content() re-parses
+      self.content via lxml.html.document_fromstring(). lxml rejects Python
+      str values that carry an XML encoding declaration ("Unicode strings with
+      encoding declaration are not supported") and the silent except block then
+      returns \'\' -- producing 0-byte chapter files in the epub.
+      Passing bytes bypasses that restriction.
+    """
+    html = (
+        "<?xml version='1.0' encoding='utf-8'?>\n"
+        '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"'
+        ' lang="en" xml:lang="en">\n'
+        f'<head><title>{escape(title)}</title>'
+        '<link href="../style/main.css" rel="stylesheet" type="text/css"/></head>\n'
+        '<body>\n'
+        + body + '\n'
+        '</body>\n</html>'
+    )
+    return html.encode('utf-8')
 
 def format_story_content(content: str) -> str:
     """Return body HTML for story content with all text properly XML-escaped."""

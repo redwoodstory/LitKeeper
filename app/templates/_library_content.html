@@ -1,6 +1,5 @@
 {% from 'macros.html' import story_card_cover_grid %}
 
-<div id="library-content">
 {% if stories|length == 0 %}
   {% if queue_only %}
   <div class="text-center text-gray-500 dark:text-gray-400 py-12">
@@ -26,4 +25,3 @@
     {% endfor %}
   </div>
 {% endif %}
-</div>

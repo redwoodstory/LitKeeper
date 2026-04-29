@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, HttpUrl, field_validator, Field
 from typing import Literal
+from urllib.parse import urlparse
 
 class StoryDownloadRequest(BaseModel):
     """Validation schema for story download requests."""
@@ -17,10 +18,17 @@ class StoryDownloadRequest(BaseModel):
         if not v:
             raise ValueError("URL cannot be empty")
 
-        if not v.startswith("https://www.literotica.com/"):
+        parsed = urlparse(v)
+
+        if parsed.scheme != "https":
+            raise ValueError("Only HTTPS URLs are allowed")
+
+        host = parsed.netloc.lower()
+
+        if not (host == "literotica.com" or host.endswith(".literotica.com")):
             raise ValueError("Only Literotica URLs are allowed")
 
-        if '/s/' not in v and '/series/se/' not in v:
+        if "/s/" not in parsed.path and "/series/se/" not in parsed.path:
             raise ValueError("URL must be a story chapter (/s/) or series page (/series/se/)")
 
         return v
@@ -53,10 +61,20 @@ class StoryMetadataUpdate(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("URL cannot be empty")
-        if not v.startswith("https://www.literotica.com/"):
+
+        parsed = urlparse(v)
+
+        if parsed.scheme != "https":
+            raise ValueError("Only HTTPS URLs are allowed")
+
+        host = parsed.netloc.lower()
+
+        if not (host == "literotica.com" or host.endswith(".literotica.com")):
             raise ValueError("Only Literotica URLs are allowed")
-        if '/s/' not in v and '/series/se/' not in v:
+
+        if "/s/" not in parsed.path and "/series/se/" not in parsed.path:
             raise ValueError("URL must be a story chapter (/s/) or series page (/series/se/)")
+
         return v
 
     @field_validator('title')

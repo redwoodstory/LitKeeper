@@ -117,21 +117,20 @@ def sync_inject_descriptions():
             tags = [t.name for t in story.tags]
             description = story.description
 
-            json_path = os.path.join(get_html_directory(), f"{story.filename_base}.json")
-            if os.path.exists(json_path):
+            json_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+            if json_fmt and json_fmt.file_path and os.path.exists(json_fmt.file_path):
                 try:
-                    with open(json_path, 'r', encoding='utf-8') as f:
+                    with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
                         data = _json.load(f)
                     if data.get('description') != description:
                         data['description'] = description
-                        with open(json_path, 'w', encoding='utf-8') as f:
+                        with open(json_fmt.file_path, 'w', encoding='utf-8') as f:
                             _json.dump(data, f, ensure_ascii=False, indent=2)
                         json_updated += 1
                 except Exception as e:
                     click.echo(f'\nFailed to patch JSON for {story.filename_base}: {e}', err=True)
                     skipped += 1
 
-            json_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
             if json_fmt and json_fmt.json_data:
                 try:
                     data = _json.loads(json_fmt.json_data)
@@ -141,8 +140,9 @@ def sync_inject_descriptions():
                 except Exception:
                     pass
 
-            epub_path = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
-            if os.path.exists(epub_path):
+            epub_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
+            epub_path = epub_fmt.file_path if epub_fmt else None
+            if epub_path and os.path.exists(epub_path):
                 try:
                     with zipfile.ZipFile(epub_path, 'r') as zin:
                         names = zin.namelist()
@@ -163,7 +163,6 @@ def sync_inject_descriptions():
                                         zout.writestr(item, zin.read(item.filename))
                             shutil.move(tmp_path, epub_path)
 
-                            epub_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
                             if epub_fmt:
                                 epub_fmt.file_size = os.path.getsize(epub_path)
                             epub_updated += 1
@@ -198,8 +197,9 @@ def sync_rebuild_epub_info():
 
     with click.progressbar(stories, label='Rebuilding Story Information pages') as bar:
         for story in bar:
-            epub_path = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
-            if not os.path.exists(epub_path):
+            epub_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
+            epub_path = epub_fmt.file_path if epub_fmt else None
+            if not epub_path or not os.path.exists(epub_path):
                 continue
 
             category = story.category.name if story.category else None
@@ -278,7 +278,6 @@ def sync_rebuild_epub_info():
                 shutil.move(tmp_path, epub_path)
                 tmp_path = None
 
-                epub_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
                 if epub_fmt:
                     epub_fmt.file_size = os.path.getsize(epub_path)
 

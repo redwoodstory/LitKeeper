@@ -2,8 +2,10 @@ from __future__ import annotations
 from typing import Optional
 import traceback
 import os
+import shutil
+import glob
 from datetime import datetime
-from app.utils import get_epub_directory, get_html_directory, sanitize_filename
+from app.utils import get_epub_directory, get_html_directory, get_archive_directory, sanitize_filename
 from .story_downloader import download_story, extract_chapter_titles, split_story_chapters
 from .epub_generator import create_epub_file
 from .html_generator import create_html_file
@@ -215,14 +217,36 @@ def _create_story_files(
                 pass
             log_error(f"Failed to get/create story record: {str(e)}\n{traceback.format_exc()}")
 
-        # 2. Derive file base: use "{story.id}_{story.filename_base}" when we have a DB record
+        # 2. Archive existing files before overwriting (only for existing stories being re-downloaded).
+        if story is not None and story.formats:
+            archive_dir = get_archive_directory()
+            os.makedirs(archive_dir, exist_ok=True)
+            date_tag = datetime.utcnow().strftime('%Y%m%d')
+            for fmt in list(story.formats):
+                if fmt.file_path and os.path.exists(fmt.file_path):
+                    ext = os.path.splitext(fmt.file_path)[1]
+                    archive_path = os.path.join(archive_dir, f"{story.filename_base}_{date_tag}{ext}")
+                    shutil.move(fmt.file_path, archive_path)
+                    log_action(f"Archived: {os.path.basename(fmt.file_path)} -> {os.path.basename(archive_path)}")
+            # Prune to keep at most 3 archived versions per story.
+            for ext in ('.epub', '.json'):
+                pattern = os.path.join(archive_dir, f"{story.filename_base}_*{ext}")
+                versions = sorted(glob.glob(pattern))
+                for old_file in versions[:-3]:
+                    try:
+                        os.remove(old_file)
+                        log_action(f"Pruned archive: {os.path.basename(old_file)}")
+                    except Exception as prune_err:
+                        log_error(f"Failed to prune archive file {old_file}: {prune_err}")
+
+        # 3. Derive file base: use "{story.id}_{story.filename_base}" when we have a DB record
         #    so files are permanently tied to their story ID.
         if story is not None:
             file_base = f"{story.id}_{story.filename_base}"
         else:
             file_base = sanitize_filename(story_title)
 
-        # 3. Write files to disk.
+        # 4. Write files to disk.
         created_files = []
 
         if "epub" in formats:
@@ -262,7 +286,7 @@ def _create_story_files(
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")
 
-        # 4. Link file paths to StoryFormat records.
+        # 5. Link file paths to StoryFormat records.
         if story is not None:
             try:
                 _link_story_formats(story)

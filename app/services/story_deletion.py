@@ -40,15 +40,6 @@ class StoryDeletionService:
                         log_error(f"Failed to delete file {file_path}: {str(e)}")
                         failed_files.append(os.path.basename(file_path))
             
-            json_file = os.path.join(html_dir, f"{filename_base}.json")
-            if os.path.exists(json_file):
-                try:
-                    os.remove(json_file)
-                    deleted_files.append(f"{filename_base}.json")
-                except Exception as e:
-                    log_error(f"Failed to delete JSON file {json_file}: {str(e)}")
-                    failed_files.append(f"{filename_base}.json")
-            
             if cover_filename:
                 cover_file = os.path.join(cover_dir, cover_filename)
                 if os.path.exists(cover_file):

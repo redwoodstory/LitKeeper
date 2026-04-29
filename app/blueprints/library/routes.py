@@ -88,7 +88,7 @@ def index() -> ResponseReturnValue:
                     'formats': [fmt.format_type for fmt in _s.formats],
                     'filename_base': _s.filename_base,
                     'html_file': f"{_s.filename_base}.html",
-                    'epub_file': f"{_s.filename_base}.epub",
+                    'epub_file': os.path.basename(next((f.file_path for f in _s.formats if f.format_type == 'epub'), '')) or None,
                     'source_url': _s.literotica_url,
                     'series_url': _s.literotica_series_url,
                     'page_count': _s.literotica_page_count,
@@ -155,12 +155,14 @@ def sync_full() -> ResponseReturnValue:
 @library.route("/library/filter", methods=["GET"])
 def filter_library() -> ResponseReturnValue:
     try:
+        raw_queue_only = request.args.get('queue_only')
+        log_action(f"[FILTER DEBUG] raw queue_only='{raw_queue_only}', bool={raw_queue_only == 'true'}")
         validated = LibraryFilterRequest(
             search=request.args.get('search', ''),
             category=request.args.get('category', 'all'),
             sort_by=request.args.get('sort_by', 'date'),
             sort_order=request.args.get('sort_order', 'desc'),
-            queue_only=request.args.get('queue_only', 'false')
+            queue_only=raw_queue_only == 'true'
         )
 
         stories = get_library_data()
@@ -280,8 +282,11 @@ def read_story(filename: str) -> ResponseReturnValue:
 
         target_chapter = request.args.get('chapter', type=int)
         target_para = request.args.get('para', type=int)
+        epub_fmt = StoryFormat.query.filter_by(story_id=story_db.id, format_type='epub').first()
+        epub_filename = os.path.basename(epub_fmt.file_path) if epub_fmt else None
         return render_template('reader.html', story=story_data, story_id=story_db.id, progress=progress,
-                               target_chapter=target_chapter, target_para=target_para)
+                               target_chapter=target_chapter, target_para=target_para,
+                               epub_filename=epub_filename)
 
     except Exception as e:
         log_error(f"Error loading story {filename_base}: {str(e)}\n{traceback.format_exc()}")

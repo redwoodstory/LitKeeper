@@ -230,10 +230,9 @@ class BulkFormatGeneratorService:
 
                 generate_cover_image(story.title, author_name, cover_path)
 
-                if any(f.format_type == 'epub' for f in story.formats):
-                    epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
-                    if os.path.exists(epub_path):
-                        EpubService.update_epub_cover(epub_path, cover_path)
+                epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+                if epub_fmt and os.path.exists(epub_fmt.file_path):
+                    EpubService.update_epub_cover(epub_fmt.file_path, cover_path)
 
                 if not story.cover_filename:
                     story.cover_filename = cover_filename
@@ -275,9 +274,10 @@ class BulkFormatGeneratorService:
             try:
                 cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
                 cover_path = os.path.join(cover_dir, cover_filename)
-                epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
+                epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+                epub_path = epub_fmt.file_path if epub_fmt else None
 
-                if not os.path.exists(cover_path) or not os.path.exists(epub_path):
+                if not epub_path or not os.path.exists(cover_path) or not os.path.exists(epub_path):
                     total -= 1
                     continue
 
@@ -320,8 +320,8 @@ class BulkFormatGeneratorService:
                     repaired += 1
                     self._write_log(f"✓ Repaired: {filename}")
                     # Touch story.updated_at so the iOS sync detects the change
-                    filename_base = filename[:-5]  # strip .epub
-                    story = Story.query.filter_by(filename_base=filename_base).first()
+                    fmt = StoryFormat.query.filter_by(file_path=epub_path, format_type='epub').first()
+                    story = fmt.story if fmt else None
                     if story:
                         story.updated_at = datetime.utcnow()
                         db.session.commit()

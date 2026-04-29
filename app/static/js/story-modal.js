@@ -43,11 +43,13 @@ function refreshLibrary() {
 document.body.addEventListener('htmx:configRequest', function(evt) {
   if (evt.detail.path === '/library/filter' && _queueFilterActive) {
     evt.detail.parameters['queue_only'] = 'true';
+    console.log('[Queue Filter] htmx:configRequest - adding queue_only=true');
   }
 });
 
 window.toggleQueueFilter = function(btn) {
   _queueFilterActive = !_queueFilterActive;
+  console.log('[Queue Filter] Toggled, _queueFilterActive =', _queueFilterActive);
 
   const svg = btn.querySelector('svg');
 
@@ -86,8 +88,10 @@ window.toggleQueueFilter = function(btn) {
   if (_queueFilterActive) params.append('queue_only', 'true');
 
   const libraryContent = document.getElementById('library-content');
+  const url = `/library/filter?${params.toString()}`;
+  console.log('[Queue Filter] Fetching URL:', url);
   if (libraryContent) {
-    fetch(`/library/filter?${params.toString()}`)
+    fetch(url)
       .then(r => r.text())
       .then(html => {
         libraryContent.outerHTML = html;

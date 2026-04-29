@@ -21,7 +21,6 @@ class TestFormatStoryContent:
         result = format_story_content(content)
 
         assert '<p>This is a single paragraph.</p>' in result
-        assert '<style>' in result
 
     def test_format_multiple_paragraphs(self) -> None:
         """Multiple paragraphs separated by double newlines."""
@@ -47,14 +46,13 @@ class TestFormatStoryContent:
 
         assert result.count('<p>') == 2
 
-    def test_format_includes_css(self) -> None:
-        """CSS styles are included in output."""
-        content = "Test content"
+    def test_format_curly_braces_preserved(self) -> None:
+        """Curly braces in content are preserved as literal text, not treated as format placeholders."""
+        content = "She thought {this is interesting}."
         result = format_story_content(content)
 
-        assert '<style>' in result
-        assert 'line-height' in result
-        assert 'font-size' in result
+        assert '{this is interesting}' in result
+        assert '<p>' in result
 
 
 @pytest.mark.unit
@@ -66,14 +64,14 @@ class TestFormatMetadataContent:
         result = format_metadata_content(category="Romance")
 
         assert 'Romance' in result
-        assert 'Category:' in result
+        assert 'CATEGORY:' in result
 
     def test_format_with_tags(self) -> None:
         """Metadata includes tags."""
         result = format_metadata_content(tags=["love", "drama", "comedy"])
 
         assert 'love, drama, comedy' in result
-        assert 'Tags:' in result
+        assert 'TAGS:' in result
 
     def test_format_with_both(self) -> None:
         """Metadata includes both category and tags."""
@@ -87,7 +85,6 @@ class TestFormatMetadataContent:
         result = format_metadata_content()
 
         assert 'Story Information' in result
-        assert '<style>' in result
 
 
 @pytest.mark.unit
@@ -147,7 +144,11 @@ class TestCreateEpubFile:
 
     def test_epub_multi_chapter(self, temp_dir: Path) -> None:
         """EPUB with multiple chapters."""
-        content = "Introduction text.\n\nChapter 1\n\nFirst chapter content.\n\nChapter 2\n\nSecond chapter content."
+        sentinel = '\x1e'
+        content = (
+            f"{sentinel}CHAPTER:1{sentinel}Chapter One\n\nFirst chapter content."
+            f"\n\n{sentinel}CHAPTER:2{sentinel}Chapter Two\n\nSecond chapter content."
+        )
 
         with patch('app.services.epub_generator.generate_cover_image'):
             with patch('app.services.epub_generator.send_notification'):
@@ -237,6 +238,39 @@ class TestCreateEpubFile:
                 book = epub.read_epub(epub_path)
                 assert "Histoire d'Amour 爱情故事" in book.title
 
+    def test_epub_chapter_with_curly_braces_not_skipped(self, temp_dir: Path) -> None:
+        """Chapters whose content contains {word} patterns must not be silently dropped.
+
+        Regression test: _xhtml() previously used str.format(), which raised
+        KeyError on any {word} in story text, causing every such chapter to be
+        swallowed by the except/continue handler and producing an empty epub.
+        """
+        sentinel = '\x1e'
+        content = (
+            f"{sentinel}CHAPTER:1{sentinel}The Beginning\n\n"
+            "She thought {{this is interesting}}.\n\n"
+            "Another line."
+        )
+        with patch('app.services.epub_generator.generate_cover_image'):
+            with patch('app.services.epub_generator.send_notification'):
+                epub_path = create_epub_file(
+                    story_title="Curly Brace Test",
+                    story_author="Author",
+                    story_content=content,
+                    output_directory=str(temp_dir),
+                    story_category="Test",
+                )
+
+                book = epub.read_epub(epub_path)
+                story_chapters = [
+                    item for item in book.get_items()
+                    if isinstance(item, epub.EpubHtml) and 'chapter_' in item.get_name()
+                ]
+                assert len(story_chapters) == 1, "Chapter with {word} content must not be skipped"
+                raw = story_chapters[0].get_content()
+                chapter_text = raw if isinstance(raw, str) else raw.decode('utf-8')
+                assert 'this is interesting' in chapter_text
+
     def test_epub_empty_content_raises(self, temp_dir: Path) -> None:
         """Empty content raises error."""
         with patch('app.services.epub_generator.generate_cover_image'):
@@ -250,8 +284,12 @@ class TestCreateEpubFile:
                     )
 
     def test_epub_chapter_title_extraction(self, temp_dir: Path) -> None:
-        """Chapter titles are extracted correctly."""
-        content = "Intro\n\nChapter One: The Beginning\n\nChapter one content."
+        """Chapter titles are extracted correctly from sentinel-format content."""
+        sentinel = '\x1e'
+        content = (
+            f"{sentinel}CHAPTER:1{sentinel}The Beginning\n\nChapter one content."
+            f"\n\n{sentinel}CHAPTER:2{sentinel}The Middle\n\nChapter two content."
+        )
 
         with patch('app.services.epub_generator.generate_cover_image'):
             with patch('app.services.epub_generator.send_notification'):
@@ -333,7 +371,8 @@ class TestCreateEpubFile:
                 for item in items:
                     if isinstance(item, epub.EpubHtml) and 'metadata' in item.get_name():
                         metadata_found = True
-                        content = item.get_content().decode('utf-8')
+                        raw = item.get_content()
+                        content = raw if isinstance(raw, str) else raw.decode('utf-8')
                         assert 'Fantasy' in content
                         assert 'magic' in content
                         break

@@ -18,17 +18,11 @@ class EpubService:
     @staticmethod
     def get_epub_path(story: Story) -> Optional[str]:
         """Get the full path to the EPUB file for a story."""
-        from app.utils import get_epub_directory
-        
         epub_format = next((f for f in story.formats if f.format_type == 'epub'), None)
         if not epub_format:
             return None
-        
-        epub_dir = get_epub_directory()
-        epub_path = os.path.join(epub_dir, f"{story.filename_base}.epub")
-        
-        if os.path.exists(epub_path):
-            return epub_path
+        if os.path.exists(epub_format.file_path):
+            return epub_format.file_path
         return None
     
     @staticmethod

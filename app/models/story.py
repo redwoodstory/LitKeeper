@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 from .base import db, BaseModel, TimestampMixin
 from typing import Optional
 
@@ -83,7 +84,7 @@ class Story(BaseModel, TimestampMixin):
             'cover': self.cover_filename,
             'filename_base': self.filename_base,
             'formats': [fmt.format_type for fmt in self.formats],
-            'epub_file': f"{self.filename_base}.epub" if epub_format else None,
+            'epub_file': os.path.basename(epub_format.file_path) if epub_format else None,
             'html_file': f"{self.filename_base}.html" if html_format else None,
             'source_url': self.literotica_url,
             'page_count': self.literotica_page_count,
