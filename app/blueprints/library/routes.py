@@ -252,6 +252,11 @@ def read_story(filename: str) -> ResponseReturnValue:
     else:
         abort(404)
 
+    # The URL uses the prefixed name "{id}_{filename_base}"; strip the ID prefix
+    # so we can look up the story by its true filename_base.
+    if '_' in filename_base:
+        filename_base = filename_base.split('_', 1)[1]
+
     if not validate_file_in_directory(get_html_directory(), filename_base):
         log_error(f"Path traversal blocked in read: {filename}")
         abort(403)
