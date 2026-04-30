@@ -40,24 +40,14 @@ class StoryDeletionService:
                         log_error(f"Failed to delete file {file_path}: {str(e)}")
                         failed_files.append(os.path.basename(file_path))
             
-            if cover_filename:
-                cover_file = os.path.join(cover_dir, cover_filename)
-                if os.path.exists(cover_file):
-                    try:
-                        os.remove(cover_file)
-                        deleted_files.append(cover_filename)
-                    except Exception as e:
-                        log_error(f"Failed to delete cover file {cover_file}: {str(e)}")
-                        failed_files.append(cover_filename)
-            else:
-                default_cover = os.path.join(cover_dir, f"{filename_base}.jpg")
-                if os.path.exists(default_cover):
-                    try:
-                        os.remove(default_cover)
-                        deleted_files.append(f"{filename_base}.jpg")
-                    except Exception as e:
-                        log_error(f"Failed to delete cover file {default_cover}: {str(e)}")
-                        failed_files.append(f"{filename_base}.jpg")
+            cover_file = os.path.join(cover_dir, f"{story_id}_{filename_base}.jpg")
+            if os.path.exists(cover_file):
+                try:
+                    os.remove(cover_file)
+                    deleted_files.append(f"{story_id}_{filename_base}.jpg")
+                except Exception as e:
+                    log_error(f"Failed to delete cover file {cover_file}: {str(e)}")
+                    failed_files.append(f"{story_id}_{filename_base}.jpg")
             
             db.session.delete(story)
             db.session.commit()

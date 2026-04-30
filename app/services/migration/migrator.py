@@ -235,7 +235,7 @@ class DatabaseMigrator:
             cover_dir = get_cover_directory()
             os.makedirs(cover_dir, exist_ok=True)
 
-            cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+            cover_filename = f"{story.id}_{story.filename_base}.jpg"
             cover_path = os.path.join(cover_dir, cover_filename)
 
             if os.path.exists(cover_path):

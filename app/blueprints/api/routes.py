@@ -283,7 +283,7 @@ def get_story_cover(story_id: int) -> ResponseReturnValue:
 
     story = Story.query.get_or_404(story_id)
     cover_directory = get_cover_directory()
-    filename = story.cover_filename or f"{story.filename_base}.jpg"
+    filename = f"{story.id}_{story.filename_base}.jpg"
 
     if not validate_file_in_directory(cover_directory, filename):
         log_error(f"Path traversal blocked in cover for story {story_id}: {filename}")
@@ -295,7 +295,7 @@ def get_story_cover(story_id: int) -> ResponseReturnValue:
     if os.path.exists(cover_path):
         return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
 
-    epub_path = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
+    epub_path = os.path.join(get_epub_directory(), f"{story.id}_{story.filename_base}.epub")
     if os.path.exists(epub_path):
         try:
             if extract_cover_from_epub(epub_path, cover_path):
@@ -328,11 +328,28 @@ def get_cover(filename: str) -> ResponseReturnValue:
     sanitized_title = filename.replace('.jpg', '')
     html_directory = get_html_directory()
     epub_directory = get_epub_directory()
+
+    # Try prefixed filename first, then legacy unprefixed
     json_path = os.path.join(html_directory, f"{sanitized_title}.json")
     epub_path = os.path.join(epub_directory, f"{sanitized_title}.epub")
 
     title = sanitized_title
     author = 'Unknown Author'
+
+    from app.models import Story
+    story_db = None
+    if '_' in sanitized_title:
+        try:
+            story_id = int(sanitized_title.split('_')[0])
+            story_db = Story.query.get(story_id)
+        except (ValueError, IndexError):
+            pass
+    if not story_db:
+        story_db = Story.query.filter_by(filename_base=sanitized_title).first()
+
+    if story_db:
+        title = story_db.title
+        author = story_db.author.name if story_db.author else 'Unknown Author'
 
     if os.path.exists(json_path):
         try:
@@ -343,11 +360,17 @@ def get_cover(filename: str) -> ResponseReturnValue:
         except Exception as e:
             log_error(f"Error reading JSON metadata: {str(e)}")
     else:
-        from app.models import Story
-        story_db = Story.query.filter_by(filename_base=sanitized_title).first()
+        # Fallback to prefixed json path if story_db found
         if story_db:
-            title = story_db.title
-            author = story_db.author.name if story_db.author else 'Unknown Author'
+            prefixed_json = os.path.join(html_directory, f"{story_db.id}_{story_db.filename_base}.json")
+            if os.path.exists(prefixed_json):
+                try:
+                    with open(prefixed_json, 'r', encoding='utf-8') as f:
+                        story_data = json.load(f)
+                    title = story_data.get('title', sanitized_title)
+                    author = story_data.get('author', 'Unknown Author')
+                except Exception as e:
+                    log_error(f"Error reading JSON metadata: {str(e)}")
 
     if os.path.exists(epub_path):
         try:
@@ -576,10 +599,10 @@ def _story_to_modal_dict(story) -> dict:
         'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
         'category': {'name': story.category.name} if story.category else None,
         'tags': [tag.name for tag in story.tags],
-        'cover': story.cover_filename,
+        'cover': f"{story.id}_{story.filename_base}.jpg",
         'formats': [fmt.format_type for fmt in story.formats],
         'filename_base': story.filename_base,
-        'html_file': f"{story.filename_base}.html",
+        'html_file': f"{story.id}_{story.filename_base}.html",
         'epub_file': os.path.basename(next((f.file_path for f in story.formats if f.format_type == 'epub'), '')) or None,
         'source_url': story.literotica_url,
         'series_url': story.literotica_series_url,
@@ -676,14 +699,13 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         
         cover_regenerated = False
         epub_updated = False
-        cover_filename = None
+        cover_filename = f"{story.id}_{story.filename_base}.jpg"
         
         if old_title != title or old_author != author_name:
             try:
                 cover_directory = get_cover_directory()
                 os.makedirs(cover_directory, exist_ok=True)
                 
-                cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
                 cover_path = os.path.join(cover_directory, cover_filename)
                 
                 generate_cover_image(story.title, author_name or 'Unknown Author', cover_path)
@@ -696,9 +718,8 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
                         epub_updated = True
                         log_action(f"Updated EPUB cover for story: {story.title}")
 
-                if not story.cover_filename:
-                    story.cover_filename = cover_filename
-                    db.session.commit()
+                story.cover_filename = cover_filename
+                db.session.commit()
                     
             except Exception as cover_error:
                 log_error(f"Error regenerating cover during metadata update: {str(cover_error)}")
@@ -982,10 +1003,10 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'author': {'name': story.author.name, 'literotica_url': story.author.literotica_url} if story.author else None,
         'category': {'name': story.category.name} if story.category else None,
         'tags': [tag.name for tag in story.tags],
-        'cover': story.cover_filename,
+        'cover': f"{story.id}_{story.filename_base}.jpg",
         'formats': [fmt.format_type for fmt in story.formats],
         'filename_base': story.filename_base,
-        'html_file': f"{story.filename_base}.html",
+        'html_file': f"{story.id}_{story.filename_base}.html",
         'epub_file': os.path.basename(next((f.file_path for f in story.formats if f.format_type == 'epub'), '')) or None,
         'source_url': story.literotica_url,
         'series_url': story.literotica_series_url,
@@ -1020,7 +1041,7 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
         cover_directory = get_cover_directory()
         os.makedirs(cover_directory, exist_ok=True)
         
-        cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+        cover_filename = f"{story.id}_{story.filename_base}.jpg"
         cover_path = os.path.join(cover_directory, cover_filename)
         
         author_name = story.author.name if story.author else 'Unknown Author'
@@ -1037,9 +1058,8 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
             else:
                 log_error(f"Failed to update EPUB cover for story: {story.title}")
         
-        if not story.cover_filename:
-            story.cover_filename = cover_filename
-            db.session.commit()
+        story.cover_filename = cover_filename
+        db.session.commit()
         
         return jsonify({
             "success": True,
@@ -1104,7 +1124,7 @@ def download_bulk() -> ResponseReturnValue:
             except Exception as e:
                 log_error(f"Bulk download: error reading html for story {story.id}: {e}")
 
-        cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+        cover_filename = f"{story.id}_{story.filename_base}.jpg"
         cover_path = os.path.join(cover_dir, cover_filename)
         if os.path.exists(cover_path):
             try:

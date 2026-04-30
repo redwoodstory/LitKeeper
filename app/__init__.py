@@ -381,6 +381,33 @@ def create_app() -> Flask:
 
     _migrate_filenames_background()
 
+    def _migrate_covers_background():
+        import threading
+        def _run():
+            with app.app_context():
+                try:
+                    from app.models import AppConfig
+                    from app.models.base import db
+                    migration_key = 'covers_id_prefix_migrated'
+                    already_done = AppConfig.query.filter_by(key=migration_key).first()
+                    if already_done:
+                        return
+                    from app.services.migration.migrate_covers_to_id_prefix import migrate_covers_to_id_prefix
+                    result = migrate_covers_to_id_prefix()
+                    flag = AppConfig(
+                        key=migration_key, value='true',
+                        value_type='bool',
+                        description='Story cover images renamed to {id}_{filename_base}.jpg format'
+                    )
+                    db.session.add(flag)
+                    db.session.commit()
+                    print(f"[startup] Cover migration: {result.get('message', result)}")
+                except Exception as e:
+                    print(f"[startup] Cover migration error: {e}")
+        threading.Thread(target=_run, daemon=True).start()
+
+    _migrate_covers_background()
+
     def _backfill_missing_covers_background():
         import threading
         def _run():
@@ -399,7 +426,7 @@ def create_app() -> Flask:
                     generated = 0
 
                     for story in stories:
-                        cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                        cover_filename = f"{story.id}_{story.filename_base}.jpg"
                         cover_path = os.path.join(cover_dir, cover_filename)
 
                         if os.path.exists(cover_path):

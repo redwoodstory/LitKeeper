@@ -92,7 +92,8 @@ def create_epub_file(
             cover_directory = get_cover_directory()
             os.makedirs(cover_directory, exist_ok=True)
 
-            cover_filename = f"{sanitize_filename(story_title)}.jpg"
+            output_base = filename_base if filename_base is not None else sanitize_filename(story_title)
+            cover_filename = f"{output_base}.jpg"
             cover_image_path = os.path.join(cover_directory, cover_filename)
 
             if not os.path.exists(cover_image_path):

@@ -225,7 +225,7 @@ class BulkFormatGeneratorService:
         for story in stories:
             try:
                 author_name = story.author.name if story.author else 'Unknown Author'
-                cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                cover_filename = f"{story.id}_{story.filename_base}.jpg"
                 cover_path = os.path.join(cover_dir, cover_filename)
 
                 generate_cover_image(story.title, author_name, cover_path)
@@ -234,9 +234,8 @@ class BulkFormatGeneratorService:
                 if epub_fmt and os.path.exists(epub_fmt.file_path):
                     EpubService.update_epub_cover(epub_fmt.file_path, cover_path)
 
-                if not story.cover_filename:
-                    story.cover_filename = cover_filename
-                    db.session.commit()
+                story.cover_filename = cover_filename
+                db.session.commit()
 
                 successful += 1
                 self._write_log(f"✓ Regenerated cover for: {story.title}")
@@ -272,7 +271,7 @@ class BulkFormatGeneratorService:
 
         for story in epub_stories:
             try:
-                cover_filename = story.cover_filename or f"{story.filename_base}.jpg"
+                cover_filename = f"{story.id}_{story.filename_base}.jpg"
                 cover_path = os.path.join(cover_dir, cover_filename)
                 epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
                 epub_path = epub_fmt.file_path if epub_fmt else None
