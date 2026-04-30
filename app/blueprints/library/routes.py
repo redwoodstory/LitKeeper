@@ -240,32 +240,12 @@ def filter_library() -> ResponseReturnValue:
         log_error(f"Error filtering library: {str(e)}")
         return render_template("_library_content.html", stories=[], queue_only=False)
 
-@library.route("/read/<filename>")
-def read_story(filename: str) -> ResponseReturnValue:
-    if not filename:
-        abort(404)
+@library.route("/read/<int:story_id>")
+def read_story(story_id: int) -> ResponseReturnValue:
+    from app.models import StoryFormat, db
+    from datetime import datetime
 
-    if filename.endswith('.html'):
-        filename_base = filename[:-5]
-    elif filename.endswith('.json'):
-        filename_base = filename[:-5]
-    else:
-        abort(404)
-
-    # The URL uses the prefixed name "{id}_{filename_base}"; strip the ID prefix
-    # so we can look up the story by its true filename_base.
-    if '_' in filename_base:
-        filename_base = filename_base.split('_', 1)[1]
-
-    if not validate_file_in_directory(get_html_directory(), filename_base):
-        log_error(f"Path traversal blocked in read: {filename}")
-        abort(403)
-
-    # Look up the story by filename_base, then get the actual file path from StoryFormat.
-    from app.models import StoryFormat
-    story_db = Story.query.filter_by(filename_base=filename_base).first()
-    if not story_db:
-        abort(404)
+    story_db = Story.query.get_or_404(story_id)
 
     json_fmt = StoryFormat.query.filter_by(story_id=story_db.id, format_type='json').first()
     if not json_fmt or not os.path.exists(json_fmt.file_path):
@@ -277,8 +257,6 @@ def read_story(filename: str) -> ResponseReturnValue:
 
         progress = EpubService.get_reading_progress(story_db.id)
 
-        from datetime import datetime
-        from app.models import db
         story_db.last_opened_at = datetime.utcnow()
         db.session.commit()
 
@@ -294,7 +272,7 @@ def read_story(filename: str) -> ResponseReturnValue:
                                epub_filename=epub_filename)
 
     except Exception as e:
-        log_error(f"Error loading story {filename_base}: {str(e)}\n{traceback.format_exc()}")
+        log_error(f"Error loading story {story_id}: {str(e)}\n{traceback.format_exc()}")
         abort(500)
 
 @library.route("/download/<format_type>/<filename>")
