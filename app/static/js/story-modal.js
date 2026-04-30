@@ -122,7 +122,7 @@ window.toggleQueueFilter = function(btn) {
 
 window.handleStarClick = function(storyId, rating) {
   updateRatingWidget(rating);
-  updateLibraryCardHeart(storyId, rating);
+  updateLibraryCardStars(storyId, rating);
   fetch(`/api/story/${storyId}/rating`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -146,11 +146,27 @@ function updateRatingWidget(rating) {
   });
 }
 
-function updateLibraryCardHeart(storyId, rating) {
-  const card = document.querySelector(`[data-story-id="${storyId}"]`);
-  if (!card) return;
-  const heart = card.querySelector('.heart-badge');
-  if (heart) heart.classList.toggle('hidden', rating !== 5);
+function updateLibraryCardStars(storyId, rating) {
+  document.querySelectorAll(`[data-story-id="${storyId}"]`).forEach(card => {
+    const container = card.querySelector('.card-rating-container');
+    if (!container) return;
+
+    const stars = container.querySelectorAll('.card-rating-star');
+    if (!stars.length) return;
+
+    if (!rating) {
+      container.classList.add('opacity-0');
+      return;
+    }
+
+    container.classList.remove('opacity-0');
+    stars.forEach((star, index) => {
+      const filled = index + 1 <= rating;
+      star.classList.toggle('text-amber-400', filled);
+      star.classList.toggle('text-slate-300/30', !filled);
+      star.classList.toggle('dark:text-slate-600/30', !filled);
+    });
+  });
 }
 
 window.handleQueueToggle = function(storyId) {
