@@ -80,6 +80,9 @@ services:
 | `LITKEEPER_API_TOKEN` | - | Bearer token for API/headless access (iOS app, scripts, automation). When set, API requests must include `Authorization: Bearer <token>` |
 | `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Telegram, Discord, Slack, Email, Pushover, etc.) |
 | `EXTERNAL_EPUB_PATH` | - | Optional path to copy EPUBs for external app integration (e.g., Calibre-Web auto-import) |
+| `WEBAUTHN_RP_ID` | *(auto)* | Passkey relying party hostname (e.g. `myapp.example.com`). Auto-detected from the request — only set this if a reverse proxy masks the real hostname. Bare hostname only, no port or scheme. |
+| `WEBAUTHN_ORIGIN` | *(auto)* | Full origin for passkey verification (e.g. `https://myapp.example.com`). Auto-detected from the request — only set this if a reverse proxy masks the real hostname. |
+| `WEBAUTHN_RESET_CODE` | - | When set, enables `POST /auth/webauthn/reset` as an emergency passkey recovery endpoint. |
 
 ### Volume Mounts
 
@@ -124,21 +127,33 @@ Authorization: Bearer <your-token>
 When this env var is set:
 
 - Requests to API routes without a valid Bearer token and without an active browser session are rejected with HTTP 401.
-- The PIN lock (Layer 3) is **bypassed** for valid Bearer token requests — API clients do not need a PIN session.
+- The passkey lock (Layer 3) is **bypassed** for valid Bearer token requests — API clients do not need a passkey session.
 
-### Layer 3: PIN Lock (web UI, casual snooping protection)
+### Layer 3: Passkey Lock (web UI)
 
-LitKeeper supports optional PIN locking for the web UI. This is intended for simple screen-lock behavior (e.g., a shared device) — it is not a hardened security wall. It applies only to browser sessions and is automatically bypassed for Bearer-token-authenticated API requests.
+LitKeeper supports optional passkey locking for the web UI using WebAuthn — Face ID, Touch ID, or a hardware security key (YubiKey, etc.). No password or PIN is stored; the server only holds a public key. Passkeys are phishing-resistant and not brute-forceable.
 
-Enable it under **Settings → Security** in the web UI.
+**Requirements:** The app must be served over **HTTPS** in production. `localhost` works over plain HTTP for local development. If you access the app over plain HTTP on a non-localhost hostname, the lock screen will display an HTTPS-required notice and the app will remain open.
 
-#### PIN Reset
+Enable it under **Settings → Security** in the web UI. Register at least two devices (e.g., phone + laptop) as a backup.
 
-If you forget your PIN, run this command to disable the PIN lock:
+#### Passkey Recovery
 
+If you lose access to all registered passkeys, you have two options:
+
+**Option A — CLI (works even if the web process is down):**
 ```bash
-docker exec -it <container-name> python reset_pin.py
+docker exec -it <container-name> python reset_webauthn.py
 ```
+
+**Option B — Web endpoint (requires `WEBAUTHN_RESET_CODE` env var to be set):**
+```bash
+curl -X POST https://your-app/auth/webauthn/reset \
+  -H "Content-Type: application/json" \
+  -d '{"reset_code": "your-reset-code"}'
+```
+
+Both options clear all registered passkeys and leave the app open so you can re-register in Settings.
 
 Replace `<container-name>` with your actual container name (find it with `docker ps`).
 

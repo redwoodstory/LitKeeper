@@ -16,28 +16,35 @@
 <main class="h-dvh flex flex-col items-center px-6 pt-16 sm:justify-center sm:pt-0 overflow-hidden">
   <div class="w-full max-w-xs">
     <div class="text-center mb-8">
-      <div class="hidden sm:block inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 mb-4">
-        <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-        </svg>
-      </div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">LitKeeper</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Enter your PIN to continue</p>
+      <img src="/static/icons/web/icon-192.png" alt="LitKeeper" class="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-sm">
+      <h1 class="text-2xl font-semibold" style="color: #498EDC;">LitKeeper</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="subtitleText">Unlock with your passkey to continue</p>
     </div>
 
     <p id="errorMsg" class="text-center text-sm text-red-500 dark:text-red-400 mb-4 min-h-[1.25rem]"></p>
 
-    <form id="pinForm" autocomplete="current-password" hx-boost="false"
-      class="flex flex-col items-center gap-4">
-      <input type="password" id="pinTextInput" inputmode="numeric" pattern="[0-9]*" maxlength="8"
-        placeholder="····" autocomplete="current-password"
-        class="w-40 px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-primary transition-all duration-200">
-      <button type="submit" id="unlockBtn"
-        class="px-6 py-2.5 bg-primary text-white rounded-xl font-semibold text-sm transition-all duration-200 hover:bg-primary-dark active:scale-95">
-        Unlock
+    <div id="webauthnSupported" class="flex flex-col items-center gap-4">
+      <button id="unlockBtn" type="button"
+        class="w-full px-6 py-3 bg-primary text-white rounded-xl font-semibold text-sm transition-all duration-200 hover:bg-primary-dark active:scale-95 flex items-center justify-center gap-2.5">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+        Use Passkey
       </button>
-    </form>
+    </div>
+
+    <div id="webauthnUnsupported" class="hidden text-center">
+      <div class="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <p class="text-sm text-amber-800 dark:text-amber-300 font-medium mb-1">Passkeys require HTTPS</p>
+        <p class="text-xs text-amber-700 dark:text-amber-400">
+          Connect over HTTPS to unlock. Options: enable TLS, use a
+          <a href="https://www.cloudflare.com/products/tunnel/" target="_blank" rel="noopener"
+            class="underline">Cloudflare Tunnel</a>,
+          or access via Tailscale.
+        </p>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -57,98 +64,108 @@
 <script>
   const NEXT_URL = {{ next_url | tojson }};
 
-  if (navigator.onLine) {
-    fetch('/auth/status').then(r => r.json()).then(d => {
-      if (d.unlocked) window.location.replace(NEXT_URL || '/');
-    }).catch(() => {});
-  }
-
-  const errorMsg = document.getElementById('errorMsg');
-  const textInput = document.getElementById('pinTextInput');
-
-  function clearError() {
-    errorMsg.textContent = '';
-    textInput.classList.remove('border-red-400', 'dark:border-red-500');
-  }
+  const errorMsg       = document.getElementById('errorMsg');
+  const unlockBtn      = document.getElementById('unlockBtn');
+  const supported      = document.getElementById('webauthnSupported');
+  const unsupported    = document.getElementById('webauthnUnsupported');
 
   function showError(msg) {
     errorMsg.textContent = msg;
-    textInput.classList.add('border-red-400', 'dark:border-red-500', 'shake');
-    setTimeout(() => textInput.classList.remove('shake'), 450);
-    textInput.value = '';
-    textInput.focus();
+    errorMsg.classList.add('shake');
+    setTimeout(() => errorMsg.classList.remove('shake'), 450);
   }
 
-  async function submitPin() {
-    const pin = textInput.value.replace(/\D/g, '');
+  function b64urlEncode(buf) {
+    return btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
 
-    if (pin.length < 4) {
-      showError('Incorrect PIN');
-      return;
-    }
+  function b64urlDecode(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    return Uint8Array.from(atob(str), c => c.charCodeAt(0)).buffer;
+  }
 
-    if (!navigator.onLine) {
-      const storedHash = localStorage.getItem('lk_pin_client_hash');
-      if (!storedHash) {
-        errorMsg.textContent = 'Offline — connect to verify PIN';
-        return;
-      }
-      try {
-        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
-        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-        if (hex === storedHash) {
-          window.location.replace(NEXT_URL || '/');
-        } else {
-          showError('Incorrect PIN');
-        }
-      } catch (_) {
-        errorMsg.textContent = 'Offline — cannot verify PIN';
-      }
-      return;
-    }
+  async function unlock() {
+    errorMsg.textContent = '';
+    unlockBtn.disabled = true;
+    unlockBtn.textContent = 'Verifying…';
 
     try {
-      const res = await fetch('/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, next: NEXT_URL })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin))
-          .then(buf => {
-            const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-            localStorage.setItem('lk_pin_client_hash', hex);
-          }).catch(() => {});
-        window.location.replace(data.redirect || '/');
-      } else {
-        showError('Incorrect PIN');
+      const beginRes = await fetch('/auth/webauthn/authenticate/begin');
+      if (!beginRes.ok) {
+        const err = await beginRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Could not start authentication');
       }
-    } catch (_) {
-      errorMsg.textContent = 'Connection error. Try again.';
+      const options = await beginRes.json();
+
+      options.challenge = b64urlDecode(options.challenge);
+      if (options.allowCredentials) {
+        options.allowCredentials = options.allowCredentials.map(c => ({
+          ...c, id: b64urlDecode(c.id)
+        }));
+      }
+
+      const assertion = await navigator.credentials.get({ publicKey: options });
+
+      const body = {
+        id:       assertion.id,
+        rawId:    b64urlEncode(assertion.rawId),
+        type:     assertion.type,
+        next:     NEXT_URL || '/',
+        response: {
+          authenticatorData: b64urlEncode(assertion.response.authenticatorData),
+          clientDataJSON:    b64urlEncode(assertion.response.clientDataJSON),
+          signature:         b64urlEncode(assertion.response.signature),
+          userHandle:        assertion.response.userHandle
+            ? b64urlEncode(assertion.response.userHandle) : null,
+        },
+      };
+
+      const completeRes = await fetch('/auth/webauthn/authenticate/complete', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+      const result = await completeRes.json();
+
+      if (result.success) {
+        window.location.replace(result.redirect || '/');
+      } else {
+        throw new Error(result.error || 'Authentication failed');
+      }
+    } catch (err) {
+      if (err.name === 'NotAllowedError') {
+        showError('Passkey prompt was dismissed. Try again.');
+      } else {
+        showError(err.message || 'Authentication failed. Try again.');
+      }
+      unlockBtn.disabled = false;
+      unlockBtn.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+        Use Passkey`;
     }
   }
 
-  document.getElementById('pinForm').addEventListener('submit', e => {
-    e.preventDefault();
-    submitPin();
-  });
+  if (!window.PublicKeyCredential) {
+    supported.classList.add('hidden');
+    unsupported.classList.remove('hidden');
+    document.getElementById('subtitleText').textContent = 'HTTPS required to use passkeys';
+  } else {
+    // Auto-redirect if already unlocked
+    fetch('/auth/status').then(r => r.json()).then(d => {
+      if (d.unlocked) window.location.replace(NEXT_URL || '/');
+    }).catch(() => {});
 
-  textInput.addEventListener('input', () => {
-    const numeric = textInput.value.replace(/\D/g, '').slice(0, 8);
-    textInput.value = numeric;
-    clearError();
-    if (numeric.length === 8) submitPin();
-  });
+    unlockBtn.addEventListener('click', unlock);
 
-  textInput.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      textInput.value = '';
-      clearError();
-    }
-  });
-
-  textInput.focus();
+    // Auto-trigger on first load for a seamless feel
+    window.addEventListener('load', () => {
+      setTimeout(() => unlock(), 200);
+    });
+  }
 </script>
 {% endblock %}

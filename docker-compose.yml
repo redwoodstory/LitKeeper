@@ -29,3 +29,13 @@ services:
 
       # Copy EPUBs to an external directory for integration with other apps (e.g., Calibre-Web)
       #- EXTERNAL_EPUB_PATH=/path/to/calibre-web/auto-import
+
+      # Passkey (WebAuthn) authentication — auto-detected from request if not set.
+      # Only needed if the app is behind a reverse proxy that masks the real hostname.
+      # WEBAUTHN_RP_ID must be the bare hostname only (no port, no scheme).
+      #- WEBAUTHN_RP_ID=myapp.example.com
+      #- WEBAUTHN_ORIGIN=https://myapp.example.com
+
+      # Emergency passkey reset code — set this to enable POST /auth/webauthn/reset.
+      # Useful if you lose access to all registered passkeys.
+      #- WEBAUTHN_RESET_CODE=

@@ -22,7 +22,7 @@
       <span class="font-semibold text-base hidden sm:inline" style="color: #498EDC;">LitKeeper</span>
     </a>
     <div class="flex items-center gap-1">
-      {% if pin_enabled %}
+      {% if credentials_registered %}
       <button
         onclick="navigator.onLine?fetch('/auth/lock-now',{method:'POST'}).then(()=>location.replace('/auth/lock')):location.replace('/auth/lock')"
         class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all duration-200"
@@ -221,7 +221,7 @@
       <span>Quotes</span>
     </a>
 
-    {% if pin_enabled %}
+    {% if credentials_registered %}
     <button onclick="navigator.onLine?fetch('/auth/lock-now',{method:'POST'}).then(()=>location.replace('/auth/lock')):location.replace('/auth/lock')"
        class="{{ tab_base }} text-gray-500 dark:text-gray-400"
        aria-label="Lock app">

@@ -221,6 +221,52 @@
   </div>
   {% endblock %}
 
+  {% if in_pin_transition %}
+  <div id="pinTransitionBanner" class="fixed top-0 left-0 right-0 z-[60] bg-amber-500 text-white px-4 py-2.5 flex items-center justify-between gap-3 shadow-md">
+    <p class="text-sm font-medium">
+      PIN lock has been replaced with Passkeys. Visit
+      <a href="/settings#securitySection" hx-boost="false" class="underline font-semibold">Settings → Security</a>
+      to register a passkey and re-enable locking.
+    </p>
+    <button onclick="dismissTransitionBanner()" class="flex-shrink-0 p-1 hover:bg-amber-600 rounded transition-colors" aria-label="Dismiss">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <script>
+    (function() {
+      const banner = document.getElementById('pinTransitionBanner');
+      if (localStorage.getItem('lk_pin_transition_dismissed')) {
+        banner?.remove();
+        return;
+      }
+      // Push fixed top-0 elements (nav, gear icon) below the banner
+      function applyBannerOffset() {
+        if (!banner) return;
+        const h = banner.offsetHeight + 'px';
+        document.querySelectorAll('.fixed.top-0, .fixed.top-4').forEach(el => {
+          if (el !== banner) el.style.marginTop = h;
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyBannerOffset);
+      } else {
+        applyBannerOffset();
+      }
+    })();
+
+    function dismissTransitionBanner() {
+      localStorage.setItem('lk_pin_transition_dismissed', '1');
+      const banner = document.getElementById('pinTransitionBanner');
+      document.querySelectorAll('.fixed.top-0, .fixed.top-4').forEach(el => {
+        if (el !== banner) el.style.marginTop = '';
+      });
+      banner?.remove();
+    }
+  </script>
+  {% endif %}
+
   {% block content %}{% endblock %}
 
   {% block scripts %}

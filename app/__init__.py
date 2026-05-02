@@ -31,6 +31,9 @@ def _validate_deployment_config():
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
     print(f"=" * 80)
     print(f"LitKeeper Version: {APP_VERSION}")
     print(f"Build: Production-ready multi-user deployment")
@@ -129,8 +132,6 @@ def create_app() -> Flask:
             ('migration_completed', 'false', 'bool', 'Whether initial migration has completed'),
             ('migration_version', '1', 'int', 'Database schema version'),
             ('auto_refresh_metadata', 'false', 'bool', 'Auto-refresh missing metadata on startup'),
-            ('pin_enabled', 'false', 'bool', 'Whether PIN lock is enabled'),
-            ('pin_hash', '', 'string', 'Hashed PIN for lock screen'),
             ('auto_lock_timeout', '0', 'int', 'Lock timeout minutes (0=never, >0=inactivity threshold)'),
         ]
 
@@ -268,14 +269,19 @@ def create_app() -> Flask:
     @app.before_request
     def enforce_pin_lock():
         from flask import make_response as _make_response
+        from app.models.webauthn import WebAuthnCredential
         # Bearer-authenticated requests (iOS app) are already validated by enforce_api_token
         if _api_token and request.headers.get('Authorization') == f'Bearer {_api_token}':
             return
         exempt_prefixes = ('/auth/', '/static/', '/favicon', '/settings/theme-preference')
         if request.path.startswith(exempt_prefixes):
             return
+        cred_count = WebAuthnCredential.query.count()
+        if cred_count == 0:
+            return
+        # Transition mode: PIN was set but no passkeys registered yet — stay open
         pin_cfg = AppConfig.query.filter_by(key='pin_enabled').first()
-        if not pin_cfg or not pin_cfg.get_value():
+        if pin_cfg and pin_cfg.get_value() and cred_count == 0:
             return
         lock_url = url_for('auth.lock', next=request.full_path)
         def _lock_response():
@@ -287,27 +293,31 @@ def create_app() -> Flask:
                 resp.headers['HX-Redirect'] = lock_url
                 return resp
             return redirect(lock_url)
-        if not session.get('pin_unlocked'):
+        if not session.get('unlocked'):
             return _lock_response()
         timeout_cfg = AppConfig.query.filter_by(key='auto_lock_timeout').first()
         minutes = int(timeout_cfg.value) if timeout_cfg else 0
         if minutes > 0:
             if time.time() - session.get('last_activity', 0) > minutes * 60:
-                session['pin_unlocked'] = False
+                session['unlocked'] = False
                 return _lock_response()
         session['last_activity'] = time.time()
 
     @app.context_processor
     def inject_auth_state():
         try:
-            cfg = AppConfig.query.filter_by(key='pin_enabled').first()
+            from app.models.webauthn import WebAuthnCredential
+            cred_count = WebAuthnCredential.query.count()
+            pin_cfg = AppConfig.query.filter_by(key='pin_enabled').first()
+            in_pin_transition = bool(pin_cfg and pin_cfg.get_value()) and cred_count == 0
             timeout_cfg = AppConfig.query.filter_by(key='auto_lock_timeout').first()
             return {
-                'pin_enabled': bool(cfg and cfg.get_value()),
+                'credentials_registered': cred_count > 0,
+                'in_pin_transition': in_pin_transition,
                 'auto_lock_timeout': int(timeout_cfg.value) if timeout_cfg else 0,
             }
         except Exception:
-            return {'pin_enabled': False, 'auto_lock_timeout': 0}
+            return {'credentials_registered': False, 'in_pin_transition': False, 'auto_lock_timeout': 0}
 
     from app.scheduler import init_scheduler, shutdown_scheduler
     init_scheduler(app)
