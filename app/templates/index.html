@@ -103,12 +103,12 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
     <div>
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Library</h2>
       <p id="libraryCount" class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-        {% if stories|length == 0 %}
+        {% if total_stories == 0 %}
           No stories yet
-        {% elif stories|length == 1 %}
+        {% elif total_stories == 1 %}
           1 story
         {% else %}
-          {{ stories|length }} stories
+          {{ total_stories }} stories
         {% endif %}
       </p>
     </div>
@@ -256,6 +256,12 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
         {% for story in stories %}
           {{ story_card_cover_grid(story) }}
         {% endfor %}
+        {% if has_more %}
+        <div class="col-span-full h-4"
+             hx-get="{{ next_url }}"
+             hx-trigger="revealed"
+             hx-swap="outerHTML"></div>
+        {% endif %}
       </div>
     {% endif %}
     </div>

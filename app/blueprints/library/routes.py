@@ -9,11 +9,14 @@ from app.utils import get_html_directory, get_epub_directory
 from app.utils.security import validate_file_in_directory
 from app.validators import StoryDownloadRequest, LibraryFilterRequest
 from pydantic import ValidationError
+from urllib.parse import urlencode
 import os
 import traceback
 import json
 
 library = Blueprint('library', __name__)
+
+PER_PAGE = 40
 
 @library.route("/", methods=["GET", "POST"])
 def index() -> ResponseReturnValue:
@@ -31,11 +34,18 @@ def index() -> ResponseReturnValue:
             error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
             log_error(f"Validation error on index form: {error_msg}")
             enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
-            stories = get_library_data() if enable_library else []
-            categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
+            all_stories = get_library_data() if enable_library else []
+            total_stories = len(all_stories)
+            categories = sorted(set(s.get('category') for s in all_stories if s.get('category'))) if enable_library else []
             mount_warning = check_mount_warning()
             legacy_info = check_legacy_mounts()
-            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library)
+            has_more = enable_library and total_stories > PER_PAGE
+            stories = all_stories[:PER_PAGE] if has_more else all_stories
+            next_url = (
+                f"/library/filter?{urlencode({'page': 2, 'sort_by': 'date', 'sort_order': 'desc', 'category': 'all', 'search': ''})}"
+                if has_more else None
+            )
+            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, total_stories=total_stories, has_more=has_more, next_url=next_url)
 
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
@@ -69,8 +79,16 @@ def index() -> ResponseReturnValue:
                 else:
                     log_action("[BANNER] Only orphaned DB records (no files to import), showing banner")
 
-        stories = get_library_data() if enable_library else []
-        categories = sorted(set(s.get('category') for s in stories if s.get('category'))) if enable_library else []
+        all_stories = get_library_data() if enable_library else []
+        total_stories = len(all_stories)
+        categories = sorted(set(s.get('category') for s in all_stories if s.get('category'))) if enable_library else []
+
+        has_more = enable_library and total_stories > PER_PAGE
+        stories = all_stories[:PER_PAGE] if has_more else all_stories
+        next_url = (
+            f"/library/filter?{urlencode({'page': 2, 'sort_by': 'date', 'sort_order': 'desc', 'category': 'all', 'search': ''})}"
+            if has_more else None
+        )
 
         open_modal_story = None
         open_modal_id = request.args.get('open_modal', type=int)
@@ -101,10 +119,10 @@ def index() -> ResponseReturnValue:
                     'description': _s.description,
                 }
 
-        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story)
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story, total_stories=total_stories, has_more=has_more, next_url=next_url)
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
-        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, legacy_info={"has_legacy_mounts": False}, enable_library=enable_library)
+        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, legacy_info={"has_legacy_mounts": False}, enable_library=enable_library, total_stories=0, has_more=False, next_url=None)
 
 @library.route('/sync-banner')
 def sync_banner():
@@ -232,13 +250,32 @@ def filter_library() -> ResponseReturnValue:
             for s in sample_stories:
                 log_action(f"[SORT DEBUG] After sort: {s.get('title')} - word_count={s.get('word_count')}")
 
-        return render_template("_library_content.html", stories=stories, queue_only=validated.queue_only)
+        page = request.args.get('page', 1, type=int)
+        total = len(stories)
+        start = (page - 1) * PER_PAGE
+        end = start + PER_PAGE
+        page_stories = stories[start:end]
+        has_more = end < total
+
+        next_url_params: dict = {
+            'page': page + 1,
+            'search': validated.search,
+            'category': validated.category,
+            'sort_by': validated.sort_by,
+            'sort_order': validated.sort_order,
+        }
+        if validated.queue_only:
+            next_url_params['queue_only'] = 'true'
+        next_url = f"/library/filter?{urlencode(next_url_params)}"
+
+        template = "_library_more.html" if page > 1 else "_library_content.html"
+        return render_template(template, stories=page_stories, queue_only=validated.queue_only, has_more=has_more, next_url=next_url)
     except ValidationError as e:
         log_error(f"Validation error in library filter: {str(e)}")
-        return render_template("_library_content.html", stories=[], queue_only=False)
+        return render_template("_library_content.html", stories=[], queue_only=False, has_more=False, next_url=None)
     except Exception as e:
         log_error(f"Error filtering library: {str(e)}")
-        return render_template("_library_content.html", stories=[], queue_only=False)
+        return render_template("_library_content.html", stories=[], queue_only=False, has_more=False, next_url=None)
 
 @library.route("/read/<int:story_id>")
 def read_story(story_id: int) -> ResponseReturnValue:
