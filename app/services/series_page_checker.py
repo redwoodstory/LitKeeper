@@ -1,4 +1,5 @@
 from __future__ import annotations
+import html as html_lib
 import json
 import re
 from typing import Optional, Dict
@@ -84,7 +85,7 @@ class SeriesPageChecker:
             resp.raise_for_status()
             m = re.search(r"<h1[^>]*>(.*?)</h1>", resp.text, re.DOTALL)
             if m:
-                return re.sub(r"<[^>]+>", "", m.group(1)).strip()
+                return html_lib.unescape(re.sub(r"<[^>]+>", "", m.group(1)).strip())
         except Exception as e:
             log_error(f"Could not fetch series title from {series_url}: {str(e)}")
         return ""
