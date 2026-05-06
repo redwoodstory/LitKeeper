@@ -12,6 +12,8 @@ from .webauthn import WebAuthnCredential
 from .download_queue import DownloadQueueItem
 from .metadata_refresh_queue import MetadataRefreshQueueItem
 from .format_queue import FormatQueueItem
+from .seen_url import SeenLiteroticaUrl
+from .story_source import StorySource
 
 __all__ = [
     'db',
@@ -32,4 +34,6 @@ __all__ = [
     'DownloadQueueItem',
     'MetadataRefreshQueueItem',
     'FormatQueueItem',
+    'SeenLiteroticaUrl',
+    'StorySource',
 ]

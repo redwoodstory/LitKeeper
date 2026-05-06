@@ -20,14 +20,20 @@ api = Blueprint('api', __name__, url_prefix='/api')
 
 @api.route("/queue", methods=['POST'])
 def queue_download() -> ResponseReturnValue:
-    """Queue a story for background download"""
+    """Queue a story for background download (single URL or multi-URL combine)"""
     try:
         if request.is_json:
             data = request.get_json()
             url = data.get('url', '')
+            extra_urls = data.get('extra_urls', data.get('urls', []))
         else:
             url = request.form.get('url', '')
-        
+            extra_urls = request.form.getlist('extra_urls') or request.form.getlist('urls')
+
+        if extra_urls and not url:
+            url = extra_urls[0]
+            extra_urls = extra_urls[1:]
+
         formats = ['epub', 'html']
         validated = StoryDownloadRequest(url=url, format=formats)
 
@@ -50,43 +56,35 @@ def queue_download() -> ResponseReturnValue:
     try:
         from app.models import DownloadQueueItem, db
 
-        existing = DownloadQueueItem.query.filter_by(
-            url=validated.url,
-            status='pending'
-        ).first()
+        is_multi = bool(extra_urls)
 
-        if existing:
-            if request.headers.get('HX-Request'):
-                return render_template('partials/queue_status.html', queue_item=existing.to_dict())
-            return jsonify({
-                "success": True,
-                "message": "Story is already in the download queue",
-                "queue_item": existing.to_dict()
-            })
+        if not is_multi:
+            existing = DownloadQueueItem.query.filter(
+                DownloadQueueItem.url == validated.url,
+                DownloadQueueItem.status.in_(['pending', 'processing'])
+            ).first()
+            if existing:
+                if request.headers.get('HX-Request'):
+                    return render_template('partials/queue_status.html', queue_item=existing.to_dict())
+                return jsonify({
+                    "success": True,
+                    "message": "Story is already queued or downloading",
+                    "queue_item": existing.to_dict()
+                })
 
-        existing_processing = DownloadQueueItem.query.filter_by(
-            url=validated.url,
-            status='processing'
-        ).first()
-
-        if existing_processing:
-            if request.headers.get('HX-Request'):
-                return render_template('partials/queue_status.html', queue_item=existing_processing.to_dict())
-            return jsonify({
-                "success": True,
-                "message": "Story is currently being downloaded",
-                "queue_item": existing_processing.to_dict()
-            })
-
+        job_type = 'multi' if is_multi else 'single'
         queue_item = DownloadQueueItem(
             url=validated.url,
-            status='pending'
+            status='pending',
+            job_type=job_type,
         )
         queue_item.set_formats(validated.format)
+        if is_multi:
+            queue_item.set_extra_urls(list(extra_urls))
         db.session.add(queue_item)
         db.session.commit()
 
-        log_action(f"Added story to download queue: {validated.url} (ID: {queue_item.id})")
+        log_action(f"Added story to download queue: {validated.url} job_type={job_type} (ID: {queue_item.id})")
 
         if request.headers.get('HX-Request'):
             return render_template('partials/queue_status.html', queue_item=queue_item.to_dict())
@@ -227,7 +225,7 @@ def download() -> ResponseReturnValue:
         error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
         log_error(f"Validation error: {error_msg}\nRequest Method: {request.method}\nData: {request.get_data(as_text=True)}")
         return jsonify({
-            "success": "false",
+            "success": False,
             "message": error_msg
         }), 400
 
@@ -269,8 +267,6 @@ def download() -> ResponseReturnValue:
 def get_library() -> ResponseReturnValue:
     try:
         stories = get_library_data()
-        for s in stories:
-            print(f"[LK-API] Story '{s['title']}' (id={s['id']}) tags={s['tags']}")
         return jsonify({"stories": stories})
     except Exception as e:
         log_error(f"Error fetching library: {str(e)}\n{traceback.format_exc()}")
@@ -336,12 +332,12 @@ def get_cover(filename: str) -> ResponseReturnValue:
     title = sanitized_title
     author = 'Unknown Author'
 
-    from app.models import Story
+    from app.models import Story, db
     story_db = None
     if '_' in sanitized_title:
         try:
             story_id = int(sanitized_title.split('_')[0])
-            story_db = Story.query.get(story_id)
+            story_db = db.session.get(Story, story_id)
         except (ValueError, IndexError):
             pass
     if not story_db:
@@ -445,7 +441,8 @@ def get_missing_metadata() -> ResponseReturnValue:
                         continue
                 
                 stories_needing_manual_intervention.append(story)
-            except:
+            except Exception as story_err:
+                log_error(f"Error searching metadata for story {story.id}: {story_err}")
                 stories_needing_manual_intervention.append(story)
 
         return jsonify({
@@ -613,6 +610,7 @@ def _story_to_modal_dict(story) -> dict:
         'created_at': story.created_at,
         'auto_update_enabled': story.auto_update_enabled,
         'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+        'is_combined': bool(story.is_combined),
         'rating': story.rating,
         'in_queue': bool(story.in_queue),
         'description': story.description,
@@ -646,8 +644,8 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         from app.models import Story, Author, Category, db
         from app.services.epub_service import EpubService
         
-        story = Story.query.get(story_id)
-        
+        story = db.session.get(Story, story_id)
+
         if not story:
             return jsonify({
                 "success": False,
@@ -746,7 +744,7 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
 def set_story_rating(story_id: int) -> ResponseReturnValue:
     from app.models import Story, db
 
-    story = Story.query.get(story_id)
+    story = db.session.get(Story, story_id)
     if not story:
         return jsonify({"success": False, "message": "Story not found"}), 404
 
@@ -767,7 +765,7 @@ def toggle_story_queue(story_id: int) -> ResponseReturnValue:
     from app.models import Story, db
     from datetime import datetime
 
-    story = Story.query.get(story_id)
+    story = db.session.get(Story, story_id)
     if not story:
         return jsonify({"success": False, "message": "Story not found"}), 404
 
@@ -804,7 +802,7 @@ def update_last_opened(story_id: int) -> ResponseReturnValue:
     from app.models import Story, db
     from datetime import datetime as dt
 
-    story = Story.query.get(story_id)
+    story = db.session.get(Story, story_id)
     if not story:
         return jsonify({"success": False, "message": "Story not found"}), 404
 
@@ -826,12 +824,12 @@ def update_last_opened(story_id: int) -> ResponseReturnValue:
     })
 
 
-@api.route("/story/toggle-auto-update/<int:story_id>", methods=['POST'])
+@api.route("/story/<int:story_id>/toggle-auto-update", methods=['POST'])
 def toggle_auto_update(story_id: int) -> ResponseReturnValue:
     try:
         from app.models import Story, db
 
-        story = Story.query.get(story_id)
+        story = db.session.get(Story, story_id)
 
         if not story:
             return jsonify({
@@ -856,6 +854,45 @@ def toggle_auto_update(story_id: int) -> ResponseReturnValue:
             "success": False,
             "message": "An error occurred while toggling auto-update"
         }), 500
+
+
+@api.route("/story/<int:story_id>/toggle-exclusion", methods=['POST'])
+def toggle_story_exclusion(story_id: int) -> ResponseReturnValue:
+    """Toggle auto_refresh_excluded flag for a single story."""
+    try:
+        from app.models import Story, db
+
+        story = db.session.get(Story, story_id)
+        if not story:
+            return jsonify({"success": False, "message": "Story not found"}), 404
+
+        data = request.get_json(silent=True) or {}
+        setting_excluded = data.get('excluded', not story.auto_refresh_excluded)
+
+        if setting_excluded and not data.get('reason'):
+            return jsonify({"success": False, "message": "A reason is required when excluding a story"}), 400
+
+        story.auto_refresh_excluded = bool(setting_excluded)
+
+        if story.auto_refresh_excluded:
+            story.auto_refresh_exclusion_reason = data['reason']
+            story.auto_refresh_exclusion_type = data.get('exclusion_type')
+        else:
+            story.auto_refresh_exclusion_reason = None
+            story.auto_refresh_exclusion_type = None
+
+        db.session.commit()
+
+        log_action(f"Story {story_id} exclusion set to {story.auto_refresh_excluded}")
+        return jsonify({
+            "success": True,
+            "excluded": story.auto_refresh_excluded,
+            "story": story.to_library_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        log_error(f"Error toggling exclusion: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
 
 @api.route("/queue", methods=['GET'])
 def get_queue() -> ResponseReturnValue:
@@ -1017,6 +1054,7 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'created_at': story.created_at,
         'auto_update_enabled': story.auto_update_enabled,
         'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
+        'is_combined': bool(story.is_combined),
         'rating': story.rating,
         'in_queue': bool(story.in_queue),
         'description': story.description,
@@ -1202,5 +1240,259 @@ def delete_highlight(highlight_id: int) -> ResponseReturnValue:
     db.session.delete(highlight)
     db.session.commit()
     return '', 204
+
+
+@api.route('/queue/author', methods=['POST'])
+def queue_author_download() -> ResponseReturnValue:
+    """Queue an author URL scan to download all of their stories."""
+    try:
+        data = request.get_json() or {}
+        author_url = (data.get('author_url') or '').strip()
+
+        if not author_url:
+            return jsonify({"success": False, "message": "author_url is required"}), 400
+
+        from app.services.author_scraper import is_author_url, normalize_author_url
+        if not is_author_url(author_url):
+            return jsonify({"success": False, "message": "URL does not appear to be a Literotica author page"}), 400
+
+        canonical = normalize_author_url(author_url) or author_url
+
+        from app.models import DownloadQueueItem, Author, db
+
+        existing = DownloadQueueItem.query.filter(
+            DownloadQueueItem.url == canonical,
+            DownloadQueueItem.status.in_(['pending', 'processing'])
+        ).first()
+        if existing:
+            return jsonify({
+                "success": True,
+                "message": "Author scan already queued",
+                "queue_item": existing.to_dict()
+            })
+
+        author_obj = Author.query.filter_by(literotica_url=canonical).first()
+        author_name = author_obj.name if author_obj else canonical.rstrip('/').split('/')[-1]
+
+        queue_item = DownloadQueueItem(
+            url=canonical,
+            formats=json.dumps(['epub', 'html']),
+            status='pending',
+            job_type='author',
+            author=author_name,
+            title=f'Author scan: {author_name}',
+        )
+        db.session.add(queue_item)
+
+        if not author_obj:
+            author_obj = Author(
+                name=canonical.rstrip('/').split('/')[-1],
+                literotica_url=canonical,
+                watch_enabled=True,
+            )
+            db.session.add(author_obj)
+
+        db.session.commit()
+        log_action(f"Queued author scan: {canonical}")
+
+        return jsonify({
+            "success": True,
+            "message": "Author scan queued",
+            "queue_item": queue_item.to_dict()
+        })
+
+    except Exception as e:
+        log_error(f"Error queuing author download: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/authors', methods=['GET'])
+def list_authors() -> ResponseReturnValue:
+    """List all authors that have a Literotica URL (watchable authors)."""
+    try:
+        from app.models import Author
+        authors = Author.query.filter(Author.literotica_url.isnot(None)).order_by(Author.name).all()
+        return jsonify({"success": True, "authors": [a.to_dict() for a in authors]})
+    except Exception as e:
+        log_error(f"Error listing authors: {str(e)}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/authors/<int:author_id>/toggle-watch', methods=['POST'])
+def toggle_author_watch(author_id: int) -> ResponseReturnValue:
+    """Toggle watch_enabled for an author."""
+    try:
+        from app.models import Author, db
+        author = db.session.get(Author, author_id)
+        if not author:
+            return jsonify({"success": False, "message": "Author not found"}), 404
+
+        author.watch_enabled = not author.watch_enabled
+        db.session.commit()
+        log_action(f"Author '{author.name}' watch {'enabled' if author.watch_enabled else 'disabled'}")
+        return jsonify({
+            "success": True,
+            "watch_enabled": author.watch_enabled,
+            "message": f"Watch {'enabled' if author.watch_enabled else 'disabled'} for {author.name}"
+        })
+    except Exception as e:
+        log_error(f"Error toggling author watch: {str(e)}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/authors/<int:author_id>/rescan', methods=['POST'])
+def rescan_author(author_id: int) -> ResponseReturnValue:
+    """Queue a manual re-scan of an author's story list."""
+    try:
+        from app.models import Author, DownloadQueueItem, db
+        import json as _json
+        author = db.session.get(Author, author_id)
+        if not author or not author.literotica_url:
+            return jsonify({"success": False, "message": "Author not found"}), 404
+
+        existing = DownloadQueueItem.query.filter(
+            DownloadQueueItem.url == author.literotica_url,
+            DownloadQueueItem.status.in_(['pending', 'processing'])
+        ).first()
+        if existing:
+            return jsonify({"success": True, "message": "Scan already queued"})
+
+        queue_item = DownloadQueueItem(
+            url=author.literotica_url,
+            formats=_json.dumps(['epub', 'html']),
+            status='pending',
+            job_type='author',
+            author=author.name,
+            title=f'Author scan: {author.name}',
+        )
+        db.session.add(queue_item)
+        db.session.commit()
+        log_action(f"Manual rescan queued for author '{author.name}'")
+        return jsonify({"success": True, "message": f"Rescan queued for {author.name}"})
+    except Exception as e:
+        log_error(f"Error queuing author rescan: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/settings/auto-update-enabled', methods=['GET'])
+def api_get_auto_update_enabled() -> ResponseReturnValue:
+    """Get the auto-update-stories server setting."""
+    try:
+        from app.models import AppConfig
+        cfg = AppConfig.query.filter_by(key='auto_update_enabled').first()
+        enabled = cfg.get_value() if cfg else False
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        log_error(f"Error getting auto-update setting: {str(e)}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/settings/toggle-auto-update', methods=['POST'])
+def api_toggle_auto_update() -> ResponseReturnValue:
+    """Set the auto-update-stories server setting."""
+    try:
+        from app.models import AppConfig, db
+        data = request.get_json() or {}
+        enabled = bool(data.get('enabled', False))
+        cfg = AppConfig.query.filter_by(key='auto_update_enabled').first()
+        if cfg:
+            cfg.set_value(enabled)
+        else:
+            cfg = AppConfig(key='auto_update_enabled',
+                            value='true' if enabled else 'false',
+                            value_type='bool',
+                            description='Global setting to enable/disable automatic story updates')
+            db.session.add(cfg)
+        db.session.commit()
+        log_action(f"Auto-update setting changed to: {enabled}")
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        db.session.rollback()
+        log_error(f"Error toggling auto-update: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/settings/auto-watch-enabled', methods=['GET'])
+def api_get_auto_watch_enabled() -> ResponseReturnValue:
+    """Get the auto-download-from-watched-authors server setting."""
+    try:
+        from app.models import AppConfig
+        cfg = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+        enabled = cfg.get_value() if cfg else False
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        log_error(f"Error getting auto-watch setting: {str(e)}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/settings/toggle-auto-watch', methods=['POST'])
+def api_toggle_auto_watch() -> ResponseReturnValue:
+    """Set the auto-download-from-watched-authors server setting."""
+    try:
+        from app.models import AppConfig, db
+        data = request.get_json() or {}
+        enabled = bool(data.get('enabled', False))
+        cfg = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+        if cfg:
+            cfg.set_value(enabled)
+        else:
+            cfg = AppConfig(key='auto_watch_authors_enabled',
+                            value='true' if enabled else 'false',
+                            value_type='bool',
+                            description='Auto-download new stories from watched authors on schedule')
+            db.session.add(cfg)
+        db.session.commit()
+        log_action(f"Auto-watch-authors setting changed to: {enabled}")
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        db.session.rollback()
+        log_error(f"Error toggling auto-watch: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/stories/excluded', methods=['GET'])
+def get_excluded_stories() -> ResponseReturnValue:
+    """List all stories that have been excluded from auto-refresh."""
+    try:
+        from app.models import Story
+
+        stories = Story.query.filter(Story.auto_refresh_excluded == True).all()
+
+        return jsonify({
+            "success": True,
+            "count": len(stories),
+            "stories": [story.to_library_dict() for story in stories]
+        })
+    except Exception as e:
+        log_error(f"Error fetching excluded stories: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/stories/excluded/reset', methods=['POST'])
+def reset_all_exclusions() -> ResponseReturnValue:
+    """Clear auto_refresh_excluded flags on all stories so automation can re-check them."""
+    try:
+        from app.models import Story, db
+
+        stories = Story.query.filter(Story.auto_refresh_excluded == True).all()
+        count = len(stories)
+
+        for story in stories:
+            story.auto_refresh_excluded = False
+            story.auto_refresh_exclusion_reason = None
+            story.auto_refresh_exclusion_type = None
+
+        db.session.commit()
+        log_action(f"Reset {count} auto-refresh exclusions")
+
+        return jsonify({
+            "success": True,
+            "message": f"Reset {count} exclusion(s)",
+            "count": count
+        })
+    except Exception as e:
+        db.session.rollback()
+        log_error(f"Error resetting exclusions: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
 
 

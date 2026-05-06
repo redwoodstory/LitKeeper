@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 from flask import current_app
-from app.models import Story, db
+from app.models import Story, SeenLiteroticaUrl, db
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
 from app.services import log_error
 import traceback
@@ -49,6 +49,7 @@ class StoryDeletionService:
                     log_error(f"Failed to delete cover file {cover_file}: {str(e)}")
                     failed_files.append(f"{story_id}_{filename_base}.jpg")
             
+            SeenLiteroticaUrl.query.filter_by(story_id=story.id).delete()
             db.session.delete(story)
             db.session.commit()
             

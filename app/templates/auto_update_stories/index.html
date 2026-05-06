@@ -1,0 +1,134 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block page_title %}Auto-Update Stories - LitKeeper{% endblock %}
+
+{% block header %}
+<header class="mb-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="font-playfair text-3xl font-medium text-gray-900 dark:text-white tracking-wide">
+        Auto-Update Stories
+      </h2>
+      <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+        Choose which stories are checked for new chapters during scheduled runs.
+      </p>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
+{% block main_content %}
+
+<div class="space-y-4">
+
+  {% if stories %}
+  <div class="card">
+    <section>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Stories
+      </h3>
+      <div class="space-y-3">
+        {% for story in stories %}
+        <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ story.title }}</p>
+            <div class="flex flex-wrap items-center gap-x-3 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              <span>{{ story.author.name if story.author else 'Unknown' }}</span>
+              {% if story.literotica_url %}<span class="text-green-600 dark:text-green-400">Linked</span>
+              {% else %}<span class="text-amber-600 dark:text-amber-400">Unlinked</span>{% endif %}
+              {% if story.chapter_count %}<span>{{ story.chapter_count }} {{ 'part' if story.chapter_count == 1 else 'parts' }}</span>{% endif %}
+              {% if story.last_update_check_at %}<span>Last checked {{ story.last_update_check_at | humanize_date }}</span>{% endif %}
+            </div>
+            {% if story.auto_refresh_excluded and story.auto_refresh_exclusion_reason %}
+            <p class="mt-1 text-xs text-red-500 dark:text-red-400">{{ story.auto_refresh_exclusion_reason }}</p>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            {% if story.auto_refresh_excluded and story.auto_refresh_exclusion_type not in ('duplicate', 'combined') %}
+            <button
+              data-story-id="{{ story.id }}"
+              data-story-title="{{ story.title | e }}"
+              data-story-author="{{ story.author.name | e if story.author else '' }}"
+              onclick="openRefreshModal(this.dataset.storyId, this.dataset.storyTitle, this.dataset.storyAuthor)"
+              class="px-3 py-1 text-xs font-medium text-primary border border-primary rounded-md hover:bg-primary hover:text-white transition-all duration-200">
+              Link Story
+            </button>
+            {% endif %}
+            <button
+              id="auto-update-btn-{{ story.id }}"
+              {% if not story.auto_refresh_excluded %}onclick="toggleStoryAutoUpdate({{ story.id }})"{% endif %}
+              title="{{ 'Cannot enable: story is excluded from auto-refresh' if story.auto_refresh_excluded else ('Auto-update enabled — click to disable' if story.auto_update_enabled else 'Auto-update disabled — click to enable') }}"
+              class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {{ 'cursor-not-allowed opacity-50' if story.auto_refresh_excluded else 'cursor-pointer focus:ring-2 focus:ring-primary focus:ring-offset-2' }} {{ 'bg-green-600' if story.auto_update_enabled and not story.auto_refresh_excluded else 'bg-gray-200 dark:bg-gray-700' }}"
+              role="switch" aria-checked="{{ 'true' if story.auto_update_enabled and not story.auto_refresh_excluded else 'false' }}"
+              {% if story.auto_refresh_excluded %}disabled aria-disabled="true"{% endif %}>
+              <span class="sr-only">Auto-update story</span>
+              <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ 'translate-x-5' if story.auto_update_enabled and not story.auto_refresh_excluded else 'translate-x-0' }}"></span>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="text-center py-8">
+      <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      <p class="text-sm text-gray-500 dark:text-gray-400">No stories in library yet.</p>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+async function toggleStoryAutoUpdate(storyId) {
+  try {
+    const btn = document.getElementById('auto-update-btn-' + storyId);
+    btn.disabled = true;
+
+    const res = await fetch(`/auto-update-stories/${storyId}/toggle`, { method: 'POST' });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      window.toast?.show(data.message, 'error');
+      btn.disabled = false;
+      return;
+    }
+
+    const enabled = data.auto_update_enabled;
+    btn.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    btn.title = enabled
+      ? 'Auto-update enabled — click to disable'
+      : 'Auto-update disabled — click to enable';
+
+    const knob = btn.querySelector('span:last-child');
+    if (enabled) {
+      btn.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+      btn.classList.add('bg-green-600');
+      knob.classList.remove('translate-x-0');
+      knob.classList.add('translate-x-5');
+    } else {
+      btn.classList.remove('bg-green-600');
+      btn.classList.add('bg-gray-200', 'dark:bg-gray-700');
+      knob.classList.remove('translate-x-5');
+      knob.classList.add('translate-x-0');
+    }
+
+    window.toast?.show(data.message, 'success');
+    btn.disabled = false;
+  } catch (e) {
+    window.toast?.show('Failed to update auto-update status.', 'error');
+    const btn = document.getElementById('auto-update-btn-' + storyId);
+    if (btn) btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

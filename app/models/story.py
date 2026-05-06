@@ -28,6 +28,7 @@ class Story(BaseModel, TimestampMixin):
     auto_update_enabled = db.Column(db.Boolean, default=True, nullable=False)
     last_update_check_at = db.Column(db.DateTime)
     content_hash = db.Column(db.String(64))
+    is_combined = db.Column(db.Boolean, default=False, nullable=False)
     
     auto_refresh_excluded = db.Column(db.Boolean, default=False, nullable=False)
     auto_refresh_exclusion_reason = db.Column(db.String(500))
@@ -46,6 +47,7 @@ class Story(BaseModel, TimestampMixin):
     reading_progress = db.relationship('ReadingProgress', back_populates='story', uselist=False, cascade='all, delete-orphan')
     highlights = db.relationship('Highlight', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
     metadata_refresh_jobs = db.relationship('MetadataRefreshQueueItem', back_populates='story', cascade='all, delete-orphan', lazy='dynamic')
+    sources = db.relationship('StorySource', back_populates='story', cascade='all, delete-orphan', order_by='StorySource.position', lazy='select')
 
     def __repr__(self):
         return f'<Story {self.title}>'
@@ -101,4 +103,8 @@ class Story(BaseModel, TimestampMixin):
             'queued_at': self.queued_at.isoformat() if self.queued_at else None,
             'last_opened_at': self.last_opened_at.isoformat() if self.last_opened_at else None,
             'description': self.description,
+            'auto_refresh_excluded': bool(self.auto_refresh_excluded),
+            'auto_refresh_exclusion_reason': self.auto_refresh_exclusion_reason,
+            'auto_refresh_exclusion_type': self.auto_refresh_exclusion_type,
+            'source_urls': [s.url for s in self.sources] if self.is_combined else None,
         }

@@ -105,6 +105,8 @@ def create_epub_file(
         book.set_title(story_title)
         book.set_language('en')
         book.add_author(story_author)
+        if story_description:
+            book.add_metadata('DC', 'description', story_description)
 
         if story_category:
             book.add_metadata('DC', 'subject', story_category)

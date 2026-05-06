@@ -232,7 +232,7 @@ def _download_single_chapter(
                     next_url = "https://www.literotica.com" + next_url
                 current_url = next_url
                 current_page += 1
-                time.sleep(3)
+                time.sleep(5)
             else:
                 current_url = None
 
@@ -306,7 +306,7 @@ def _download_from_series_page(
                 story_tags = chapter_metadata['tags']
                 story_description = chapter_metadata.get('description') or series_description
 
-            time.sleep(3)
+            time.sleep(5)
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
@@ -472,9 +472,10 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                             next_url = "https://www.literotica.com" + next_url
                         current_url = next_url
                         current_page += 1
+                        time.sleep(5)
                     else:
                         chapter_contents.append(current_chapter_content)
-                        
+
                         series_section = None
                         for section in soup.find_all("section", class_=lambda c: c and "_panel_" in str(c)):
                             heading = section.find("h3", class_=lambda c: c and "_heading_" in str(c))
@@ -511,8 +512,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
 
                         current_url = None
                         current_page = 1
-
-                    time.sleep(3)
+                        break
 
                 except requests.RequestException as e:
                     error_msg = f"Network error while downloading chapter {current_chapter}: {str(e)}"
@@ -522,6 +522,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                     error_msg = f"Error processing chapter {current_chapter}: {str(e)}\n{traceback.format_exc()}"
                     log_error(error_msg, current_url)
                     return None, None, None, None, None, None, None, None, None
+
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
@@ -612,6 +613,55 @@ def fetch_story_metadata(url: str) -> dict:
     except Exception as e:
         log_error(f'Error fetching story metadata: {str(e)}', url)
         return {}
+
+
+def download_and_combine_stories(urls: list[str]) -> tuple:
+    """
+    Download multiple story URLs and combine them into a single story.
+
+    Uses the first URL's metadata (title, author, category, tags, author_url,
+    series_url, description).  Each downloaded story becomes a chapter group
+    separated by CHAPTER_SENTINEL markers.
+
+    Returns the same 9-tuple as download_story:
+        (content, title, author, category, tags, author_url, total_pages,
+         series_url, description)
+    Returns a tuple of Nones on complete failure.
+    """
+    if not urls:
+        return None, None, None, None, None, None, None, None, None
+
+    from .logger import log_action
+    combined_content = ""
+    first_meta: tuple | None = None
+    total_pages = 0
+    chapter_offset = 0
+
+    for idx, url in enumerate(urls):
+        log_action(f"[CombineDownload] Downloading {idx + 1}/{len(urls)}: {url}")
+        result = download_story(url)
+        content, title, author, category, tags, author_url, pages, series_url, description = result
+
+        if not content or not title:
+            log_error(f"[CombineDownload] Failed to download {url}, skipping")
+            continue
+
+        if first_meta is None:
+            first_meta = result
+
+        if pages:
+            total_pages += pages
+
+        chapter_texts = [ch for ch in split_story_chapters(content) if ch.strip()]
+        for ch_idx, ch_text in enumerate(chapter_texts):
+            combined_content += f"{CHAPTER_SENTINEL}CHAPTER:{chapter_offset + ch_idx + 1}{CHAPTER_SENTINEL}{ch_text}"
+        chapter_offset += len(chapter_texts)
+
+    if first_meta is None or not combined_content:
+        return None, None, None, None, None, None, None, None, None
+
+    _, title, author, category, tags, author_url, _, series_url, description = first_meta
+    return combined_content, title, author, category, tags, author_url, total_pages, series_url, description
 
 
 def extract_chapter_titles(story_content: str) -> list[str]:

@@ -162,16 +162,16 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        Automation
+        Auto-Update Stories
       </h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Enable automatic updates for stories with linked metadata. Stories will be checked for new chapters when the automation runs.
+        Check for and download new chapters for tracked stories on a scheduled run.
       </p>
 
-      <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4">
+      <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4 mb-4">
         <div>
-          <p class="text-sm font-medium text-gray-900 dark:text-white">Auto-Update Stories</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Automatically check for and download new chapters</p>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Enable Auto-Update</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Stories will be checked for new chapters when the automation runs</p>
         </div>
         <button id="autoUpdateToggle" onclick="toggleGlobalAutoUpdate()"
           class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-gray-200 dark:bg-gray-700"
@@ -180,10 +180,122 @@
           <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
         </button>
       </div>
-      
-      <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-        A unique random weekly schedule is generated on first startup and persisted in the database.
+
+      <a id="manageStoriesAction"
+         {% if auto_update_enabled %}href="/auto-update-stories/"{% endif %}
+         class="inline-flex items-center gap-2 px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm {{ 'bg-primary hover:bg-primary-dark text-white' if auto_update_enabled else 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed pointer-events-none' }}"
+         {% if not auto_update_enabled %}aria-disabled="true" title="Enable Auto-Update first"{% endif %}>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        Manage Stories
+      </a>
+    </section>
+  </div>
+
+  <div class="card">
+    <section>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        Watched Authors
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Manage which authors LitKeeper monitors for new stories.
       </p>
+
+      <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4 mb-4">
+        <div>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Auto-Download New Stories</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Check watched authors for new stories on the same schedule</p>
+        </div>
+        <button id="autoWatchToggle" onclick="toggleAutoWatch()"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 {{ 'bg-green-600' if auto_watch_enabled else 'bg-gray-200 dark:bg-gray-700' }}"
+          role="switch" aria-checked="{{ 'true' if auto_watch_enabled else 'false' }}">
+          <span class="sr-only">Enable auto-watch authors</span>
+          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ 'translate-x-5' if auto_watch_enabled else 'translate-x-0' }}"></span>
+        </button>
+      </div>
+
+      <a id="manageAuthorsAction"
+         {% if auto_watch_enabled %}href="/authors/"{% endif %}
+         class="inline-flex items-center gap-2 px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm {{ 'bg-primary hover:bg-primary-dark text-white' if auto_watch_enabled else 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed pointer-events-none' }}"
+         {% if not auto_watch_enabled %}aria-disabled="true" title="Enable Auto-Download first"{% endif %}>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        Manage Authors
+      </a>
+    </section>
+  </div>
+
+  <div class="card">
+    <section id="opdsSection">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        OPDS Catalog
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Expose your library as an OPDS feed for your e-reader.
+      </p>
+
+      <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4 mb-4">
+        <div>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Enable OPDS Catalog</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Makes your library accessible at the URL below</p>
+        </div>
+        <button id="opdsEnabledToggle" onclick="toggleOpds()"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 {{ 'bg-green-600' if opds_enabled else 'bg-gray-200 dark:bg-gray-700' }}"
+          role="switch" aria-checked="{{ 'true' if opds_enabled else 'false' }}">
+          <span class="sr-only">Enable OPDS catalog</span>
+          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ 'translate-x-5' if opds_enabled else 'translate-x-0' }}"></span>
+        </button>
+      </div>
+
+      <div id="opdsDetails" class="{{ '' if opds_enabled else 'hidden' }} space-y-4">
+        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-gray-900/50 border border-slate-200 dark:border-gray-700 rounded-lg">
+          <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Catalog URL</span>
+          <span id="opdsUrl" class="text-xs font-mono text-gray-800 dark:text-gray-200 truncate flex-1">{{ opds_url }}</span>
+          <button onclick="copyOpdsUrl()" class="flex-shrink-0 text-xs text-primary hover:text-primary-dark font-medium transition-colors duration-200">Copy</button>
+        </div>
+
+        <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4">
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">Require Authentication</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Protect the catalog with a username and password</p>
+          </div>
+          <button id="opdsAuthToggle" onclick="toggleOpdsAuth()"
+            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 {{ 'bg-green-600' if opds_auth_enabled else 'bg-gray-200 dark:bg-gray-700' }}"
+            role="switch" aria-checked="{{ 'true' if opds_auth_enabled else 'false' }}">
+            <span class="sr-only">Require OPDS authentication</span>
+            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ 'translate-x-5' if opds_auth_enabled else 'translate-x-0' }}"></span>
+          </button>
+        </div>
+
+        <div id="opdsCredentials" class="{{ '' if opds_auth_enabled else 'hidden' }} space-y-3 pt-1">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="opdsUsername">Username</label>
+              <input type="text" id="opdsUsername" autocomplete="off" value="{{ opds_username }}"
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="opdsPassword">New Password</label>
+              <input type="password" id="opdsPassword" autocomplete="new-password" placeholder="Leave blank to keep current"
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200">
+            </div>
+          </div>
+          <button onclick="saveOpdsCredentials()"
+            class="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium text-sm">
+            Save Credentials
+          </button>
+        </div>
+      </div>
     </section>
   </div>
 
@@ -217,175 +329,6 @@
 </div>
 
 <script>
-  async function loadExcludedStories() {
-    const container = document.getElementById('excludedStoriesContainer');
-
-    try {
-      const response = await fetch('/settings/get-excluded-stories');
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to load excluded stories');
-      }
-
-      const resetBtn = document.getElementById('resetAllExclusionsBtn');
-
-      if (data.stories.length === 0) {
-        if (resetBtn) resetBtn.classList.add('hidden');
-        container.innerHTML = `
-        <div class="text-center py-8">
-          <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p class="text-gray-500 dark:text-gray-400 font-medium">No excluded stories</p>
-          <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">All stories are eligible for auto-refresh</p>
-        </div>
-      `;
-        return;
-      }
-
-      if (resetBtn) resetBtn.classList.remove('hidden');
-
-      container.innerHTML = `
-      <div class="space-y-3">
-        ${data.stories.map(story => `
-          <div id="exclusion-card-${story.id}" class="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 transition-all duration-200">
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-2">
-                  <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <h4 class="font-semibold text-gray-900 dark:text-white truncate">
-                    ${story.title}
-                  </h4>
-                </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  by <span class="font-medium">${story.author}</span>
-                </p>
-                <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                  <span class="font-semibold text-amber-700 dark:text-amber-400">Reason:</span> ${story.exclusion_reason}
-                </p>
-              </div>
-              <div class="flex items-center">
-                ${story.exclusion_type === 'duplicate' ? `
-                  <button onclick="openStoryModalById(${story.id})"
-                          class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
-                    View Story
-                  </button>
-                ` : `
-                  <button onclick="linkExcludedStory(${story.id}, '${story.title.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${story.author.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')"
-                          class="px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors duration-200 whitespace-nowrap font-medium">
-                    Link Story
-                  </button>
-                `}
-              </div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-    } catch (error) {
-      container.innerHTML = `
-      <div class="text-center py-8">
-        <svg class="w-16 h-16 mx-auto text-red-300 dark:text-red-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p class="text-red-600 dark:text-red-400 font-medium">Error loading excluded stories</p>
-        <p class="text-sm text-red-500 dark:text-red-500 mt-1">${error.message}</p>
-      </div>
-    `;
-    }
-  }
-
-  async function openStoryModalById(storyId) {
-    try {
-      const response = await fetch(`/api/story/${storyId}/modal`);
-      if (response.ok) {
-        const html = await response.text();
-        document.body.insertAdjacentHTML('beforeend', html);
-      } else {
-        console.error('Failed to load story modal');
-      }
-    } catch (error) {
-      console.error('Error loading story modal:', error);
-    }
-  }
-
-  async function linkExcludedStory(storyId, storyTitle, storyAuthor) {
-    if (typeof openRefreshModal === 'function') {
-      openRefreshModal(storyId, storyTitle, storyAuthor, async (fieldsChanged) => {
-        if (fieldsChanged) {
-          removeExclusionCard(storyId);
-        }
-      });
-    } else {
-      console.error('openRefreshModal function not found');
-      showToast('Metadata refresh modal is not available. Please refresh and try again.', 'error');
-    }
-  }
-
-  function removeExclusionCard(storyId) {
-    const card = document.getElementById(`exclusion-card-${storyId}`);
-    if (card) {
-      card.style.opacity = '0';
-      card.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        card.remove();
-
-        const container = document.getElementById('excludedStoriesContainer');
-        const remainingCards = container.querySelectorAll('[id^="exclusion-card-"]');
-
-        if (remainingCards.length === 0) {
-          const resetBtn = document.getElementById('resetAllExclusionsBtn');
-          if (resetBtn) resetBtn.classList.add('hidden');
-
-          container.innerHTML = `
-          <div class="text-center py-8">
-            <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p class="text-gray-500 dark:text-gray-400 font-medium">No excluded stories</p>
-            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">All stories are eligible for auto-refresh</p>
-          </div>
-        `;
-        }
-      }, 200);
-    }
-  }
-
-
-  async function resetAllExclusions() {
-    if (!confirm('Reset all exclusions?\n\nThis will clear all exclusion flags and allow the automation to re-check these stories during the next cycle.')) {
-      return;
-    }
-    const btn = document.getElementById('resetAllExclusionsBtn');
-    const originalText = btn.textContent;
-
-    try {
-      btn.disabled = true;
-      btn.textContent = 'Resetting...';
-
-      const response = await fetch('/settings/reset-all-exclusions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        await loadExcludedStories();
-        showToast(data.message, 'success');
-      } else {
-        showToast(`Error: ${data.message}`, 'error');
-      }
-    } catch (error) {
-      showToast(`Error resetting exclusions: ${error.message}`, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
-  }
-
   async function clearAllReadingProgress() {
     if (!confirm('Clear all reading progress?\n\nThis will reset all reading positions for all stories. All stories will start from the beginning when you next open them.\n\nThis action cannot be undone.')) {
       return;
@@ -535,6 +478,23 @@
     }
   }
 
+  function updateManageBtn(id, enabled, href) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (enabled) {
+      el.setAttribute('href', href);
+      el.removeAttribute('aria-disabled');
+      el.removeAttribute('title');
+      el.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-400', 'dark:text-gray-500', 'cursor-not-allowed', 'pointer-events-none');
+      el.classList.add('bg-primary', 'hover:bg-primary-dark', 'text-white');
+    } else {
+      el.removeAttribute('href');
+      el.setAttribute('aria-disabled', 'true');
+      el.classList.remove('bg-primary', 'hover:bg-primary-dark', 'text-white');
+      el.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-400', 'dark:text-gray-500', 'cursor-not-allowed', 'pointer-events-none');
+    }
+  }
+
   async function toggleGlobalAutoUpdate() {
     const toggle = document.getElementById('autoUpdateToggle');
     const currentState = toggle.getAttribute('aria-checked') === 'true';
@@ -550,6 +510,7 @@
 
       if (data.success) {
         updateAutoUpdateToggle(data.enabled);
+        updateManageBtn('manageStoriesAction', data.enabled, '/auto-update-stories/');
       } else {
         showToast(`Error: ${data.message}`, 'error');
       }
@@ -557,6 +518,90 @@
       console.error('Error toggling auto-update:', error);
       showToast('Failed to update auto-update setting', 'error');
     }
+  }
+
+  function updateToggle(id, enabled) {
+    const toggle = document.getElementById(id);
+    if (!toggle) return;
+    const span = toggle.querySelector('span:last-child');
+    if (enabled) {
+      toggle.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+      toggle.classList.add('bg-green-600');
+      toggle.setAttribute('aria-checked', 'true');
+      span.classList.remove('translate-x-0');
+      span.classList.add('translate-x-5');
+    } else {
+      toggle.classList.remove('bg-green-600');
+      toggle.classList.add('bg-gray-200', 'dark:bg-gray-700');
+      toggle.setAttribute('aria-checked', 'false');
+      span.classList.remove('translate-x-5');
+      span.classList.add('translate-x-0');
+    }
+  }
+
+  async function toggleAutoWatch() {
+    const toggle = document.getElementById('autoWatchToggle');
+    const currentState = toggle.getAttribute('aria-checked') === 'true';
+    try {
+      const response = await fetch('/settings/toggle-auto-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !currentState })
+      });
+      const data = await response.json();
+      if (data.success) {
+        updateToggle('autoWatchToggle', data.enabled);
+        updateManageBtn('manageAuthorsAction', data.enabled, '/authors/');
+      } else {
+        showToast(`Error: ${data.message}`, 'error');
+      }
+    } catch (error) {
+      showToast('Failed to update setting', 'error');
+    }
+  }
+
+  // OPDS settings
+  function toggleOpds() {
+    const toggle = document.getElementById('opdsEnabledToggle');
+    const enabled = toggle.getAttribute('aria-checked') !== 'true';
+    updateToggle('opdsEnabledToggle', enabled);
+    document.getElementById('opdsDetails').classList.toggle('hidden', !enabled);
+    saveOpdsSettings({ opds_enabled: enabled });
+  }
+
+  function toggleOpdsAuth() {
+    const toggle = document.getElementById('opdsAuthToggle');
+    const enabled = toggle.getAttribute('aria-checked') !== 'true';
+    updateToggle('opdsAuthToggle', enabled);
+    document.getElementById('opdsCredentials').classList.toggle('hidden', !enabled);
+    saveOpdsSettings({ opds_auth_enabled: enabled });
+  }
+
+  function copyOpdsUrl() {
+    const url = document.getElementById('opdsUrl').textContent.trim();
+    navigator.clipboard.writeText(url).then(() => showToast('URL copied', 'success'));
+  }
+
+  async function saveOpdsCredentials() {
+    const username = document.getElementById('opdsUsername').value.trim();
+    const password = document.getElementById('opdsPassword').value;
+    if (!username) { showToast('Username is required', 'error'); return; }
+    const ok = await saveOpdsSettings({ opds_username: username, opds_password: password });
+    if (ok) document.getElementById('opdsPassword').value = '';
+  }
+
+  async function saveOpdsSettings(patch) {
+    try {
+      const res = await fetch('/settings/opds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.success) { showToast('Saved', 'success'); return true; }
+      showToast(data.message || 'Error saving OPDS settings', 'error');
+    } catch { showToast('Error saving OPDS settings', 'error'); }
+    return false;
   }
 
   document.body.addEventListener('htmx:afterSwap', (event) => {

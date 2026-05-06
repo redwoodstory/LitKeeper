@@ -13,10 +13,24 @@ load_dotenv()
 # Build version identifier - update this when making significant changes
 APP_VERSION = "2026.01.06-automation-fix"
 
+def _is_cli_context() -> bool:
+    """Detect if we're running under Flask CLI or a one-off script.
+
+    When SKIP_BACKGROUND_WORKERS is set, or when the process was launched
+    via the ``flask`` CLI entry-point, startup banners and background
+    workers should be suppressed.
+    """
+    import sys
+    if os.getenv('SKIP_BACKGROUND_WORKERS', '').lower() == 'true':
+        return True
+    argv0 = sys.argv[0] if sys.argv else ''
+    if argv0.endswith('flask') or '/flask' in argv0:
+        return True
+    return False
+
+
 def _validate_deployment_config():
     """Validate deployment configuration safety"""
-    import sys
-
     db_uri = os.getenv('SQLALCHEMY_DATABASE_URI', '')
     if 'sqlite' in db_uri.lower() or not db_uri:
         print("INFO: SQLite detected - single worker required")
@@ -31,17 +45,19 @@ def _validate_deployment_config():
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    _cli_mode = _is_cli_context()
+
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-    print(f"=" * 80)
-    print(f"LitKeeper Version: {APP_VERSION}")
-    print(f"Build: Production-ready multi-user deployment")
-    print(f"[CONFIG] Data Directory: {get_data_directory()}")
-    print(f"[CONFIG] Stories Directory: {get_stories_directory()}")
-    print(f"=" * 80)
-
-    _validate_deployment_config()
+    if not _cli_mode:
+        print(f"=" * 80)
+        print(f"LitKeeper Version: {APP_VERSION}")
+        print(f"Build: Production-ready multi-user deployment")
+        print(f"[CONFIG] Data Directory: {get_data_directory()}")
+        print(f"[CONFIG] Stories Directory: {get_stories_directory()}")
+        print(f"=" * 80)
+        _validate_deployment_config()
 
     secret_key = os.getenv('SECRET_KEY')
     if not secret_key:
@@ -123,8 +139,6 @@ def create_app() -> Flask:
             cursor.close()
 
     with app.app_context():
-        db.create_all()
-
         from app.models import AppConfig
 
         config_defaults = [
@@ -133,6 +147,10 @@ def create_app() -> Flask:
             ('migration_version', '1', 'int', 'Database schema version'),
             ('auto_refresh_metadata', 'false', 'bool', 'Auto-refresh missing metadata on startup'),
             ('auto_lock_timeout', '0', 'int', 'Lock timeout minutes (0=never, >0=inactivity threshold)'),
+            ('opds_enabled', 'false', 'bool', 'Whether the OPDS catalog is enabled'),
+            ('opds_auth_enabled', 'false', 'bool', 'Whether OPDS requires HTTP Basic Auth'),
+            ('opds_username', '', 'string', 'OPDS Basic Auth username'),
+            ('opds_password_hash', '', 'string', 'OPDS Basic Auth password (bcrypt hash)'),
         ]
 
         for key, value, value_type, description in config_defaults:
@@ -232,6 +250,9 @@ def create_app() -> Flask:
     from .blueprints.epub import epub
     from .blueprints.auth import auth
     from .blueprints.queue import queue
+    from .blueprints.authors import authors_bp
+    from .blueprints.opds import opds_bp
+    from .blueprints.auto_update_stories import auto_update_stories
 
     app.register_blueprint(api)
     app.register_blueprint(library)
@@ -242,6 +263,9 @@ def create_app() -> Flask:
     app.register_blueprint(auth)
     app.register_blueprint(queue)
     app.register_blueprint(highlights)
+    app.register_blueprint(authors_bp)
+    app.register_blueprint(opds_bp)
+    app.register_blueprint(auto_update_stories)
 
     from .commands import register_commands
     register_commands(app)
@@ -273,7 +297,7 @@ def create_app() -> Flask:
         # Bearer-authenticated requests (iOS app) are already validated by enforce_api_token
         if _api_token and request.headers.get('Authorization') == f'Bearer {_api_token}':
             return
-        exempt_prefixes = ('/auth/', '/static/', '/favicon', '/settings/theme-preference')
+        exempt_prefixes = ('/auth/', '/static/', '/favicon', '/settings/theme-preference', '/opds')
         if request.path.startswith(exempt_prefixes):
             return
         cred_count = WebAuthnCredential.query.count()
@@ -323,148 +347,240 @@ def create_app() -> Flask:
     init_scheduler(app)
     atexit.register(shutdown_scheduler)
 
-    def _repair_epub_metadata_background():
-        import threading
-        def _run():
-            with app.app_context():
-                try:
-                    from app.services.bulk_format_generator import BulkFormatGeneratorService
-                    from app.models import Story, StoryFormat, AppConfig
-                    from app.models.base import db
-                    from datetime import datetime
+    if not _cli_mode:
+        def _repair_epub_metadata_background():
+            import threading
+            def _run():
+                with app.app_context():
+                    try:
+                        from app.services.bulk_format_generator import BulkFormatGeneratorService
+                        from app.models import Story, StoryFormat, AppConfig
+                        from app.models.base import db
+                        from datetime import datetime
 
-                    # One-time migration: bump updated_at on all epub stories so the
-                    # iOS sync detects the XHTML repair and re-downloads them.
-                    migration_key = 'epub_xhtml_repair_notified'
-                    already_done = AppConfig.query.filter_by(key=migration_key).first()
-                    if not already_done:
-                        epub_story_ids = {
-                            f.story_id for f in StoryFormat.query.filter_by(format_type='epub').all()
-                        }
-                        if epub_story_ids:
-                            now = datetime.utcnow()
-                            Story.query.filter(Story.id.in_(epub_story_ids)).update(
-                                {Story.updated_at: now}, synchronize_session=False
-                            )
-                            flag = AppConfig(
-                                key=migration_key, value='true',
-                                value_type='bool',
-                                description='EPUB XHTML repair updated_at bump has run'
-                            )
-                            db.session.add(flag)
-                            db.session.commit()
-                            print(f"[startup] Bumped updated_at on {len(epub_story_ids)} epub stories for iOS re-sync")
+                        # One-time migration: bump updated_at on all epub stories so the
+                        # iOS sync detects the XHTML repair and re-downloads them.
+                        migration_key = 'epub_xhtml_repair_notified'
+                        already_done = AppConfig.query.filter_by(key=migration_key).first()
+                        if not already_done:
+                            epub_story_ids = {
+                                f.story_id for f in StoryFormat.query.filter_by(format_type='epub').all()
+                            }
+                            if epub_story_ids:
+                                now = datetime.utcnow()
+                                Story.query.filter(Story.id.in_(epub_story_ids)).update(
+                                    {Story.updated_at: now}, synchronize_session=False
+                                )
+                                flag = AppConfig(
+                                    key=migration_key, value='true',
+                                    value_type='bool',
+                                    description='EPUB XHTML repair updated_at bump has run'
+                                )
+                                db.session.add(flag)
+                                db.session.commit()
+                                print(f"[startup] Bumped updated_at on {len(epub_story_ids)} epub stories for iOS re-sync")
 
-                    result = BulkFormatGeneratorService().repair_all_epub_metadata()
-                    if result['repaired'] > 0:
-                        print(f"[startup] EPUB metadata repair: {result['repaired']} fixed, {result['skipped']} already clean")
-                except Exception as e:
-                    print(f"[startup] EPUB metadata repair error: {e}")
-        threading.Thread(target=_run, daemon=True).start()
+                        result = BulkFormatGeneratorService().repair_all_epub_metadata()
+                        if result['repaired'] > 0:
+                            print(f"[startup] EPUB metadata repair: {result['repaired']} fixed, {result['skipped']} already clean")
+                    except Exception as e:
+                        print(f"[startup] EPUB metadata repair error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
 
-    _repair_epub_metadata_background()
+        _repair_epub_metadata_background()
 
-    def _migrate_filenames_background():
-        import threading
-        def _run():
-            with app.app_context():
-                try:
-                    from app.models import AppConfig
-                    from app.models.base import db
-                    migration_key = 'filenames_id_prefix_migrated'
-                    already_done = AppConfig.query.filter_by(key=migration_key).first()
-                    if already_done:
-                        return
-                    from app.services.migration.migrate_filenames_to_id_prefix import migrate_filenames_to_id_prefix
-                    result = migrate_filenames_to_id_prefix()
-                    flag = AppConfig(
-                        key=migration_key, value='true',
-                        value_type='bool',
-                        description='Story files renamed to {id}_{filename_base} format'
-                    )
-                    db.session.add(flag)
-                    db.session.commit()
-                    print(f"[startup] Filename migration: {result.get('message', result)}")
-                except Exception as e:
-                    print(f"[startup] Filename migration error: {e}")
-        threading.Thread(target=_run, daemon=True).start()
+        def _migrate_filenames_background():
+            import threading
+            def _run():
+                with app.app_context():
+                    try:
+                        from app.models import AppConfig
+                        from app.models.base import db
+                        migration_key = 'filenames_id_prefix_migrated'
+                        already_done = AppConfig.query.filter_by(key=migration_key).first()
+                        if already_done:
+                            return
+                        from app.services.migration.migrate_filenames_to_id_prefix import migrate_filenames_to_id_prefix
+                        result = migrate_filenames_to_id_prefix()
+                        flag = AppConfig(
+                            key=migration_key, value='true',
+                            value_type='bool',
+                            description='Story files renamed to {id}_{filename_base} format'
+                        )
+                        db.session.add(flag)
+                        db.session.commit()
+                        print(f"[startup] Filename migration: {result.get('message', result)}")
+                    except Exception as e:
+                        print(f"[startup] Filename migration error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
 
-    _migrate_filenames_background()
+        _migrate_filenames_background()
 
-    def _migrate_covers_background():
-        import threading
-        def _run():
-            with app.app_context():
-                try:
-                    from app.models import AppConfig
-                    from app.models.base import db
-                    migration_key = 'covers_id_prefix_migrated'
-                    already_done = AppConfig.query.filter_by(key=migration_key).first()
-                    if already_done:
-                        return
-                    from app.services.migration.migrate_covers_to_id_prefix import migrate_covers_to_id_prefix
-                    result = migrate_covers_to_id_prefix()
-                    flag = AppConfig(
-                        key=migration_key, value='true',
-                        value_type='bool',
-                        description='Story cover images renamed to {id}_{filename_base}.jpg format'
-                    )
-                    db.session.add(flag)
-                    db.session.commit()
-                    print(f"[startup] Cover migration: {result.get('message', result)}")
-                except Exception as e:
-                    print(f"[startup] Cover migration error: {e}")
-        threading.Thread(target=_run, daemon=True).start()
+        def _migrate_covers_background():
+            import threading
+            def _run():
+                with app.app_context():
+                    try:
+                        from app.models import AppConfig
+                        from app.models.base import db
+                        migration_key = 'covers_id_prefix_migrated'
+                        already_done = AppConfig.query.filter_by(key=migration_key).first()
+                        if already_done:
+                            return
+                        from app.services.migration.migrate_covers_to_id_prefix import migrate_covers_to_id_prefix
+                        result = migrate_covers_to_id_prefix()
+                        flag = AppConfig(
+                            key=migration_key, value='true',
+                            value_type='bool',
+                            description='Story cover images renamed to {id}_{filename_base}.jpg format'
+                        )
+                        db.session.add(flag)
+                        db.session.commit()
+                        print(f"[startup] Cover migration: {result.get('message', result)}")
+                    except Exception as e:
+                        print(f"[startup] Cover migration error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
 
-    _migrate_covers_background()
+        _migrate_covers_background()
 
-    def _backfill_missing_covers_background():
-        import threading
-        def _run():
-            import time
-            time.sleep(10)  # Let filename migration and other startup tasks settle first
-            with app.app_context():
-                try:
-                    from app.models import Story
-                    from app.utils import get_cover_directory
-                    from app.services.cover_generator import generate_cover_image, extract_cover_from_epub
+        def _backfill_missing_covers_background():
+            import threading
+            def _run():
+                import time
+                time.sleep(10)  # Let filename migration and other startup tasks settle first
+                with app.app_context():
+                    try:
+                        from app.models import Story
+                        from app.utils import get_cover_directory
+                        from app.services.cover_generator import generate_cover_image, extract_cover_from_epub
 
-                    cover_dir = get_cover_directory()
-                    os.makedirs(cover_dir, exist_ok=True)
+                        cover_dir = get_cover_directory()
+                        os.makedirs(cover_dir, exist_ok=True)
 
-                    stories = Story.query.all()
-                    generated = 0
+                        stories = Story.query.all()
+                        generated = 0
 
-                    for story in stories:
-                        cover_filename = f"{story.id}_{story.filename_base}.jpg"
-                        cover_path = os.path.join(cover_dir, cover_filename)
+                        for story in stories:
+                            cover_filename = f"{story.id}_{story.filename_base}.jpg"
+                            cover_path = os.path.join(cover_dir, cover_filename)
 
-                        if os.path.exists(cover_path):
-                            continue
+                            if os.path.exists(cover_path):
+                                continue
 
-                        author_name = story.author.name if story.author else 'Unknown Author'
+                            author_name = story.author.name if story.author else 'Unknown Author'
 
-                        epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
-                        if epub_fmt and os.path.exists(epub_fmt.file_path):
-                            try:
-                                if extract_cover_from_epub(epub_fmt.file_path, cover_path):
-                                    generated += 1
-                                    continue
-                            except Exception:
-                                pass
+                            epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+                            if epub_fmt and os.path.exists(epub_fmt.file_path):
+                                try:
+                                    if extract_cover_from_epub(epub_fmt.file_path, cover_path):
+                                        generated += 1
+                                        continue
+                                except Exception:
+                                    pass
 
-                        generate_cover_image(story.title, author_name, cover_path)
-                        generated += 1
+                            generate_cover_image(story.title, author_name, cover_path)
+                            generated += 1
 
-                    if generated > 0:
-                        print(f"[startup] Cover backfill: generated {generated} missing covers")
-                except Exception as e:
-                    print(f"[startup] Cover backfill error: {e}")
-        threading.Thread(target=_run, daemon=True).start()
+                        if generated > 0:
+                            print(f"[startup] Cover backfill: generated {generated} missing covers")
+                    except Exception as e:
+                        print(f"[startup] Cover backfill error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
 
-    _backfill_missing_covers_background()
+        _backfill_missing_covers_background()
 
-    if os.getenv('SKIP_BACKGROUND_WORKERS') != 'true':
+        def _backfill_seen_urls_background():
+            """
+            One-time startup migration: populate seen_literotica_urls from every
+            existing Story record so that author re-scans correctly skip already-
+            downloaded content.  Standalone story literotica_urls are inserted
+            directly; series entries also have their series URL recorded so that
+            series-URL dedup still works for any legacy queue items.
+            """
+            import threading
+            def _run():
+                with app.app_context():
+                    try:
+                        from app.models import AppConfig, Story, SeenLiteroticaUrl
+                        from app.models.base import db
+
+                        migration_key = 'seen_urls_backfilled'
+                        already_done = AppConfig.query.filter_by(key=migration_key).first()
+                        if already_done:
+                            return
+
+                        stories = Story.query.all()
+                        inserted = 0
+                        for story in stories:
+                            urls = []
+                            if story.literotica_url:
+                                urls.append(story.literotica_url)
+                            if story.literotica_series_url:
+                                urls.append(story.literotica_series_url)
+                            for url in urls:
+                                if not SeenLiteroticaUrl.query.filter_by(url=url).first():
+                                    db.session.add(SeenLiteroticaUrl(url=url, story_id=story.id))
+                                    inserted += 1
+
+                        flag = AppConfig(
+                            key=migration_key,
+                            value='true',
+                            value_type='bool',
+                            description='seen_literotica_urls backfilled from existing stories',
+                        )
+                        db.session.add(flag)
+                        db.session.commit()
+                        print(f"[startup] seen_urls backfill: inserted {inserted} URL records from {len(stories)} stories")
+                    except Exception as e:
+                        print(f"[startup] seen_urls backfill error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
+
+        _backfill_seen_urls_background()
+
+        def _self_heal_formats_background():
+            """
+            Startup self-heal: repair stale StoryFormat paths and enqueue generation
+            of any missing EPUB or JSON formats. Runs every startup, fast (local I/O only).
+            """
+            import threading
+            def _run():
+                with app.app_context():
+                    try:
+                        import os as _os
+                        from app.models import Story, StoryFormat, FormatQueueItem
+                        from app.models.format_queue import FormatQueueItem as _FQI
+                        from app.models.base import db
+                        from app.services.story_processor import link_story_formats
+                        from app.services.logger import log_action
+
+                        epub_queued = 0
+                        json_queued = 0
+                        for story in Story.query.all():
+                            link_story_formats(story)
+
+                            json_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+                            epub_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
+                            json_ok = json_fmt and _os.path.exists(json_fmt.file_path)
+                            epub_ok = epub_fmt and _os.path.exists(epub_fmt.file_path)
+
+                            if json_ok and not epub_ok:
+                                if not _FQI.query.filter_by(story_id=story.id, job_type='generate_epub', status='pending').first():
+                                    db.session.add(_FQI(story_id=story.id, job_type='generate_epub', method='auto'))
+                                    epub_queued += 1
+
+                            if epub_ok and not json_ok:
+                                if not _FQI.query.filter_by(story_id=story.id, job_type='generate_json', status='pending').first():
+                                    db.session.add(_FQI(story_id=story.id, job_type='generate_json', method='auto'))
+                                    json_queued += 1
+
+                        db.session.commit()
+                        log_action(f"[STARTUP] Format self-heal: queued {epub_queued} EPUB and {json_queued} JSON generation jobs.")
+                    except Exception as e:
+                        print(f"[startup] Format self-heal error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
+
+        _self_heal_formats_background()
+
         from app.services.download_queue_worker import DownloadQueueWorker
         worker = DownloadQueueWorker(app, poll_interval=5)
         worker.start()

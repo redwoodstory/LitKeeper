@@ -373,3 +373,133 @@ class FormatGeneratorService:
                 "success": False,
                 "message": "An error occurred while generating HTML format"
             }
+
+    def generate_json_from_epub(self, story_id: int) -> dict:
+        """
+        Extract story content from an existing local EPUB and write a JSON format file.
+        No network access required — all content is embedded in the EPUB.
+        """
+        import xml.etree.ElementTree as ET
+        from html import unescape
+        import ebooklib
+        from ebooklib import epub as ebooklib_epub
+        from app.utils import story_json_path
+        from app.services.story_processor import link_story_formats
+
+        _XHTML_NS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
+        _SKIP_IDS = {'nav', 'cover', 'metadata', 'intro', 'toc'}
+
+        try:
+            story = Story.query.get(story_id)
+            if not story:
+                return {"success": False, "message": "Story not found"}
+
+            epub_fmt = StoryFormat.query.filter_by(story_id=story_id, format_type='epub').first()
+            if not epub_fmt or not os.path.exists(epub_fmt.file_path):
+                return {"success": False, "message": "No EPUB file found for this story"}
+
+            json_fmt = StoryFormat.query.filter_by(story_id=story_id, format_type='json').first()
+            if json_fmt and os.path.exists(json_fmt.file_path):
+                return {"success": False, "message": "JSON format already exists for this story"}
+
+            log_action(f"Extracting JSON from EPUB for story: {story.title}")
+
+            book = ebooklib_epub.read_epub(epub_fmt.file_path, options={'ignore_ncx': True})
+
+            # Extract Dublin Core metadata
+            raw_title = book.get_metadata('DC', 'title')
+            title = raw_title[0][0] if raw_title else story.title
+
+            raw_author = book.get_metadata('DC', 'creator')
+            author_name = raw_author[0][0] if raw_author else (story.author.name if story.author else '')
+
+            raw_subjects = book.get_metadata('DC', 'subject')
+            subjects = [s[0] for s in raw_subjects] if raw_subjects else []
+            category = subjects[0] if subjects else None
+            tags = subjects[1:] if len(subjects) > 1 else []
+
+            raw_desc = book.get_metadata('DC', 'description')
+            description = raw_desc[0][0] if raw_desc else story.description
+
+            # Extract chapters from spine in order
+            chapters = []
+            chapter_num = 0
+
+            spine_ids = [item_id for item_id, _ in book.spine]
+            for item_id in spine_ids:
+                item = book.get_item_with_id(item_id)
+                if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
+                    continue
+                # Skip non-content pages by ID or filename
+                item_name = (item.get_name() or '').lower()
+                if item.id in _SKIP_IDS or any(skip in item_name for skip in _SKIP_IDS):
+                    continue
+
+                try:
+                    content = item.get_content().decode('utf-8', errors='replace')
+                    root = ET.fromstring(content)
+                    body = root.find('xhtml:body', _XHTML_NS)
+                    if body is None:
+                        body = root.find('body')
+                    if body is None:
+                        continue
+
+                    h1 = body.find('xhtml:h1', _XHTML_NS) or body.find('h1')
+                    chapter_title = unescape(h1.text or '').strip() if h1 is not None else f"Chapter {chapter_num + 1}"
+
+                    paragraphs = []
+                    for tag in ('xhtml:p', 'p'):
+                        found = body.findall(tag, _XHTML_NS) if ':' in tag else body.findall(tag)
+                        for p in found:
+                            text = unescape(''.join(p.itertext())).strip()
+                            if text:
+                                paragraphs.append(text)
+                        if paragraphs:
+                            break
+
+                    if not paragraphs:
+                        continue
+
+                    chapter_num += 1
+                    chapters.append({
+                        'number': chapter_num,
+                        'title': chapter_title,
+                        'paragraphs': paragraphs,
+                    })
+                except ET.ParseError:
+                    continue
+
+            if not chapters:
+                return {"success": False, "message": "Could not extract any chapters from EPUB"}
+
+            word_count = sum(
+                len(p.split()) for ch in chapters for p in ch['paragraphs']
+            )
+
+            story_data = {
+                'title': title,
+                'author': author_name,
+                'author_url': story.author.literotica_url if story.author else None,
+                'source_url': story.literotica_url,
+                'category': category,
+                'tags': tags,
+                'description': description,
+                'word_count': word_count,
+                'chapter_count': len(chapters),
+                'cover': f"{story.id}_{story.filename_base}.jpg",
+                'chapters': chapters,
+            }
+
+            out_path = story_json_path(story.id, story.filename_base)
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(story_data, f, ensure_ascii=False, indent=2)
+
+            link_story_formats(story)
+
+            log_action(f"Successfully extracted JSON from EPUB for story: {story.title}")
+            return {"success": True, "message": f"JSON format extracted from EPUB for '{story.title}'"}
+
+        except Exception as e:
+            db.session.rollback()
+            log_error(f"Error extracting JSON from EPUB: {str(e)}\n{traceback.format_exc()}")
+            return {"success": False, "message": "An error occurred while extracting JSON from EPUB"}

@@ -114,10 +114,60 @@ def _get_or_create_story(
             tag_objects.append(tag)
         story.tags = tag_objects
 
+    _record_seen_urls(story)
+
     return story
 
 
-def _link_story_formats(story) -> None:
+def _record_seen_urls(story) -> None:
+    """
+    Record every individual Literotica chapter URL consumed by this story into
+    seen_literotica_urls so that author re-scans never re-queue already-downloaded
+    content — even when a chapter URL appears that differs from the one originally
+    used to initiate the download.
+
+    For standalone stories: records story.literotica_url.
+    For series: also calls SeriesPageChecker to enumerate all chapter URLs and
+    records each one (uses the same fast JSON API endpoint already used at download
+    time, so no extra HTML scraping is needed).
+    """
+    from app.models import SeenLiteroticaUrl
+    from app.models.base import db
+
+    if not story or not story.literotica_url:
+        return
+
+    urls_to_record: list[str] = [story.literotica_url]
+
+    if story.literotica_series_url:
+        urls_to_record.append(story.literotica_series_url)
+        try:
+            from .series_page_checker import SeriesPageChecker
+            checker = SeriesPageChecker()
+            series_info = checker.check_series_parts(story.literotica_series_url)
+            if series_info and series_info.get('parts'):
+                for part in series_info['parts']:
+                    part_url = part.get('url', '').strip()
+                    if part_url:
+                        urls_to_record.append(part_url)
+        except Exception as e:
+            log_error(f"[seen_urls] Could not enumerate series parts for {story.literotica_series_url}: {e}")
+
+    for url in urls_to_record:
+        try:
+            existing = SeenLiteroticaUrl.query.filter_by(url=url).first()
+            if not existing:
+                db.session.add(SeenLiteroticaUrl(url=url, story_id=story.id))
+        except Exception as e:
+            log_error(f"[seen_urls] Failed to record URL {url}: {e}")
+
+    try:
+        db.session.flush()
+    except Exception as e:
+        log_error(f"[seen_urls] Flush failed: {e}")
+
+
+def link_story_formats(story) -> None:
     """
     Create or update StoryFormat records for files on disk.
     Files are expected at "{story.id}_{story.filename_base}.epub/.json".
@@ -168,7 +218,6 @@ def _link_story_formats(story) -> None:
             log_action(f"Updated JSON path for story ID {story.id}")
 
     db.session.commit()
-    log_action(f"Saved story to database: '{story.title}' (ID: {story.id})")
 
 
 def _create_story_files(
@@ -289,7 +338,7 @@ def _create_story_files(
         # 5. Link file paths to StoryFormat records.
         if story is not None:
             try:
-                _link_story_formats(story)
+                link_story_formats(story)
             except Exception as e:
                 try:
                     from app.models.base import db

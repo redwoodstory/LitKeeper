@@ -11,15 +11,37 @@ import os
 
 @settings.route('/')
 def index() -> ResponseReturnValue:
+    from flask import url_for
     theme_config = AppConfig.query.filter_by(key='theme_preference').first()
     theme_preference = theme_config.get_value() if theme_config else 'system'
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
     passkeys = WebAuthnCredential.query.order_by(WebAuthnCredential.created_at).all()
+    auto_lock_config = AppConfig.query.filter_by(key='auto_lock_timeout').first()
+    auto_lock_timeout = int(auto_lock_config.get_value()) if auto_lock_config else 0
+    auto_watch_config = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+    auto_watch_enabled = auto_watch_config.get_value() if auto_watch_config else False
+    auto_update_config = AppConfig.query.filter_by(key='auto_update_enabled').first()
+    auto_update_enabled = auto_update_config.get_value() if auto_update_config else False
+
+    opds_keys = ['opds_enabled', 'opds_auth_enabled', 'opds_username']
+    opds_cfgs = {c.key: c for c in AppConfig.query.filter(AppConfig.key.in_(opds_keys)).all()}
+    opds_enabled = opds_cfgs['opds_enabled'].get_value() if 'opds_enabled' in opds_cfgs else False
+    opds_auth_enabled = opds_cfgs['opds_auth_enabled'].get_value() if 'opds_auth_enabled' in opds_cfgs else False
+    opds_username = opds_cfgs['opds_username'].value if 'opds_username' in opds_cfgs else ''
+    opds_url = url_for('opds.root', _external=True)
+
     return render_template(
         'settings.html',
         theme_preference=theme_preference,
         enable_library=enable_library,
         passkeys=passkeys,
+        auto_lock_timeout=auto_lock_timeout,
+        auto_watch_enabled=auto_watch_enabled,
+        auto_update_enabled=auto_update_enabled,
+        opds_enabled=opds_enabled,
+        opds_auth_enabled=opds_auth_enabled,
+        opds_username=opds_username,
+        opds_url=opds_url,
     )
 
 
@@ -166,6 +188,100 @@ def repair_epub_metadata() -> ResponseReturnValue:
     except Exception as e:
         log_error(f"Error in repair_epub_metadata: {str(e)}\n{traceback.format_exc()}")
         return '<p class="text-sm text-red-600 mt-2">An error occurred. Check the logs.</p>', 500
+
+
+@settings.route('/auto-watch-enabled', methods=['GET'])
+def get_auto_watch_enabled() -> ResponseReturnValue:
+    try:
+        cfg = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+        enabled = cfg.get_value() if cfg else False
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        log_error(f"Error getting auto-watch setting: {str(e)}")
+        return jsonify({"success": False, "message": "Error loading setting"}), 500
+
+
+@settings.route('/toggle-auto-watch', methods=['POST'])
+def toggle_auto_watch() -> ResponseReturnValue:
+    try:
+        data = request.get_json()
+        enabled = data.get('enabled', False)
+        cfg = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+        if cfg:
+            cfg.set_value(enabled)
+        else:
+            cfg = AppConfig(
+                key='auto_watch_authors_enabled',
+                value='true' if enabled else 'false',
+                value_type='bool',
+                description='Auto-download new stories from watched authors on schedule'
+            )
+            db.session.add(cfg)
+        db.session.commit()
+        log_action(f"Auto-watch-authors setting changed to: {enabled}")
+        return jsonify({"success": True, "enabled": enabled})
+    except Exception as e:
+        db.session.rollback()
+        log_error(f"Error toggling auto-watch: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Error updating setting"}), 500
+
+
+@settings.route('/opds', methods=['GET'])
+def get_opds_settings() -> ResponseReturnValue:
+    try:
+        from flask import url_for
+        keys = ['opds_enabled', 'opds_auth_enabled', 'opds_username']
+        cfgs = {c.key: c for c in AppConfig.query.filter(AppConfig.key.in_(keys)).all()}
+        return jsonify({
+            'success': True,
+            'opds_enabled': cfgs['opds_enabled'].get_value() if 'opds_enabled' in cfgs else False,
+            'opds_auth_enabled': cfgs['opds_auth_enabled'].get_value() if 'opds_auth_enabled' in cfgs else False,
+            'opds_username': cfgs['opds_username'].value if 'opds_username' in cfgs else '',
+            'opds_url': url_for('opds.root', _external=True),
+        })
+    except Exception as e:
+        log_error(f"Error getting OPDS settings: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error loading OPDS settings'}), 500
+
+
+@settings.route('/opds', methods=['POST'])
+def save_opds_settings() -> ResponseReturnValue:
+    from werkzeug.security import generate_password_hash
+    try:
+        data = request.get_json()
+        updates = {
+            'opds_enabled': ('bool', data.get('opds_enabled', False)),
+            'opds_auth_enabled': ('bool', data.get('opds_auth_enabled', False)),
+            'opds_username': ('string', (data.get('opds_username') or '').strip()),
+        }
+        new_password = (data.get('opds_password') or '').strip()
+
+        for key, (value_type, value) in updates.items():
+            cfg = AppConfig.query.filter_by(key=key).first()
+            if cfg:
+                cfg.set_value(value)
+            else:
+                cfg = AppConfig(key=key, value_type=value_type, description='')
+                cfg.set_value(value)
+                db.session.add(cfg)
+
+        if new_password:
+            pw_cfg = AppConfig.query.filter_by(key='opds_password_hash').first()
+            if pw_cfg:
+                pw_cfg.value = generate_password_hash(new_password)
+            else:
+                pw_cfg = AppConfig(key='opds_password_hash', value_type='string',
+                                   description='OPDS Basic Auth password (bcrypt hash)')
+                pw_cfg.value = generate_password_hash(new_password)
+                db.session.add(pw_cfg)
+
+        db.session.commit()
+        log_action("OPDS settings updated")
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        log_error(f"Error saving OPDS settings: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'message': 'Error saving OPDS settings'}), 500
 
 
 @settings.route('/toggle-auto-update', methods=['POST'])

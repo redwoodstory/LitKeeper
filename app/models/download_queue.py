@@ -18,6 +18,11 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
     tags = db.Column(db.Text)
 
     story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='SET NULL'), index=True)
+    story = db.relationship('Story', foreign_keys=[story_id], lazy='select')
+
+    job_type = db.Column(db.String(20), nullable=False, default='single')
+    extra_urls = db.Column(db.Text)
+    scheduled_after = db.Column(db.DateTime, nullable=True)
 
     total_pages = db.Column(db.Integer)
     downloaded_pages = db.Column(db.Integer, default=0)
@@ -33,7 +38,7 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
     max_retries = db.Column(db.Integer, default=3)
 
     def __repr__(self):
-        return f'<DownloadQueueItem {self.id} {self.url} {self.status}>'
+        return f'<DownloadQueueItem {self.id} {self.url} {self.status} {self.job_type}>'
 
     def get_formats(self) -> list[str]:
         """Parse formats from JSON string"""
@@ -62,13 +67,26 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
         else:
             self.tags = None
 
+    def get_extra_urls(self) -> list[str]:
+        """Parse extra URLs from JSON string"""
+        if not self.extra_urls:
+            return []
+        try:
+            return json.loads(self.extra_urls)
+        except (json.JSONDecodeError, ValueError):
+            return []
+
+    def set_extra_urls(self, urls: list[str]) -> None:
+        """Store extra URLs as JSON string"""
+        self.extra_urls = json.dumps(urls) if urls else None
+
     def get_queue_position(self) -> int:
         """Get position in queue (1-indexed)"""
-        if self.status not in ['pending', 'processing']:
+        if self.status not in ['pending', 'processing', 'rate_limited']:
             return 0
         
         earlier_items = DownloadQueueItem.query.filter(
-            DownloadQueueItem.status.in_(['pending', 'processing']),
+            DownloadQueueItem.status.in_(['pending', 'processing', 'rate_limited']),
             DownloadQueueItem.created_at < self.created_at
         ).count()
         
@@ -96,4 +114,7 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'retry_count': self.retry_count,
             'queue_position': self.get_queue_position(),
+            'job_type': self.job_type,
+            'scheduled_after': self.scheduled_after.isoformat() if self.scheduled_after else None,
+            'is_series': bool(self.story and self.story.literotica_series_url) if self.story_id else ('/series/se/' in (self.url or '')),
         }

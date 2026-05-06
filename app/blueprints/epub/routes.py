@@ -135,4 +135,6 @@ def serve_epub_file(story_id: int):
 
     epub_directory = os.path.dirname(epub_format.file_path)
     epub_filename = os.path.basename(epub_format.file_path)
-    return send_from_directory(epub_directory, epub_filename, as_attachment=False, mimetype='application/epub+zip')
+    response = send_from_directory(epub_directory, epub_filename, as_attachment=False, mimetype='application/epub+zip')
+    response.headers['Content-Disposition'] = f'inline; filename="{epub_filename}"'
+    return response

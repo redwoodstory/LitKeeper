@@ -18,11 +18,16 @@ def sync_check():
     """Check sync status between database and story files."""
     checker = _get_sync_checker()
     status = checker.check_sync()
-    if status['in_sync']:
+    if status['in_sync'] and status.get('broken_format_paths_count', 0) == 0:
         click.echo('Database and files are in sync.')
     else:
-        click.echo(f"Out of sync: {status['orphaned_db_count']} orphaned DB records, "
-                   f"{status['orphaned_files_count']} untracked files.")
+        if not status['in_sync']:
+            click.echo(f"Out of sync: {status['orphaned_db_count']} orphaned DB records, "
+                       f"{status['orphaned_files_count']} untracked files.")
+        broken = status.get('broken_format_paths_count', 0)
+        if broken:
+            click.echo(f"  {broken} format record(s) have stale paths "
+                       f"(run 'flask sync fix-paths' to repair).")
 
 
 @sync_cli.command('clean')
@@ -52,10 +57,10 @@ def sync_full():
 
 @sync_cli.command('fix-formats')
 def sync_fix_formats():
-    """Scan stories and add missing StoryFormat records for existing EPUB/JSON files."""
+    """Add missing StoryFormat records for existing EPUB/JSON files (canonical path first, legacy fallback)."""
     import os
     import json as json_module
-    from app.utils import get_epub_directory, get_html_directory
+    from app.utils import get_epub_directory, get_html_directory, story_epub_path, story_json_path
     from app.models import Story, StoryFormat
     from app.models.base import db
 
@@ -65,31 +70,173 @@ def sync_fix_formats():
     for story in stories:
         existing_formats = {fmt.format_type for fmt in story.formats}
 
-        epub_path = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
-        if os.path.exists(epub_path) and 'epub' not in existing_formats:
-            db.session.add(StoryFormat(
-                story_id=story.id,
-                format_type='epub',
-                file_path=epub_path,
-                file_size=os.path.getsize(epub_path)
-            ))
-            fixed_count += 1
+        # EPUB
+        canonical_epub = story_epub_path(story.id, story.filename_base)
+        legacy_epub = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
+        if 'epub' not in existing_formats:
+            if os.path.exists(canonical_epub):
+                use_epub = canonical_epub
+            elif os.path.exists(legacy_epub):
+                os.rename(legacy_epub, canonical_epub)
+                use_epub = canonical_epub
+            else:
+                use_epub = None
+            if use_epub:
+                db.session.add(StoryFormat(
+                    story_id=story.id,
+                    format_type='epub',
+                    file_path=use_epub,
+                    file_size=os.path.getsize(use_epub)
+                ))
+                fixed_count += 1
 
-        json_path = os.path.join(get_html_directory(), f"{story.filename_base}.json")
-        if os.path.exists(json_path) and 'json' not in existing_formats:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                json_data = json_module.load(f)
-            db.session.add(StoryFormat(
-                story_id=story.id,
-                format_type='json',
-                file_path=json_path,
-                file_size=os.path.getsize(json_path),
-                json_data=json_module.dumps(json_data)
-            ))
-            fixed_count += 1
+        # JSON
+        canonical_json = story_json_path(story.id, story.filename_base)
+        legacy_json = os.path.join(get_html_directory(), f"{story.filename_base}.json")
+        if 'json' not in existing_formats:
+            if os.path.exists(canonical_json):
+                use_json = canonical_json
+            elif os.path.exists(legacy_json):
+                os.rename(legacy_json, canonical_json)
+                use_json = canonical_json
+            else:
+                use_json = None
+            if use_json:
+                with open(use_json, 'r', encoding='utf-8') as f:
+                    json_data = json_module.load(f)
+                db.session.add(StoryFormat(
+                    story_id=story.id,
+                    format_type='json',
+                    file_path=use_json,
+                    file_size=os.path.getsize(use_json),
+                    json_data=json_module.dumps(json_data)
+                ))
+                fixed_count += 1
 
     db.session.commit()
     click.echo(f'Added {fixed_count} missing format records.')
+
+
+@sync_cli.command('audit-paths')
+def sync_audit_paths():
+    """Report StoryFormat records where file_path doesn't exist on disk."""
+    import os
+    from app.models import StoryFormat
+    from app.utils import story_epub_path, story_json_path
+
+    fmt_map = {'epub': story_epub_path, 'json': story_json_path}
+    broken_canonical = []
+    broken_missing = []
+
+    for fmt in StoryFormat.query.filter(StoryFormat.format_type.in_(['epub', 'json'])).all():
+        if os.path.exists(fmt.file_path):
+            continue
+        story = fmt.story
+        if story and fmt.format_type in fmt_map:
+            canonical = fmt_map[fmt.format_type](story.id, story.filename_base)
+            if os.path.exists(canonical):
+                broken_canonical.append((fmt.story_id, fmt.format_type, fmt.file_path, canonical))
+            else:
+                broken_missing.append((fmt.story_id, fmt.format_type, fmt.file_path))
+
+    if broken_canonical:
+        click.echo(f"\n{len(broken_canonical)} record(s) with wrong path but canonical file exists (run fix-paths):")
+        for story_id, fmt_type, bad_path, good_path in broken_canonical:
+            click.echo(f"  story_id={story_id} [{fmt_type}]")
+            click.echo(f"    stored:    {bad_path}")
+            click.echo(f"    canonical: {good_path}")
+
+    if broken_missing:
+        click.echo(f"\n{len(broken_missing)} record(s) with missing path AND no canonical file:")
+        for story_id, fmt_type, bad_path in broken_missing:
+            click.echo(f"  story_id={story_id} [{fmt_type}] path={bad_path}")
+
+    if not broken_canonical and not broken_missing:
+        click.echo("All StoryFormat file_path values resolve to existing files.")
+
+
+@sync_cli.command('fix-paths')
+def sync_fix_paths():
+    """Update StoryFormat.file_path records that point to non-existent files."""
+    import os
+    from app.models import StoryFormat
+    from app.models.base import db
+    from app.utils import story_epub_path, story_json_path
+
+    fmt_map = {'epub': story_epub_path, 'json': story_json_path}
+    fixed = 0
+    missing = 0
+
+    for fmt in StoryFormat.query.filter(StoryFormat.format_type.in_(['epub', 'json'])).all():
+        if os.path.exists(fmt.file_path):
+            continue
+        story = fmt.story
+        if story and fmt.format_type in fmt_map:
+            canonical = fmt_map[fmt.format_type](story.id, story.filename_base)
+            if os.path.exists(canonical):
+                fmt.file_path = canonical
+                fmt.file_size = os.path.getsize(canonical)
+                fixed += 1
+                click.echo(f"Fixed story_id={story.id} [{fmt.format_type}] -> {canonical}")
+            else:
+                missing += 1
+                click.echo(f"No file found for story_id={story.id} [{fmt.format_type}] (stored: {fmt.file_path})")
+
+    if fixed:
+        db.session.commit()
+    click.echo(f"\nFixed: {fixed}, No file found: {missing}.")
+
+
+@sync_cli.command('adopt-legacy-json')
+def sync_adopt_legacy_json():
+    """Rename bare JSON files (no ID prefix) to {id}_{name}.json and link them to the DB."""
+    import os
+    import shutil
+    import json as json_module
+    from app.utils import get_html_directory
+    from app.models import Story, StoryFormat
+    from app.models.base import db
+
+    html_dir = get_html_directory()
+    stories = Story.query.all()
+    renamed = 0
+    linked = 0
+    skipped = 0
+
+    for story in stories:
+        legacy_path = os.path.join(html_dir, f"{story.filename_base}.json")
+        id_path = os.path.join(html_dir, f"{story.id}_{story.filename_base}.json")
+
+        if not os.path.exists(legacy_path):
+            skipped += 1
+            continue
+
+        if not os.path.exists(id_path):
+            shutil.move(legacy_path, id_path)
+            renamed += 1
+        else:
+            os.remove(legacy_path)
+
+        existing = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+        with open(id_path, 'r', encoding='utf-8') as f:
+            json_data = json_module.load(f)
+
+        if existing:
+            existing.file_path = id_path
+            existing.file_size = os.path.getsize(id_path)
+            existing.json_data = json_module.dumps(json_data)
+        else:
+            db.session.add(StoryFormat(
+                story_id=story.id,
+                format_type='json',
+                file_path=id_path,
+                file_size=os.path.getsize(id_path),
+                json_data=json_module.dumps(json_data)
+            ))
+            linked += 1
+
+    db.session.commit()
+    click.echo(f'Renamed: {renamed}, Linked: {linked}, Skipped (no legacy file): {skipped}.')
 
 
 @sync_cli.command('inject-descriptions')
@@ -475,8 +622,8 @@ def redownload_all(dry_run: bool):
             skipped += 1
             continue
 
-        item = DownloadQueueItem(url=story.literotica_url, status='pending')
-        item.set_formats(['epub', 'json'])
+        item = DownloadQueueItem(url=story.literotica_url, status='pending', job_type='redownload')
+        item.set_formats(['epub', 'html'])
         db.session.add(item)
         enqueued += 1
 

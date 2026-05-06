@@ -16,6 +16,18 @@ Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolve
 * **Automated Series Bundling:** Detects if a story is part of a series, fetches all related parts, and compiles them into a single file. Both formats include a built-in table of contents for easy navigation.
 * **Auto-Updates & Notifications:** Receive alerts when downloads finish. LitKeeper can also check for new chapters and download updates automatically. *(Note: Update schedules are randomized in the code to prevent overwhelming source servers).*
 * **Responsive Design:** Enjoy a mobile-friendly UI that dynamically adapts with bottom navigation and optimized spacing for smaller screens.
+* **OPDS Catalog:** Expose your library as an OPDS feed for your e-reader device. Disabled by default; enable and optionally password-protect it under **Settings → OPDS Catalog**.
+
+### Downloading
+* **Story, Series, or Author URL:** The home page accepts any Literotica URL — individual story, series, or author profile. Pasting an author URL prompts a confirmation before queuing a scan of all their published stories.
+* **Combine Multiple URLs into One Story:** Expand the "Combine multiple URLs into one story" option on the home page to merge several chapter or part URLs into a single combined EPUB/HTML file.
+* **Download Queue:** All downloads are processed via a background queue. The queue page shows real-time status for pending, processing, completed, and failed items.
+* **Daily Download Cap & Rate Limiting:** To avoid overwhelming source servers, LitKeeper enforces a daily download cap (default: 25 stories). Items beyond the cap are marked `rate_limited` and automatically retried the following day. The cap can be overridden with the `MAX_DAILY_DOWNLOADS` environment variable.
+
+### Watched Authors
+* **Author Scanning:** Paste a Literotica author profile URL to queue a full scan that downloads every story they've published. Each story is individually queued and downloaded.
+* **Watch for New Stories:** Enable watching on any author to have LitKeeper automatically check for new stories they publish. Toggle per-author watching from **Settings → Watched Authors**.
+* **Auto-Download New Stories from Watched Authors:** A dedicated toggle under **Settings → Automation** enables scheduled automatic checks for new stories from watched authors, using the same weekly schedule as story auto-updates. The Watched Authors page is only accessible when this setting is enabled.
 
 ## ⚠️ Migrating from V1
 
@@ -83,6 +95,7 @@ services:
 | `WEBAUTHN_RP_ID` | *(auto)* | Passkey relying party hostname (e.g. `myapp.example.com`). Auto-detected from the request — only set this if a reverse proxy masks the real hostname. Bare hostname only, no port or scheme. |
 | `WEBAUTHN_ORIGIN` | *(auto)* | Full origin for passkey verification (e.g. `https://myapp.example.com`). Auto-detected from the request — only set this if a reverse proxy masks the real hostname. |
 | `WEBAUTHN_RESET_CODE` | - | When set, enables `POST /auth/webauthn/reset` as an emergency passkey recovery endpoint. |
+| `MAX_DAILY_DOWNLOADS` | `25` | Maximum stories downloaded per day. The default is intentionally conservative to avoid hammering source servers — please be a good citizen before raising this. |
 
 ### Volume Mounts
 
@@ -156,6 +169,19 @@ curl -X POST https://your-app/auth/webauthn/reset \
 Both options clear all registered passkeys and leave the app open so you can re-register in Settings.
 
 Replace `<container-name>` with your actual container name (find it with `docker ps`).
+
+
+## OPDS Catalog
+
+LitKeeper can serve your library as an [OPDS](https://opds.io) 1.1 catalog, making it discoverable by e-readers that support OPDS.
+
+OPDS is **disabled by default**. Enable it under **Settings → OPDS Catalog**. Once enabled, your catalog URL is displayed there — paste it into your e-reader app's OPDS client.
+
+### Authentication (optional)
+
+By default, an enabled OPDS catalog is open to anyone who can reach your server. If you want to restrict access (e.g., for external exposure), enable **Require Authentication** in the same settings panel and set a username and password. Your e-reader app will prompt for these credentials once and store them.
+
+The passkey lock (Layer 3) does not apply to OPDS — e-readers cannot perform WebAuthn. OPDS bypasses the passkey gate entirely; its own optional Basic Auth is the access control.
 
 
 ## CLI Reference

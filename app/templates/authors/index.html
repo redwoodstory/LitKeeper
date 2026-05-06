@@ -1,0 +1,213 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block page_title %}Watched Authors - LitKeeper{% endblock %}
+
+{% block header %}
+<header class="mb-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="font-playfair text-3xl font-medium text-gray-900 dark:text-white tracking-wide">
+        Watched Authors
+      </h2>
+      <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+        Authors you watch are scanned for new stories during scheduled automation runs.
+      </p>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
+{% block main_content %}
+
+<div class="space-y-4">
+
+  <div class="card">
+    <section>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Watch an Author
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Paste a Literotica author profile URL to queue a full scan of their stories and enable watching for new ones.
+      </p>
+      <form id="addAuthorForm" class="flex flex-col sm:flex-row gap-3">
+        <input
+          type="url"
+          id="authorUrlInput"
+          name="author_url"
+          placeholder="https://www.literotica.com/authors/username"
+          required
+          class="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-gray-700
+                 bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                 placeholder-gray-400 dark:placeholder-gray-500
+                 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+        />
+        <button type="submit" id="addAuthorBtn"
+          class="btn-primary whitespace-nowrap">
+          Scan &amp; Watch Author
+        </button>
+      </form>
+      <p id="addAuthorStatus" class="text-sm mt-2 hidden"></p>
+    </section>
+  </div>
+
+  {% if authors %}
+  <div class="card">
+    <section>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        Authors
+      </h3>
+      <div class="space-y-3">
+        {% for author in authors %}
+        <div class="flex items-center justify-between gap-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg px-4">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ author.name }}</p>
+            <div class="flex flex-wrap items-center gap-x-3 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              <span>{{ author.story_count }} {{ 'story' if author.story_count == 1 else 'stories' }} in library</span>
+              {% if author.known_story_count %}<span>· {{ author.known_story_count }} known URLs</span>{% endif %}
+              {% if author.last_watch_check_at %}<span>· Last checked {{ author.last_watch_check_at | humanize_date }}</span>{% endif %}
+            </div>
+            {% if author.literotica_url %}
+            <a href="{{ author.literotica_url }}" target="_blank" rel="noopener noreferrer"
+               class="text-xs text-primary hover:underline truncate block mt-0.5">{{ author.literotica_url }}</a>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button
+              onclick="confirmRescan({{ author.id }}, {{ author.name | tojson }})"
+              title="Re-queue a scan for this author"
+              class="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+            <button
+              id="watch-btn-{{ author.id }}"
+              onclick="toggleWatch({{ author.id }})"
+              title="{{ 'Watching — click to stop' if author.watch_enabled else 'Not watching — click to start' }}"
+              class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 {{ 'bg-green-600' if author.watch_enabled else 'bg-gray-200 dark:bg-gray-700' }}"
+              role="switch" aria-checked="{{ 'true' if author.watch_enabled else 'false' }}">
+              <span class="sr-only">Watch author</span>
+              <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ 'translate-x-5' if author.watch_enabled else 'translate-x-0' }}"></span>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="text-center py-8">
+      <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+      </svg>
+      <p class="text-sm text-gray-500 dark:text-gray-400">No watched authors yet. Add one above.</p>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<div id="rescanModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50" onclick="closeRescanModal()"></div>
+  <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-sm w-full p-6">
+    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-2">Re-queue Author Scan</h3>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-5">Queue a new scan for <span id="rescanAuthorName" class="font-medium text-gray-900 dark:text-white"></span>? This will re-check their profile for new stories.</p>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeRescanModal()" class="btn-secondary text-sm">Cancel</button>
+      <button id="rescanConfirmBtn" onclick="doRescan()" class="btn-primary text-sm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _pendingRescanId = null;
+
+function confirmRescan(authorId, authorName) {
+  _pendingRescanId = authorId;
+  document.getElementById('rescanAuthorName').textContent = authorName;
+  document.getElementById('rescanModal').classList.remove('hidden');
+}
+
+function closeRescanModal() {
+  _pendingRescanId = null;
+  document.getElementById('rescanModal').classList.add('hidden');
+}
+
+async function doRescan() {
+  if (!_pendingRescanId) return;
+  const authorId = _pendingRescanId;
+  closeRescanModal();
+  await rescanAuthor(authorId);
+}
+
+async function toggleWatch(authorId) {
+  try {
+    const res = await fetch(`/api/authors/${authorId}/toggle-watch`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) { window.toast?.show(data.message, 'error'); return; }
+    location.reload();
+  } catch (e) {
+    window.toast?.show('Failed to update watch status.', 'error');
+  }
+}
+
+async function rescanAuthor(authorId) {
+  try {
+    const res = await fetch(`/authors/rescan/${authorId}`, { method: 'POST' });
+    const data = await res.json();
+    window.toast?.show(data.message, data.success ? 'success' : 'error');
+  } catch (e) {
+    window.toast?.show('Failed to queue rescan.', 'error');
+  }
+}
+
+document.getElementById('addAuthorForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('addAuthorBtn');
+  const status = document.getElementById('addAuthorStatus');
+  const url = document.getElementById('authorUrlInput').value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Queuing…';
+  status.className = 'text-sm mt-2';
+  status.textContent = '';
+
+  try {
+    const res = await fetch('/api/queue/author', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author_url: url })
+    });
+    const data = await res.json();
+    if (data.success) {
+      status.textContent = data.message + ' — check the download queue for progress.';
+      status.classList.remove('hidden');
+      status.classList.add('text-green-600', 'dark:text-green-400');
+      document.getElementById('authorUrlInput').value = '';
+      setTimeout(() => location.reload(), 1800);
+    } else {
+      status.textContent = data.message;
+      status.classList.remove('hidden');
+      status.classList.add('text-red-600', 'dark:text-red-400');
+    }
+  } catch (err) {
+    status.textContent = 'Request failed. Please try again.';
+    status.classList.remove('hidden');
+    status.classList.add('text-red-600', 'dark:text-red-400');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Scan & Watch Author';
+  }
+});
+</script>
+{% endblock %}

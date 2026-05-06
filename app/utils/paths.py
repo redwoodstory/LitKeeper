@@ -24,3 +24,15 @@ def get_html_directory() -> str:
 
 def get_archive_directory() -> str:
     return os.path.join(get_stories_directory(), "archive")
+
+
+def story_epub_path(story_id: int, filename_base: str) -> str:
+    return os.path.join(get_epub_directory(), f"{story_id}_{filename_base}.epub")
+
+
+def story_json_path(story_id: int, filename_base: str) -> str:
+    return os.path.join(get_html_directory(), f"{story_id}_{filename_base}.json")
+
+
+def story_cover_path(story_id: int, filename_base: str) -> str:
+    return os.path.join(get_cover_directory(), f"{story_id}_{filename_base}.jpg")

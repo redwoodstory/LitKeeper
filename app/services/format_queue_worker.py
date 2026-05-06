@@ -127,6 +127,12 @@ class FormatQueueWorker:
             _db.session.commit()
             result = service.generate_html_with_metadata(item.story_id, item.url, item.method or 'manual')
 
+        elif item.job_type == 'generate_json':
+            item.progress_message = 'Extracting JSON from EPUB...'
+            from app.models.base import db as _db
+            _db.session.commit()
+            result = service.generate_json_from_epub(item.story_id)
+
         else:
             raise ValueError(f"Unknown job_type: {item.job_type}")
 

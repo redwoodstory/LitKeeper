@@ -69,6 +69,8 @@ class BackgroundAutomation:
                 log_action("[AUTOMATION] Running immediate automation cycle")
 
                 with self.app.app_context():
+                    self._heal_exclusion_inconsistencies()
+                    self._heal_missing_formats()
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
 
@@ -94,6 +96,8 @@ class BackgroundAutomation:
                 self.last_run_time = datetime.utcnow()
 
                 with self.app.app_context():
+                    self._heal_exclusion_inconsistencies()
+                    self._heal_missing_formats()
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
 
@@ -109,6 +113,104 @@ class BackgroundAutomation:
                     break
                 time.sleep(1)
     
+    def _heal_missing_formats(self):
+        """Repair stale StoryFormat paths and queue generation of missing EPUB/JSON formats."""
+        try:
+            import os
+            from app.models import Story, StoryFormat, FormatQueueItem
+            from app.models.base import db
+            from app.services.story_processor import link_story_formats
+
+            stories = Story.query.all()
+            paths_fixed = 0
+            epub_queued = 0
+            json_queued = 0
+
+            for story in stories:
+                has_broken = any(not os.path.exists(f.file_path) for f in story.formats)
+                if has_broken:
+                    link_story_formats(story)
+                    paths_fixed += 1
+
+                json_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
+                epub_fmt = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
+                json_ok = json_fmt and os.path.exists(json_fmt.file_path)
+                epub_ok = epub_fmt and os.path.exists(epub_fmt.file_path)
+
+                if json_ok and not epub_ok:
+                    if not FormatQueueItem.query.filter_by(story_id=story.id, job_type='generate_epub', status='pending').first():
+                        db.session.add(FormatQueueItem(story_id=story.id, job_type='generate_epub', method='auto'))
+                        epub_queued += 1
+
+                if epub_ok and not json_ok:
+                    if not FormatQueueItem.query.filter_by(story_id=story.id, job_type='generate_json', status='pending').first():
+                        db.session.add(FormatQueueItem(story_id=story.id, job_type='generate_json', method='auto'))
+                        json_queued += 1
+
+            if epub_queued or json_queued:
+                db.session.commit()
+
+            log_action(f"[AUTOMATION] Format heal: {paths_fixed} path(s) repaired, {epub_queued} EPUB + {json_queued} JSON job(s) queued.")
+
+        except Exception as e:
+            db.session.rollback()
+            log_error(f"[AUTOMATION] Error in format self-heal: {str(e)}")
+
+    def _heal_exclusion_inconsistencies(self):
+        """
+        Heal inconsistent exclusion state:
+        1. is_combined=True without exclusion fields set -> populate them
+        2. auto_refresh_excluded=True with null reason -> set excluded=False
+        3. auto_refresh_excluded=True with auto_update_enabled=True -> set auto_update_enabled=False
+        """
+        try:
+            from app.models import Story, db
+
+            # Fix 1: Combined stories missing exclusion fields (backfill for existing library)
+            untagged_combined = Story.query.filter(
+                Story.is_combined == True,
+                Story.auto_refresh_excluded == False
+            ).all()
+            for story in untagged_combined:
+                story.auto_refresh_excluded = True
+                story.auto_refresh_exclusion_reason = "User-created combined story — cannot be auto-refreshed"
+                story.auto_refresh_exclusion_type = 'combined'
+                story.auto_update_enabled = False
+                log_action(f"[AUTOMATION] Flagged combined story '{story.title}' as excluded")
+            if untagged_combined:
+                db.session.commit()
+
+            # Fix 2: Excluded without a reason
+            orphaned = Story.query.filter(
+                Story.auto_refresh_excluded == True,
+                Story.auto_refresh_exclusion_reason.is_(None)
+            ).all()
+            for story in orphaned:
+                story.auto_refresh_excluded = False
+                story.auto_refresh_exclusion_type = None
+                log_action(f"[AUTOMATION] Healed orphaned exclusion for '{story.title}' (no reason)")
+            if orphaned:
+                db.session.commit()
+
+            # Fix 3: Excluded but still marked for auto-update
+            mismatched = Story.query.filter(
+                Story.auto_refresh_excluded == True,
+                Story.auto_update_enabled == True
+            ).all()
+            for story in mismatched:
+                story.auto_update_enabled = False
+                log_action(f"[AUTOMATION] Healed mismatch for '{story.title}' (excluded story should not auto-update)")
+            if mismatched:
+                db.session.commit()
+
+            total = len(untagged_combined) + len(orphaned) + len(mismatched)
+            if total:
+                log_action(f"[AUTOMATION] Exclusion heal complete: {len(untagged_combined)} combined, {len(orphaned)} orphaned, {len(mismatched)} mismatched")
+
+        except Exception as e:
+            db.session.rollback()
+            log_error(f"[AUTOMATION] Error healing exclusions: {str(e)}")
+
     def _auto_add_stories(self):
         try:
             from app.services.migration.sync_checker import SyncChecker

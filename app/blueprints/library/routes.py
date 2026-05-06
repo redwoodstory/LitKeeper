@@ -285,8 +285,17 @@ def read_story(story_id: int) -> ResponseReturnValue:
     story_db = Story.query.get_or_404(story_id)
 
     json_fmt = StoryFormat.query.filter_by(story_id=story_db.id, format_type='json').first()
-    if not json_fmt or not os.path.exists(json_fmt.file_path):
+    if not json_fmt:
         abort(404)
+    if not os.path.exists(json_fmt.file_path):
+        from app.utils import story_json_path
+        canonical = story_json_path(story_db.id, story_db.filename_base)
+        if os.path.exists(canonical):
+            json_fmt.file_path = canonical
+            json_fmt.file_size = os.path.getsize(canonical)
+            db.session.commit()
+        else:
+            abort(404)
 
     try:
         with open(json_fmt.file_path, 'r', encoding='utf-8') as f:

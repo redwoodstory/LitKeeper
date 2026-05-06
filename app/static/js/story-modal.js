@@ -752,6 +752,53 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+window.toggleStoryAutoUpdate = async function(storyId, button) {
+  const currentlyEnabled = button.dataset.autoUpdateEnabled === 'true';
+  const newValue = !currentlyEnabled;
+  const labelSpan = button.querySelector('#autoRefreshToggleLabel');
+  const originalLabel = labelSpan ? labelSpan.textContent : '';
+
+  button.disabled = true;
+  if (labelSpan) labelSpan.textContent = 'Updating…';
+
+  try {
+    const response = await fetch(`/api/story/${storyId}/toggle-auto-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      const isEnabled = data.auto_update_enabled;
+      button.dataset.autoUpdateEnabled = isEnabled ? 'true' : 'false';
+      if (labelSpan) labelSpan.textContent = isEnabled ? 'Auto-Update' : 'Enable Auto-Update';
+      button.title = isEnabled
+        ? 'Auto-update is enabled for this story'
+        : 'Auto-update is disabled — click to enable';
+
+      if (isEnabled) {
+        // Enabled state — filled emerald
+        button.classList.remove('text-emerald-600', 'dark:text-emerald-400', 'hover:text-emerald-700', 'dark:hover:text-emerald-300', 'hover:bg-emerald-50', 'dark:hover:bg-emerald-900/20', 'border-emerald-200/60', 'dark:border-emerald-700');
+        button.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600', 'hover:bg-emerald-700');
+      } else {
+        // Disabled state — outline emerald
+        button.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600', 'hover:bg-emerald-700');
+        button.classList.add('text-emerald-600', 'dark:text-emerald-400', 'hover:text-emerald-700', 'dark:hover:text-emerald-300', 'hover:bg-emerald-50', 'dark:hover:bg-emerald-900/20', 'border-emerald-200/60', 'dark:border-emerald-700');
+      }
+
+      showToast(isEnabled ? 'Auto-update enabled for this story' : 'Auto-update disabled for this story', 'success');
+    } else {
+      throw new Error(data.message || 'Failed to update auto-update');
+    }
+  } catch (error) {
+    console.error('Auto-update toggle error:', error);
+    showToast('Failed to update auto-update status', 'error');
+    if (labelSpan) labelSpan.textContent = originalLabel;
+  } finally {
+    button.disabled = false;
+  }
+};
+
 window.confirmDeleteStory = function(storyId, storyTitle) {
   const confirmationHtml = `
     <div id="deleteConfirmationModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-200" onclick="closeDeleteConfirmation(event)">

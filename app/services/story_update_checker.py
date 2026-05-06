@@ -330,11 +330,18 @@ def check_all_stories_for_updates(app: Flask) -> None:
     """
     with app.app_context():
         try:
+            from app.models import AppConfig
+            global_enabled = AppConfig.get_bool('auto_update_enabled', default=False)
+            if not global_enabled:
+                log_action("Scheduled story update check skipped: global auto-update is disabled")
+                return
+
             log_action("Starting scheduled story update check")
 
             stories = Story.query.filter(
                 Story.auto_update_enabled == True,
-                Story.literotica_url.isnot(None)
+                Story.literotica_url.isnot(None),
+                Story.is_combined == False
             ).all()
 
             if not stories:
@@ -372,6 +379,98 @@ def check_all_stories_for_updates(app: Flask) -> None:
             else:
                 log_action("Update check complete: no updates found")
 
+            _check_watched_authors_for_new_stories(app)
+
         except Exception as e:
             log_error(f"Error in scheduled update check: {str(e)}\n{traceback.format_exc()}")
             send_notification(f"Story update check failed: {str(e)}", is_error=True)
+
+
+def _check_watched_authors_for_new_stories(app: Flask) -> None:
+    """
+    For each Author with watch_enabled=True and a literotica_url,
+    scrape for new stories and enqueue any that aren't already known.
+    Respects the same inter-request delay as the story update check.
+    """
+    from app.models import Author, DownloadQueueItem, AppConfig
+    from app.services.author_scraper import AuthorScraper
+    import json
+
+    try:
+        auto_watch_config = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+        if not auto_watch_config or not auto_watch_config.get_value():
+            log_action("Auto-watch-authors disabled — skipping watched-author checks")
+            return
+
+        watched = Author.query.filter(
+            Author.watch_enabled == True,
+            Author.literotica_url.isnot(None)
+        ).all()
+
+        if not watched:
+            return
+
+        log_action(f"Checking {len(watched)} watched authors for new stories")
+        scraper = AuthorScraper()
+
+        for i, author in enumerate(watched):
+            if i > 0:
+                delay = random.randint(UPDATE_CHECK_DELAY_MIN_SECONDS, UPDATE_CHECK_DELAY_MAX_SECONDS)
+                log_action(f"Waiting {delay}s before checking next author (rate limiting)...")
+                time.sleep(delay)
+
+            try:
+                stories = scraper.scrape_story_urls(author.literotica_url)
+                if not stories:
+                    continue
+
+                known = set(author.get_known_story_urls())
+                new_stories = [s for s in stories if s['url'] not in known]
+
+                all_urls = [s['url'] for s in stories]
+                author.set_known_story_urls(all_urls)
+                author.last_watch_check_at = datetime.utcnow()
+                db.session.commit()
+
+                if not new_stories:
+                    log_action(f"No new stories for watched author '{author.name}'")
+                    continue
+
+                log_action(f"Found {len(new_stories)} new stories for '{author.name}' — queuing")
+
+                from datetime import timedelta
+                scheduled_after = datetime.utcnow()
+                SPACING_MINUTES = 5
+                enqueued = 0
+
+                for story in new_stories:
+                    story_url = story['url']
+                    already_queued = DownloadQueueItem.query.filter(
+                        DownloadQueueItem.url == story_url,
+                        DownloadQueueItem.status.in_(['pending', 'processing', 'rate_limited'])
+                    ).first()
+                    if already_queued:
+                        continue
+
+                    scheduled_after = scheduled_after + timedelta(minutes=SPACING_MINUTES)
+                    child = DownloadQueueItem(
+                        url=story_url,
+                        formats=json.dumps(['epub', 'html']),
+                        status='pending',
+                        job_type='single',
+                        title=story.get('title'),
+                        author=author.name,
+                        scheduled_after=scheduled_after,
+                        progress_message='Waiting to start (author watch)'
+                    )
+                    db.session.add(child)
+                    enqueued += 1
+
+                db.session.commit()
+                log_action(f"[AuthorWatch] Queued {enqueued} new stories from '{author.name}'")
+
+            except Exception as e:
+                log_error(f"Error checking author '{author.name}': {str(e)}\n{traceback.format_exc()}")
+
+    except Exception as e:
+        log_error(f"Error in watched-author check: {str(e)}\n{traceback.format_exc()}")

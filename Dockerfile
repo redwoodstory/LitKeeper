@@ -47,7 +47,7 @@ WORKDIR /litkeeper
 # Copy files
 COPY app app/
 COPY migrations migrations/
-COPY run.py gunicorn.docker.conf.py startup.sh reset_pin.py reset_webauthn.py ./
+COPY run.py gunicorn.docker.conf.py startup.sh reset_pin.py reset_webauthn.py update_epub_descriptions.py ./
 
 # Create required directories
 RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
