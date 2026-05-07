@@ -63,16 +63,16 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
         <svg id="combineChevron" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
         </svg>
-        Combine multiple URLs into one story
+        Combine multiple stories or series into one file
       </button>
 
       <div id="combineSection" class="hidden mt-3 space-y-2">
         <p class="text-xs text-gray-500 dark:text-gray-400">
-          Add the remaining chapter or part URLs below. The primary URL above becomes the first part.
+          Add story or series URLs below. Each series will expand to include all its chapters. Author URLs are not supported here.
         </p>
         <div id="extraUrlsList" class="space-y-2">
           <div class="flex gap-2">
-            <input type="url" name="extra_urls" placeholder="https://www.literotica.com/s/part-2"
+            <input type="url" name="extra_urls" placeholder="https://www.literotica.com/s/part-2  or  /series/se/12345"
               class="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600
                      bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm
                      focus:ring-2 focus:ring-primary focus:border-transparent
@@ -113,6 +113,63 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   <div id="result" style="display: none;"></div>
 </div>
 
+<!-- Series combination confirmation modal -->
+<div id="seriesModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeSeriesModal()"></div>
+  <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full p-5 border border-amber-200/60 dark:border-amber-700/40">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="flex-shrink-0 w-9 h-9 rounded-full bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
+        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white leading-tight">This will include a full series</h3>
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-5">
+      One or more of the URLs you've entered is a series page. LitKeeper will download every chapter from that series and merge it with the other URLs. This may produce a large file and take longer to complete.
+    </p>
+    <div class="flex gap-2 justify-end">
+      <button type="button" onclick="closeSeriesModal()"
+        class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+        Cancel
+      </button>
+      <button type="button" id="seriesModalConfirm" class="px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors">
+        Combine Anyway
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Author-in-combine error modal -->
+<div id="authorCombineErrorModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeAuthorCombineErrorModal()"></div>
+  <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full p-5 border border-red-200/60 dark:border-red-700/40">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="flex-shrink-0 w-9 h-9 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center">
+        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white leading-tight">Author URLs can't be combined</h3>
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-5">
+      Author profile URLs queue every story from that author individually — they can't be merged into a single combined file. Remove the author URL and use the main field on its own to scan an author's profile.
+    </p>
+    <div class="flex gap-2 justify-end">
+      <button type="button" onclick="closeAuthorCombineErrorModal()"
+        class="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors">
+        Got it
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Author URL confirmation modal -->
 <div id="authorModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none">
   <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeAuthorModal()"></div>
@@ -146,24 +203,37 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
 
 <script>
   const AUTHOR_URL_RE = /literotica\.com\/(authors?|members?)\/[^/?#]+/i;
+  const SERIES_URL_RE = /literotica\.com\/series\/se\//i;
 
-  function isAuthorUrl(url) {
-    return AUTHOR_URL_RE.test(url);
-  }
+  function isAuthorUrl(url) { return AUTHOR_URL_RE.test(url); }
+  function isSeriesUrl(url) { return SERIES_URL_RE.test(url); }
 
   function closeAuthorModal() {
     document.getElementById('authorModal').style.display = 'none';
   }
   function openAuthorModal() {
-    const m = document.getElementById('authorModal');
-    m.style.display = 'flex';
+    document.getElementById('authorModal').style.display = 'flex';
+  }
+
+  function closeSeriesModal() {
+    document.getElementById('seriesModal').style.display = 'none';
+  }
+  function openSeriesModal() {
+    document.getElementById('seriesModal').style.display = 'flex';
+  }
+
+  function closeAuthorCombineErrorModal() {
+    document.getElementById('authorCombineErrorModal').style.display = 'none';
+  }
+  function openAuthorCombineErrorModal() {
+    document.getElementById('authorCombineErrorModal').style.display = 'flex';
   }
 
   function addExtraUrl() {
     const list = document.getElementById('extraUrlsList');
     const div = document.createElement('div');
     div.className = 'flex gap-2';
-    div.innerHTML = `<input type="url" name="extra_urls" placeholder="https://www.literotica.com/s/next-part"
+    div.innerHTML = `<input type="url" name="extra_urls" placeholder="https://www.literotica.com/s/next-part  or  /series/se/12345"
       class="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600
              bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm
              focus:ring-2 focus:ring-primary focus:border-transparent
@@ -200,6 +270,16 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
     const extraInputs = document.querySelectorAll('#extraUrlsList input[name="extra_urls"]');
     const extraUrls = Array.from(extraInputs).map(i => i.value.trim()).filter(Boolean);
 
+    // Author URL in combine context → hard error
+    if (combineOpen) {
+      const allUrls = [url, ...extraUrls];
+      if (allUrls.some(isAuthorUrl)) {
+        openAuthorCombineErrorModal();
+        return;
+      }
+    }
+
+    // Author URL alone → existing scan flow
     if (isAuthorUrl(url) && !combineOpen) {
       document.getElementById('authorModalUrl').textContent = url;
       openAuthorModal();
@@ -208,6 +288,19 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
         await submitAuthorUrl(url);
       };
       return;
+    }
+
+    // Any series URL in a combine job → confirmation required
+    if (combineOpen) {
+      const allUrls = [url, ...extraUrls];
+      if (allUrls.some(isSeriesUrl)) {
+        openSeriesModal();
+        document.getElementById('seriesModalConfirm').onclick = async () => {
+          closeSeriesModal();
+          await submitDownload(url, extraUrls);
+        };
+        return;
+      }
     }
 
     await submitDownload(url, extraUrls);

@@ -491,8 +491,10 @@ class FormatGeneratorService:
             }
 
             out_path = story_json_path(story.id, story.filename_base)
-            with open(out_path, 'w', encoding='utf-8') as f:
+            tmp_path = out_path + '.tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(story_data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, out_path)
 
             link_story_formats(story)
 

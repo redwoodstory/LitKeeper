@@ -368,26 +368,59 @@ class BackgroundAutomation:
             log_error(f"[AUTOMATION] Error auto-refreshing metadata: {str(e)}")
 
     def _cleanup_orphaned_covers(self):
-        """Remove cover images on disk that have no corresponding Story record."""
+        """Remove cover images on disk only when no EPUB, JSON, or DB record references them."""
         try:
             import os
-            from app.utils import get_cover_directory
+            import re
+            from app.utils import get_cover_directory, get_epub_directory, get_html_directory
             from app.models import Story
 
             cover_dir = get_cover_directory()
             if not os.path.exists(cover_dir):
                 return
 
-            expected = {f"{s.id}_{s.filename_base}.jpg" for s in Story.query.all()}
+            epub_dir = get_epub_directory()
+            html_dir = get_html_directory()
+
+            db_expected = {f"{s.id}_{s.filename_base}.jpg" for s in Story.query.all()}
+
+            # Build sets of filename_bases present on disk so we can cross-check covers
+            # against story files even when the DB record is missing.
+            epub_bases = set()
+            if os.path.exists(epub_dir):
+                for name in os.listdir(epub_dir):
+                    if name.endswith('.epub'):
+                        base = re.sub(r'^\d+_', '', name[:-5])  # strip leading id_ prefix
+                        epub_bases.add(base)
+                        epub_bases.add(name[:-5])  # also keep the raw stem for legacy names
+
+            json_bases = set()
+            if os.path.exists(html_dir):
+                for name in os.listdir(html_dir):
+                    if name.endswith('.json'):
+                        base = re.sub(r'^\d+_', '', name[:-5])
+                        json_bases.add(base)
+                        json_bases.add(name[:-5])
+
             removed = 0
             for filename in os.listdir(cover_dir):
-                if filename.endswith('.jpg') and filename not in expected:
-                    try:
-                        os.remove(os.path.join(cover_dir, filename))
-                        removed += 1
-                        log_action(f"[AUTOMATION] Removed orphaned cover: {filename}")
-                    except Exception as e:
-                        log_error(f"[AUTOMATION] Failed to remove orphaned cover {filename}: {e}")
+                if not filename.endswith('.jpg') or filename in db_expected:
+                    continue
+
+                # Extract filename_base from cover (pattern: {id}_{filename_base}.jpg or {filename_base}.jpg)
+                stem = filename[:-4]
+                cover_base = re.sub(r'^\d+_', '', stem)
+
+                if cover_base in epub_bases or cover_base in json_bases or stem in epub_bases or stem in json_bases:
+                    log_action(f"[AUTOMATION] Skipping cover with matching story file on disk: {filename}")
+                    continue
+
+                try:
+                    os.remove(os.path.join(cover_dir, filename))
+                    removed += 1
+                    log_action(f"[AUTOMATION] Removed orphaned cover: {filename}")
+                except Exception as e:
+                    log_error(f"[AUTOMATION] Failed to remove orphaned cover {filename}: {e}")
 
             if removed:
                 log_action(f"[AUTOMATION] Cleaned up {removed} orphaned cover image(s).")

@@ -97,9 +97,10 @@ def create_html_file(
             story_data['all_authors'] = all_authors
 
         json_path = os.path.join(output_directory, f"{filename_base}.json")
-
-        with open(json_path, 'w', encoding='utf-8') as f:
+        tmp_path = json_path + '.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(story_data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, json_path)
 
         send_notification(f"Story data created: {story_title} by {story_author}")
 

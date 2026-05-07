@@ -271,8 +271,10 @@ def sync_inject_descriptions():
                         data = _json.load(f)
                     if data.get('description') != description:
                         data['description'] = description
-                        with open(json_fmt.file_path, 'w', encoding='utf-8') as f:
+                        tmp_path = json_fmt.file_path + '.tmp'
+                        with open(tmp_path, 'w', encoding='utf-8') as f:
                             _json.dump(data, f, ensure_ascii=False, indent=2)
+                        os.replace(tmp_path, json_fmt.file_path)
                         json_updated += 1
                 except Exception as e:
                     click.echo(f'\nFailed to patch JSON for {story.filename_base}: {e}', err=True)

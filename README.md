@@ -1,6 +1,6 @@
 # LitKeeper
 
-LitKeeper is a self-hosted web app that lets you download and organize stories from [Literotica](https://www.literotica.com) for offline reading.
+LitKeeper is a self-hosted web app that lets you download and organize publicly available stories from [Literotica](https://www.literotica.com) for personal, offline reading.
 
 Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolved into a fully featured, interactive local library. It saves stories in both EPUB and HTML formats, offering a customizable in-app reading experience. A native iOS companion app is also available — see [LitKeeper for iOS](https://github.com/redwoodstory/litkeeper-ios).
 
@@ -179,7 +179,7 @@ OPDS is **disabled by default**. Enable it under **Settings → OPDS Catalog**. 
 
 ### Authentication (optional)
 
-By default, an enabled OPDS catalog is open to anyone who can reach your server. If you want to restrict access (e.g., for external exposure), enable **Require Authentication** in the same settings panel and set a username and password. Your e-reader app will prompt for these credentials once and store them.
+By default, an enabled OPDS catalog is open to anyone who can reach your server. To restrict access (e.g., for external exposure), enable **Require Authentication** in the same settings panel and set a username and password. Your e-reader app will prompt for these credentials once and store them.
 
 The passkey lock (Layer 3) does not apply to OPDS — e-readers cannot perform WebAuthn. OPDS bypasses the passkey gate entirely; its own optional Basic Auth is the access control.
 
@@ -196,3 +196,15 @@ Please see the [CLI Reference](CLI.md) for the full command list and usage examp
 LitKeeper provides a REST API for external integrations like iOS Shortcuts, automation tools, or custom scripts.
 
 Please see the [API Reference & Integrations documentation](API.md) for more details.
+
+
+## Legal & Disclaimer
+
+LitKeeper is an independent, open-source personal archival tool. It is designed solely for **private, non-commercial use** (such as format-shifting and time-shifting for e-readers). 
+
+* **User Responsibility:** By utilizing this software, you agree that you are solely responsible for how you use it. You must ensure that your use of LitKeeper complies with your local copyright laws and the Terms of Service of the source website.
+* **No Distribution:** LitKeeper is strictly for building a personal offline library. It is **not** intended, designed, or authorized for the piracy, sharing, or public distribution of copyrighted materials. Do not expose your instance or OPDS feed to the public internet for the purpose of sharing copyrighted works.
+* **No DRM Circumvention:** This application does not bypass, strip, or circumvent any Digital Rights Management (DRM), paywalls, or cryptographic technical protection measures. It only parses publicly accessible, unencrypted HTML.
+* **No Affiliation:** LitKeeper is not affiliated with, endorsed by, approved by, or connected to Literotica or its parent companies in any capacity.
+
+The developers of LitKeeper do not host any story content, do not maintain directories of copyrighted links, and have no technical ability to monitor or control how end-users deploy this self-hosted software. The repository maintainers do not support, induce, or condone copyright infringement and will reject pull requests that are explicitly designed to facilitate piracy or maliciously harm source servers.
