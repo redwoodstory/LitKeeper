@@ -83,6 +83,7 @@ def queue_download() -> ResponseReturnValue:
             queue_item.set_extra_urls(list(extra_urls))
         db.session.add(queue_item)
         db.session.commit()
+        current_app.download_worker.wake()
 
         log_action(f"Added story to download queue: {validated.url} job_type={job_type} (ID: {queue_item.id})")
 
@@ -251,6 +252,7 @@ def download() -> ResponseReturnValue:
         queue_item.set_formats(validated.format)
         db.session.add(queue_item)
         db.session.commit()
+        current_app.download_worker.wake()
 
         log_action(f"Added to queue via /download: {validated.url} (ID: {queue_item.id})")
 
@@ -1293,6 +1295,7 @@ def queue_author_download() -> ResponseReturnValue:
             db.session.add(author_obj)
 
         db.session.commit()
+        current_app.download_worker.wake()
         log_action(f"Queued author scan: {canonical}")
 
         return jsonify({
@@ -1367,6 +1370,7 @@ def rescan_author(author_id: int) -> ResponseReturnValue:
         )
         db.session.add(queue_item)
         db.session.commit()
+        current_app.download_worker.wake()
         log_action(f"Manual rescan queued for author '{author.name}'")
         return jsonify({"success": True, "message": f"Rescan queued for {author.name}"})
     except Exception as e:

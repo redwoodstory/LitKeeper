@@ -10,12 +10,13 @@ from flask import Flask
 class FormatQueueWorker:
     """Background worker that processes FormatQueueItem jobs one at a time."""
 
-    def __init__(self, app: Flask, poll_interval: int = 5):
+    def __init__(self, app: Flask, poll_interval: int = 60):
         self.app = app
         self.poll_interval = poll_interval
         self.thread: Optional[threading.Thread] = None
         self.running = False
         self._stop_event = threading.Event()
+        self._wake_event = threading.Event()
 
     def start(self):
         if self.thread and self.thread.is_alive():
@@ -47,8 +48,13 @@ class FormatQueueWorker:
     def stop(self):
         self.running = False
         self._stop_event.set()
+        self._wake_event.set()
         if self.thread:
             self.thread.join(timeout=10)
+
+    def wake(self):
+        """Interrupt the current sleep cycle and process the queue immediately."""
+        self._wake_event.set()
 
     def _worker_loop(self):
         from .logger import log_action, log_error
@@ -59,7 +65,8 @@ class FormatQueueWorker:
                     self._process_next_item()
             except Exception as e:
                 log_error(f"Error in format queue worker: {str(e)}\n{traceback.format_exc()}")
-            self._stop_event.wait(self.poll_interval)
+            self._wake_event.wait(self.poll_interval)
+            self._wake_event.clear()
         log_action("Format queue worker stopped")
 
     def _process_next_item(self):

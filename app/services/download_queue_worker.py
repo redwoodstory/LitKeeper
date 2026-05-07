@@ -13,14 +13,13 @@ DEFAULT_MAX_DAILY_DOWNLOADS = 25
 class DownloadQueueWorker:
     """Background worker for processing download queue"""
 
-    def __init__(self, app: Flask, poll_interval: int = 5):
+    def __init__(self, app: Flask, poll_interval: int = 60):
         self.app = app
         self.poll_interval = poll_interval
         self.thread: Optional[threading.Thread] = None
         self.running = False
         self._stop_event = threading.Event()
-        # Conservative rate limit: max 5 downloads per 60 seconds to avoid
-        # triggering Literotica's bot-detection between queued story downloads.
+        self._wake_event = threading.Event()
         self._last_rate_limit_reset_date: Optional[str] = None
 
     def start(self):
@@ -64,8 +63,13 @@ class DownloadQueueWorker:
         """Stop the background worker thread"""
         self.running = False
         self._stop_event.set()
+        self._wake_event.set()
         if self.thread:
             self.thread.join(timeout=10)
+
+    def wake(self):
+        """Interrupt the current sleep cycle and process the queue immediately."""
+        self._wake_event.set()
 
     def _worker_loop(self):
         """Main worker loop"""
@@ -80,7 +84,8 @@ class DownloadQueueWorker:
             except Exception as e:
                 log_error(f"Error in download queue worker: {str(e)}\n{traceback.format_exc()}")
 
-            self._stop_event.wait(self.poll_interval)
+            self._wake_event.wait(self.poll_interval)
+            self._wake_event.clear()
 
         log_action("Download queue worker stopped")
 
@@ -394,6 +399,9 @@ class DownloadQueueWorker:
             if queued:
                 db.session.commit()
                 log_action(f"[DOWNLOAD WORKER] Queued {queued} missing format generation job(s) for story {story.id}")
+                from flask import current_app
+                if hasattr(current_app._get_current_object(), 'format_worker'):
+                    current_app.format_worker.wake()
         except Exception:
             db.session.rollback()
 
@@ -467,3 +475,5 @@ class DownloadQueueWorker:
         item.title = item.title or f'Author scan: {author_url}'
         item.progress_message = f'Queued {enqueued} new stories for download'
         db.session.commit()
+        if enqueued:
+            self.wake()

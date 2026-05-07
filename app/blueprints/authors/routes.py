@@ -1,5 +1,5 @@
 from __future__ import annotations
-from flask import render_template, request, jsonify
+from flask import render_template, request, jsonify, current_app
 from flask.typing import ResponseReturnValue
 from . import authors_bp
 from app.models import Author, db
@@ -44,6 +44,7 @@ def rescan_author(author_id: int) -> ResponseReturnValue:
         )
         db.session.add(queue_item)
         db.session.commit()
+        current_app.download_worker.wake()
         log_action(f"Manual rescan queued for author '{author.name}'")
         return jsonify({"success": True, "message": f"Rescan queued for {author.name}"})
 

@@ -267,6 +267,11 @@ def create_app() -> Flask:
     app.register_blueprint(opds_bp)
     app.register_blueprint(auto_update_stories)
 
+    @app.route('/favicon.ico')
+    def favicon():
+        from flask import send_from_directory
+        return send_from_directory(app.static_folder + '/icons/web', 'favicon.ico', mimetype='image/x-icon')
+
     from .commands import register_commands
     register_commands(app)
 
@@ -582,12 +587,12 @@ def create_app() -> Flask:
         _self_heal_formats_background()
 
         from app.services.download_queue_worker import DownloadQueueWorker
-        worker = DownloadQueueWorker(app, poll_interval=5)
-        worker.start()
-        atexit.register(worker.stop)
+        app.download_worker = DownloadQueueWorker(app)
+        app.download_worker.start()
+        atexit.register(app.download_worker.stop)
 
         from app.services.metadata_refresh_worker import MetadataRefreshWorker
-        metadata_worker = MetadataRefreshWorker(app, poll_interval=5)
+        metadata_worker = MetadataRefreshWorker(app, poll_interval=60)
         metadata_worker.start()
         atexit.register(metadata_worker.stop)
 
@@ -598,8 +603,8 @@ def create_app() -> Flask:
         atexit.register(automation.stop)
 
         from app.services.format_queue_worker import FormatQueueWorker
-        format_worker = FormatQueueWorker(app, poll_interval=5)
-        format_worker.start()
-        atexit.register(format_worker.stop)
+        app.format_worker = FormatQueueWorker(app)
+        app.format_worker.start()
+        atexit.register(app.format_worker.stop)
 
     return app
