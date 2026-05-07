@@ -79,7 +79,12 @@ class SyncChecker:
                     duplicate = deduplicator.check_duplicate(metadata, base)
 
                     if duplicate:
-                        duplicate_files.append(base)
+                        # Store (filename_base, file_group, matched_story) for cleanup
+                        duplicate_files.append({
+                            'filename_base': base,
+                            'group': group,
+                            'matched_story': duplicate,
+                        })
                     else:
                         orphaned_files.append(base)
                 except Exception:
@@ -96,6 +101,47 @@ class SyncChecker:
             'orphaned_files_count': len(orphaned_files),
             'duplicate_files_count': len(duplicate_files),
         }
+
+    def cleanup_confirmed_duplicates(self) -> int:
+        """
+        Delete filesystem files that are confirmed content-duplicates of an existing DB story
+        whose canonical files are already present on disk.
+
+        A file is only removed when its matched story already has a working canonical file,
+        so there is no data-loss risk.
+
+        Returns:
+            Number of file groups deleted
+        """
+        import os
+        from app.utils import get_epub_directory, get_html_directory
+
+        sync_status = self.check_sync()
+        removed = 0
+
+        for dup in sync_status['duplicate_files']:
+            matched = dup['matched_story']
+            group = dup['group']
+
+            # Only delete if the matched story's canonical file already exists on disk
+            canonical_epub = _CANONICAL_FN['epub'](matched.id, matched.filename_base)
+            canonical_json = _CANONICAL_FN['json'](matched.id, matched.filename_base)
+            canonical_ok = os.path.exists(canonical_epub) or os.path.exists(canonical_json)
+            if not canonical_ok:
+                continue
+
+            deleted_any = False
+            for fmt in group['formats']:
+                try:
+                    os.remove(fmt['path'])
+                    deleted_any = True
+                except Exception:
+                    pass
+
+            if deleted_any:
+                removed += 1
+
+        return removed
 
     def clean_orphaned_records(self) -> int:
         """

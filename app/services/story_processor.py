@@ -170,8 +170,9 @@ def _record_seen_urls(story) -> None:
 def link_story_formats(story) -> None:
     """
     Create or update StoryFormat records for files on disk.
-    Files are expected at "{story.id}_{story.filename_base}.epub/.json".
-    If an existing format record points to a different path, it is updated to the new one.
+    Canonical path is "{story.id}_{story.filename_base}.epub/.json". If only the
+    legacy "{story.filename_base}.epub/.json" exists (no ID prefix), the file is
+    renamed to the canonical path before linking.
     """
     import json as _json
     from app.models import StoryFormat
@@ -179,7 +180,16 @@ def link_story_formats(story) -> None:
 
     file_base = f"{story.id}_{story.filename_base}"
 
+    # --- EPUB ---
     epub_path = os.path.join(get_epub_directory(), f"{file_base}.epub")
+    old_epub_path = os.path.join(get_epub_directory(), f"{story.filename_base}.epub")
+    if not os.path.exists(epub_path) and os.path.exists(old_epub_path):
+        try:
+            os.rename(old_epub_path, epub_path)
+            log_action(f"Renamed legacy EPUB for story {story.id}: {story.filename_base}.epub → {file_base}.epub")
+        except Exception as e:
+            log_error(f"Failed to rename legacy EPUB for story {story.id}: {e}")
+
     existing_epub = StoryFormat.query.filter_by(story_id=story.id, format_type='epub').first()
     if os.path.exists(epub_path):
         if not existing_epub:
@@ -195,7 +205,16 @@ def link_story_formats(story) -> None:
             existing_epub.file_size = os.path.getsize(epub_path)
             log_action(f"Updated EPUB path for story ID {story.id}")
 
+    # --- JSON ---
     json_path = os.path.join(get_html_directory(), f"{file_base}.json")
+    old_json_path = os.path.join(get_html_directory(), f"{story.filename_base}.json")
+    if not os.path.exists(json_path) and os.path.exists(old_json_path):
+        try:
+            os.rename(old_json_path, json_path)
+            log_action(f"Renamed legacy JSON for story {story.id}: {story.filename_base}.json → {file_base}.json")
+        except Exception as e:
+            log_error(f"Failed to rename legacy JSON for story {story.id}: {e}")
+
     existing_json = StoryFormat.query.filter_by(story_id=story.id, format_type='json').first()
     if os.path.exists(json_path):
         if not existing_json:
@@ -231,7 +250,9 @@ def _create_story_files(
     page_count: Optional[int],
     formats: list[str],
     series_url: Optional[str] = None,
-    story_description: Optional[str] = None
+    story_description: Optional[str] = None,
+    all_authors: Optional[list[str]] = None,
+    all_tags: Optional[list[str]] = None,
 ) -> dict:
     """
     Get/create the story DB record first (to obtain a stable ID), then write files
@@ -242,16 +263,26 @@ def _create_story_files(
         chapter_count = max(len(split_story_chapters(story_content)) - 1, 1) if story_content else 1
         word_count = len(story_content.split()) if story_content else 0
 
+        # Determine display author for files/cover — show "Multiple Authors" when
+        # there are genuinely different authors across combined stories.
+        display_author = story_author
+        if all_authors and len(set(all_authors)) > 1:
+            display_author = "Multiple Authors"
+
+        # Use the combined/aggregated tags if provided, otherwise fall back to
+        # the primary story's tags.
+        tags_for_files = all_tags if all_tags is not None else story_tags
+
         # 1. DB first — get or create story record to obtain a stable story.id.
         story = None
         try:
             story = _get_or_create_story(
                 story_title=story_title,
-                story_author=story_author,
+                story_author=display_author,
                 story_category=story_category,
-                story_tags=story_tags,
+                story_tags=tags_for_files,
                 source_url=source_url,
-                author_url=author_url,
+                author_url=author_url if display_author == story_author else None,
                 page_count=page_count,
                 series_url=series_url,
                 chapter_count=chapter_count,
@@ -301,13 +332,14 @@ def _create_story_files(
         if "epub" in formats:
             epub_file_name = create_epub_file(
                 story_title,
-                story_author,
+                display_author,
                 story_content,
                 get_epub_directory(),
                 story_category=story_category,
-                story_tags=story_tags,
+                story_tags=tags_for_files,
                 story_description=story_description,
                 filename_base=file_base,
+                all_authors=all_authors,
             )
             created_files.append(f"EPUB: {epub_file_name.split('/')[-1]}")
             log_action(f"Created EPUB: {epub_file_name}")
@@ -320,17 +352,18 @@ def _create_story_files(
             chapter_titles = extract_chapter_titles(story_content)
             html_file_name = create_html_file(
                 story_title,
-                story_author,
+                display_author,
                 story_content,
                 get_html_directory(),
                 story_category=story_category,
-                story_tags=story_tags,
+                story_tags=tags_for_files,
                 chapter_titles=chapter_titles if chapter_titles else None,
                 source_url=source_url,
                 author_url=author_url,
                 page_count=page_count,
                 filename_base=file_base,
                 story_description=story_description,
+                all_authors=all_authors,
             )
             created_files.append(f"HTML: {html_file_name.split('/')[-1]}")
             log_action(f"Created HTML: {html_file_name}")

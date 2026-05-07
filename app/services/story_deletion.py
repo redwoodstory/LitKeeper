@@ -40,14 +40,15 @@ class StoryDeletionService:
                         log_error(f"Failed to delete file {file_path}: {str(e)}")
                         failed_files.append(os.path.basename(file_path))
             
-            cover_file = os.path.join(cover_dir, f"{story_id}_{filename_base}.jpg")
-            if os.path.exists(cover_file):
-                try:
-                    os.remove(cover_file)
-                    deleted_files.append(f"{story_id}_{filename_base}.jpg")
-                except Exception as e:
-                    log_error(f"Failed to delete cover file {cover_file}: {str(e)}")
-                    failed_files.append(f"{story_id}_{filename_base}.jpg")
+            for cover_name in (f"{story_id}_{filename_base}.jpg", f"{filename_base}.jpg"):
+                cover_file = os.path.join(cover_dir, cover_name)
+                if os.path.exists(cover_file):
+                    try:
+                        os.remove(cover_file)
+                        deleted_files.append(cover_name)
+                    except Exception as e:
+                        log_error(f"Failed to delete cover file {cover_file}: {str(e)}")
+                        failed_files.append(cover_name)
             
             SeenLiteroticaUrl.query.filter_by(story_id=story.id).delete()
             db.session.delete(story)

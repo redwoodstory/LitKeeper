@@ -54,12 +54,15 @@ class FileScanner:
                     base, story_id = _strip_id_prefix(raw_base)
                     full_path = os.path.join(epub_dir, filename)
                     try:
-                        epub_files[base] = {
+                        entry = {
                             'type': 'epub',
                             'path': full_path,
                             'size': os.path.getsize(full_path),
                             'story_id': story_id,
                         }
+                        # Prefer ID-prefixed file when both naming styles exist for the same base
+                        if base not in epub_files or (story_id is not None and epub_files[base].get('story_id') is None):
+                            epub_files[base] = entry
                     except OSError:
                         continue
 
@@ -75,14 +78,23 @@ class FileScanner:
                         with open(full_path, 'r', encoding='utf-8') as f:
                             json_data = json.load(f)
 
-                        json_files[base] = {
+                        entry = {
                             'type': 'json',
                             'path': full_path,
                             'size': os.path.getsize(full_path),
                             'json_data': json_data,
                             'story_id': story_id,
                         }
-                    except (OSError, json.JSONDecodeError):
+                        # Prefer ID-prefixed file when both naming styles exist for the same base
+                        if base not in json_files or (story_id is not None and json_files[base].get('story_id') is None):
+                            json_files[base] = entry
+                    except OSError as e:
+                        from app.services.logger import log_error
+                        log_error(f"[FileScanner] Skipping unreadable file {full_path}: {e}")
+                        continue
+                    except json.JSONDecodeError as e:
+                        from app.services.logger import log_error
+                        log_error(f"[FileScanner] Skipping corrupt JSON at {full_path}: {e}")
                         continue
 
         all_bases = set(epub_files.keys()) | set(json_files.keys())

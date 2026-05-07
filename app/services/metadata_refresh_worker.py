@@ -5,6 +5,7 @@ import traceback
 from datetime import datetime
 from typing import Optional
 from flask import Flask
+from app.services.http_client import global_rate_limiter
 
 class MetadataRefreshWorker:
     """Background worker for processing metadata refresh queue"""
@@ -101,6 +102,8 @@ class MetadataRefreshWorker:
         story_id = item.story_id
         
         log_action(f"Processing metadata refresh queue item {item_id} for story_id={story_id}")
+
+        global_rate_limiter.wait_if_needed()
 
         item.status = 'processing'
         item.started_at = datetime.utcnow()

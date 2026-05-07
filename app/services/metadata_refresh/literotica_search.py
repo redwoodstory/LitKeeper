@@ -1,5 +1,4 @@
 from __future__ import annotations
-import requests
 from bs4 import BeautifulSoup
 from typing import Optional
 from dataclasses import dataclass
@@ -67,7 +66,7 @@ class LiteroticaSearcher:
             
             return results
         
-        except requests.RequestException as e:
+        except Exception as e:
             return []
         except Exception as e:
             return []

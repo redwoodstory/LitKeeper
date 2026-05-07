@@ -249,11 +249,15 @@ def save_opds_settings() -> ResponseReturnValue:
     from werkzeug.security import generate_password_hash
     try:
         data = request.get_json()
-        updates = {
-            'opds_enabled': ('bool', data.get('opds_enabled', False)),
-            'opds_auth_enabled': ('bool', data.get('opds_auth_enabled', False)),
-            'opds_username': ('string', (data.get('opds_username') or '').strip()),
+        _missing = object()
+        all_updates = {
+            'opds_enabled': ('bool', data.get('opds_enabled', _missing)),
+            'opds_auth_enabled': ('bool', data.get('opds_auth_enabled', _missing)),
+            'opds_username': ('string', data.get('opds_username', _missing)),
         }
+        updates = {k: (vt, v) for k, (vt, v) in all_updates.items() if v is not _missing}
+        if 'opds_username' in updates:
+            updates['opds_username'] = ('string', (updates['opds_username'][1] or '').strip())
         new_password = (data.get('opds_password') or '').strip()
 
         for key, (value_type, value) in updates.items():

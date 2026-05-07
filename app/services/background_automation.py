@@ -73,6 +73,7 @@ class BackgroundAutomation:
                     self._heal_missing_formats()
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
+                    self._cleanup_orphaned_covers()
 
                 self.is_processing = False
                 self.has_completed_first_run = True
@@ -100,6 +101,7 @@ class BackgroundAutomation:
                     self._heal_missing_formats()
                     self._auto_add_stories()
                     self._auto_refresh_metadata()
+                    self._cleanup_orphaned_covers()
 
                 self.is_processing = False
                 self.has_completed_first_run = True
@@ -120,6 +122,10 @@ class BackgroundAutomation:
             from app.models import Story, StoryFormat, FormatQueueItem
             from app.models.base import db
             from app.services.story_processor import link_story_formats
+            from app.services.migration.migrate_covers_to_id_prefix import migrate_covers_to_id_prefix
+
+            # Rename any legacy cover files ({filename_base}.jpg → {id}_{filename_base}.jpg)
+            migrate_covers_to_id_prefix()
 
             stories = Story.query.all()
             paths_fixed = 0
@@ -127,8 +133,9 @@ class BackgroundAutomation:
             json_queued = 0
 
             for story in stories:
-                has_broken = any(not os.path.exists(f.file_path) for f in story.formats)
-                if has_broken:
+                # Heal if formats are missing entirely or any recorded path no longer exists
+                needs_link = not story.formats or any(not os.path.exists(f.file_path) for f in story.formats)
+                if needs_link:
                     link_story_formats(story)
                     paths_fixed += 1
 
@@ -214,27 +221,32 @@ class BackgroundAutomation:
     def _auto_add_stories(self):
         try:
             from app.services.migration.sync_checker import SyncChecker
-            
+
             sync_checker = SyncChecker()
             sync_status = sync_checker.check_sync()
-            
+
             orphaned_count = sync_status['orphaned_files_count']
             duplicate_count = sync_status.get('duplicate_files_count', 0)
-            
+
             log_action(f"[AUTOMATION] Sync status: {orphaned_count} orphaned files, {duplicate_count} duplicates")
-            
+
             if orphaned_count > 0:
                 log_action(f"[AUTOMATION] Found {orphaned_count} new stories in filesystem, adding to library...")
-                
+
                 added_count = sync_checker.add_orphaned_files()
-                
+
                 if added_count > 0:
                     log_action(f"[AUTOMATION] Successfully added {added_count} stories to library")
                 else:
                     log_action(f"[AUTOMATION] No new stories added (duplicates or errors)")
             else:
                 log_action("[AUTOMATION] No orphaned files to add")
-            
+
+            if duplicate_count > 0:
+                removed = sync_checker.cleanup_confirmed_duplicates()
+                if removed:
+                    log_action(f"[AUTOMATION] Removed {removed} confirmed-duplicate file group(s) from filesystem.")
+
         except Exception as e:
             log_error(f"[AUTOMATION] Error auto-adding stories: {str(e)}")
     
@@ -354,6 +366,34 @@ class BackgroundAutomation:
         except Exception as e:
             db.session.rollback()
             log_error(f"[AUTOMATION] Error auto-refreshing metadata: {str(e)}")
+
+    def _cleanup_orphaned_covers(self):
+        """Remove cover images on disk that have no corresponding Story record."""
+        try:
+            import os
+            from app.utils import get_cover_directory
+            from app.models import Story
+
+            cover_dir = get_cover_directory()
+            if not os.path.exists(cover_dir):
+                return
+
+            expected = {f"{s.id}_{s.filename_base}.jpg" for s in Story.query.all()}
+            removed = 0
+            for filename in os.listdir(cover_dir):
+                if filename.endswith('.jpg') and filename not in expected:
+                    try:
+                        os.remove(os.path.join(cover_dir, filename))
+                        removed += 1
+                        log_action(f"[AUTOMATION] Removed orphaned cover: {filename}")
+                    except Exception as e:
+                        log_error(f"[AUTOMATION] Failed to remove orphaned cover {filename}: {e}")
+
+            if removed:
+                log_action(f"[AUTOMATION] Cleaned up {removed} orphaned cover image(s).")
+
+        except Exception as e:
+            log_error(f"[AUTOMATION] Error cleaning orphaned covers: {e}")
 
     def _backfill_missing_descriptions(self):
         """One-time startup backfill: fetch descriptions for auto-update stories that are missing one."""

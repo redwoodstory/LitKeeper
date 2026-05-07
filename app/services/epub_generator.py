@@ -62,11 +62,16 @@ def format_story_content(content: str) -> str:
     parts = [f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()]
     return '\n'.join(parts)
 
-def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None, description: Optional[str] = None) -> str:
+def format_metadata_content(category: Optional[str] = None, tags: Optional[list[str]] = None, description: Optional[str] = None, all_authors: Optional[list[str]] = None) -> str:
     """Return body HTML for the Story Information page with all text properly XML-escaped."""
     body = '<h1>Story Information</h1>\n'
     if description:
         body += f'<p class="description">{escape(description)}</p>\n'
+    if all_authors:
+        if len(set(all_authors)) > 1:
+            body += f'<p><strong>AUTHORS (Multiple Authors Collection):</strong> {escape(", ".join(all_authors))}</p>\n'
+        else:
+            body += f'<p><strong>AUTHOR:</strong> {escape(all_authors[0])}</p>\n'
     if category:
         body += f'<p><strong>CATEGORY:</strong> {escape(category)}</p>\n'
     if tags:
@@ -83,6 +88,7 @@ def create_epub_file(
     story_tags: Optional[list[str]] = None,
     story_description: Optional[str] = None,
     filename_base: Optional[str] = None,
+    all_authors: Optional[list[str]] = None,
 ) -> str:
     """Create an EPUB file from the story content."""
     try:
@@ -105,6 +111,9 @@ def create_epub_file(
         book.set_title(story_title)
         book.set_language('en')
         book.add_author(story_author)
+        if all_authors:
+            for author in all_authors:
+                book.add_metadata('DC', 'contributor', author)
         if story_description:
             book.add_metadata('DC', 'description', story_description)
 
@@ -128,9 +137,9 @@ def create_epub_file(
         chapters = []
         toc = []
 
-        if story_category or story_tags or story_description:
+        if story_category or story_tags or story_description or all_authors:
             try:
-                metadata_body = format_metadata_content(story_category, story_tags, story_description)
+                metadata_body = format_metadata_content(story_category, story_tags, story_description, all_authors)
                 metadata_chapter = epub.EpubHtml(title='Story Information',
                                                file_name='metadata.xhtml',
                                                content=_xhtml('Story Information', metadata_body))

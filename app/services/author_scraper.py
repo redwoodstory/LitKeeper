@@ -9,6 +9,7 @@ from .story_downloader import get_session
 from .logger import log_action, log_error
 
 _STORY_SLUG_RE = re.compile(r"""url:["']([a-z0-9][a-z0-9-]{4,80})["']""")
+_PT_SUFFIX_RE = re.compile(r'-pt-\d+$')
 
 
 def normalize_author_url(url: str) -> Optional[str]:
@@ -165,6 +166,22 @@ class AuthorScraper:
                     # is too large (whole-page level) — either way, stop climbing.
                     break
                 container = container.parent
+
+        # Prune spurious base-slug entries from Phase 0.  Literotica's hydration
+        # data sometimes includes a series' canonical slug (e.g. "hearts-like-ours")
+        # alongside the real chapter slugs ("hearts-like-ours-pt-01").  The base
+        # slug has no matching /s/ page and always 404s.  We detect these by
+        # stripping the trailing "-pt-\d+" suffix from each known chapter URL and
+        # removing any Phase 0 entry whose URL matches.
+        series_base_urls: set[str] = set()
+        for chapter_url in series_chapter_urls:
+            slug = chapter_url.rstrip('/').rsplit('/', 1)[-1]
+            base_slug = _PT_SUFFIX_RE.sub('', slug)
+            if base_slug != slug:
+                series_base_urls.add(f'https://www.literotica.com/s/{base_slug}')
+        if series_base_urls:
+            results = [r for r in results if r['url'] not in series_base_urls]
+            seen_story -= series_base_urls
 
         # Phase 2: collect series entries + standalone stories.
         for link in soup.find_all('a', href=True):

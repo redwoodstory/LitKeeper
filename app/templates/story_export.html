@@ -84,6 +84,14 @@
       margin-bottom: 0.75rem;
     }
 
+    .multiple-authors-note {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--secondary-text);
+      margin-top: 0.25rem;
+      font-style: normal;
+    }
+
     .author-link {
       color: var(--link-color);
       text-decoration: none;
@@ -198,6 +206,9 @@
       <h1 class="story-title">{{ story.title }}</h1>
       <p class="story-author">
         by {% if story.author_url %}<a href="{{ story.author_url }}" class="author-link">{{ story.author }}</a>{% else %}{{ story.author }}{% endif %}
+        {% if story.all_authors and story.all_authors|length > 1 %}
+        <span class="multiple-authors-note">(Multiple Authors: {{ story.all_authors|join(', ') }})</span>
+        {% endif %}
       </p>
       {% if story.category or story.tags %}
       <div class="story-metadata">

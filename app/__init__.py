@@ -53,7 +53,7 @@ def create_app() -> Flask:
     if not _cli_mode:
         print(f"=" * 80)
         print(f"LitKeeper Version: {APP_VERSION}")
-        print(f"Build: Production-ready multi-user deployment")
+        print(f"Build: Production-ready deployment")
         print(f"[CONFIG] Data Directory: {get_data_directory()}")
         print(f"[CONFIG] Stories Directory: {get_stories_directory()}")
         print(f"=" * 80)

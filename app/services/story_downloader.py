@@ -1,5 +1,4 @@
 from __future__ import annotations
-import requests
 from bs4 import BeautifulSoup
 import time
 import random
@@ -7,6 +6,7 @@ import re
 import traceback
 from typing import Optional
 from .logger import log_url, log_error
+from .http_client import get_session
 
 # ASCII 30 "Record Separator" — structurally impossible in scraped HTML text.
 # Format: \x1eCHAPTER:{n}\x1e{bare_title}\n\n{content}
@@ -21,49 +21,6 @@ def split_story_chapters(content: str) -> list[str]:
         return re.split(r'\x1eCHAPTER:\d+\x1e', content)
     return re.split(r'\n\nChapter \d+: ', content)
 
-def get_random_user_agent() -> str:
-    """Return a random User-Agent string from a broad pool of real browser UAs."""
-    USER_AGENTS = [
-        # Chrome on Windows (various versions)
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        # Chrome on macOS (various versions)
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-        # Chrome on Linux
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
-        # Firefox on Windows
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:115.0) Gecko/20100101 Firefox/115.0",
-        # Firefox on macOS
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.2; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13.6; rv:120.0) Gecko/20100101 Firefox/120.0",
-        # Safari on macOS
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-        # Edge on Windows
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
-        # Edge on macOS
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
-    ]
-    return random.choice(USER_AGENTS)
-
-def get_session() -> requests.Session:
-    """Create and return a session with default headers."""
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": get_random_user_agent(),
-        "Accept-Language": "en-US,en;q=0.9",
-        "Connection": "keep-alive",
-    })
-    return session
 
 def detect_url_type(url: str) -> tuple[str, Optional[str]]:
     """
@@ -167,7 +124,7 @@ def _download_single_chapter(
         try:
             response = session.get(current_url, timeout=10)
             response.raise_for_status()
-            response.encoding = response.apparent_encoding or 'utf-8'
+            response.encoding = response.charset_encoding or 'utf-8'
             soup = BeautifulSoup(response.text, "html.parser")
 
             if current_page == 1 and is_first_chapter:
@@ -232,7 +189,7 @@ def _download_single_chapter(
                     next_url = "https://www.literotica.com" + next_url
                 current_url = next_url
                 current_page += 1
-                time.sleep(5)
+                time.sleep(random.uniform(3.0, 8.0))
             else:
                 current_url = None
 
@@ -306,7 +263,7 @@ def _download_from_series_page(
                 story_tags = chapter_metadata['tags']
                 story_description = chapter_metadata.get('description') or series_description
 
-            time.sleep(5)
+            time.sleep(random.uniform(3.0, 8.0))
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
@@ -399,7 +356,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                 try:
                     response = session.get(current_url, timeout=10)
                     response.raise_for_status()
-                    response.encoding = response.apparent_encoding or 'utf-8'
+                    response.encoding = response.charset_encoding or 'utf-8'
 
                     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -472,7 +429,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                             next_url = "https://www.literotica.com" + next_url
                         current_url = next_url
                         current_page += 1
-                        time.sleep(5)
+                        time.sleep(random.uniform(3.0, 8.0))
                     else:
                         chapter_contents.append(current_chapter_content)
 
@@ -514,7 +471,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                         current_page = 1
                         break
 
-                except requests.RequestException as e:
+                except Exception as e:
                     error_msg = f"Network error while downloading chapter {current_chapter}: {str(e)}"
                     log_error(error_msg, current_url)
                     return None, None, None, None, None, None, None, None, None
@@ -551,7 +508,7 @@ def fetch_story_metadata(url: str) -> dict:
 
         response = session.get(url, timeout=10)
         response.raise_for_status()
-        response.encoding = response.apparent_encoding or 'utf-8'
+        response.encoding = response.charset_encoding or 'utf-8'
         soup = BeautifulSoup(response.text, 'html.parser')
 
         title_tag = soup.find('h1', class_=lambda c: c and c.startswith('_title_'))
@@ -623,19 +580,25 @@ def download_and_combine_stories(urls: list[str]) -> tuple:
     series_url, description).  Each downloaded story becomes a chapter group
     separated by CHAPTER_SENTINEL markers.
 
-    Returns the same 9-tuple as download_story:
+    Returns an 11-tuple:
         (content, title, author, category, tags, author_url, total_pages,
-         series_url, description)
+         series_url, description, all_authors, all_tags)
     Returns a tuple of Nones on complete failure.
     """
     if not urls:
-        return None, None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None, None
 
     from .logger import log_action
     combined_content = ""
     first_meta: tuple | None = None
     total_pages = 0
     chapter_offset = 0
+    all_authors: list[str] = []
+    all_tags: list[str] = []
+    seen_authors: set[str] = set()
+    seen_tags: set[str] = set()
+
+    downloaded_stories = []
 
     for idx, url in enumerate(urls):
         log_action(f"[CombineDownload] Downloading {idx + 1}/{len(urls)}: {url}")
@@ -649,19 +612,41 @@ def download_and_combine_stories(urls: list[str]) -> tuple:
         if first_meta is None:
             first_meta = result
 
+        if author and author not in seen_authors:
+            seen_authors.add(author)
+            all_authors.append(author)
+
+        if tags:
+            for tag in tags:
+                if tag and tag not in seen_tags:
+                    seen_tags.add(tag)
+                    all_tags.append(tag)
+
         if pages:
             total_pages += pages
 
+        downloaded_stories.append((author, content))
+
+    if first_meta is None or not downloaded_stories:
+        return None, None, None, None, None, None, None, None, None, None, None
+
+    has_multiple_authors = len(set(all_authors)) > 1
+
+    for author, content in downloaded_stories:
         chapter_texts = [ch for ch in split_story_chapters(content) if ch.strip()]
         for ch_idx, ch_text in enumerate(chapter_texts):
+            if has_multiple_authors:
+                title_end = ch_text.find("\n\n")
+                if title_end != -1:
+                    ch_title = ch_text[:title_end]
+                    ch_body = ch_text[title_end:]
+                    ch_text = f"{ch_title} (by {author}){ch_body}"
+                    
             combined_content += f"{CHAPTER_SENTINEL}CHAPTER:{chapter_offset + ch_idx + 1}{CHAPTER_SENTINEL}{ch_text}"
         chapter_offset += len(chapter_texts)
 
-    if first_meta is None or not combined_content:
-        return None, None, None, None, None, None, None, None, None
-
     _, title, author, category, tags, author_url, _, series_url, description = first_meta
-    return combined_content, title, author, category, tags, author_url, total_pages, series_url, description
+    return combined_content, title, author, category, tags, author_url, total_pages, series_url, description, all_authors, all_tags
 
 
 def extract_chapter_titles(story_content: str) -> list[str]:

@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime, timedelta
 from typing import Optional
 from flask import Flask
-from app.services.metadata_refresh.rate_limiter import RateLimiter
+from app.services.http_client import global_rate_limiter
 
 DEFAULT_MAX_DAILY_DOWNLOADS = 25
 
@@ -21,7 +21,6 @@ class DownloadQueueWorker:
         self._stop_event = threading.Event()
         # Conservative rate limit: max 5 downloads per 60 seconds to avoid
         # triggering Literotica's bot-detection between queued story downloads.
-        self._rate_limiter = RateLimiter(max_requests=5, time_window=60)
         self._last_rate_limit_reset_date: Optional[str] = None
 
     def start(self):
@@ -162,7 +161,7 @@ class DownloadQueueWorker:
 
         log_action(f"Processing download queue item {item_id}: {item.url} (job_type={item.job_type})")
 
-        self._rate_limiter.wait_if_needed()
+        global_rate_limiter.wait_if_needed()
 
         item.status = 'processing'
         item.started_at = datetime.utcnow()
@@ -303,7 +302,7 @@ class DownloadQueueWorker:
         db.session.commit()
 
         story_data = download_and_combine_stories(all_urls)
-        story_content, title, author, category, tags, author_url, page_count, series_url, story_description = story_data
+        story_content, title, author, category, tags, author_url, page_count, series_url, story_description, all_authors, all_tags = story_data
 
         if not story_content or not title:
             raise Exception("Failed to combine stories")
@@ -331,7 +330,9 @@ class DownloadQueueWorker:
             page_count=page_count,
             formats=item.get_formats(),
             series_url=series_url,
-            story_description=story_description
+            story_description=story_description,
+            all_authors=all_authors,
+            all_tags=all_tags
         )
 
         if not result.get('success'):
