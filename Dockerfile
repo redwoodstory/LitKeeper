@@ -49,13 +49,16 @@ COPY app app/
 COPY migrations migrations/
 COPY run.py gunicorn.docker.conf.py startup.sh reset_pin.py reset_webauthn.py update_epub_descriptions.py ./
 
-# Create required directories
+# Create required directories and set ownership
 RUN mkdir -p app/data app/stories/epubs app/stories/html app/stories/covers && \
-    chmod +x startup.sh
+    chmod +x startup.sh && \
+    chown -R litkeeper:root /litkeeper && \
+    chmod -R g+rwX /litkeeper
 
 # Set environment variables
 ENV PYTHONPATH=/litkeeper
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # Switch to non-root user
 # USER litkeeper

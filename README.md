@@ -76,7 +76,18 @@ services:
       - EXTERNAL_EPUB_PATH=
 ```
 
-2. Run the following command:
+2. Create the data directories:
+```bash
+mkdir -p ./data ./stories
+```
+
+> **Running as a non-root user?** If you're using the `user:` directive in your compose file, also run:
+> ```bash
+> chown -R YOUR_UID:YOUR_GID ./data ./stories
+> ```
+> Replace `YOUR_UID:YOUR_GID` with your user and group IDs (find them with `id`). Docker creates these directories as root if they don't exist, which prevents a non-root container process from writing to them.
+
+3. Run the following command:
 `docker compose up -d`
 
 3. Navigate to: `http://<server-ip>:5000`
@@ -120,6 +131,24 @@ Volume mounts are required for data persistence between container restarts:
 
 Without these bind mounts, your stories and database will be lost when the container is updated or recreated.
 
+### Running as a Non-Root User
+
+By default, the container runs as root. If you want to run it as a specific user (e.g. to match your host OS user), add a `user` directive to your compose file:
+
+```yaml
+services:
+  litkeeper:
+    user: "1000:1000"  # replace with your UID:GID
+```
+
+You can find your UID and GID by running `id` in your terminal.
+
+**Important:** The `user` directive only controls what the container process runs as — it has no effect on the host directories you bind-mount. If the container process can't read or write those directories, you'll get permission errors. Make sure the bind-mount directories on the host are owned by (or readable/writable to) the UID you specify:
+
+```bash
+# Replace 1000:1000 with your UID:GID
+chown -R 1000:1000 ./data ./stories
+```
 
 ## Security
 

@@ -139,7 +139,10 @@ def create_app() -> Flask:
             cursor.close()
 
     with app.app_context():
+        db.create_all()
+
         from app.models import AppConfig
+        from sqlalchemy.exc import OperationalError
 
         config_defaults = [
             ('db_mode_enabled', 'false', 'bool', 'Whether database mode is active'),
@@ -153,15 +156,18 @@ def create_app() -> Flask:
             ('opds_password_hash', '', 'string', 'OPDS Basic Auth password (bcrypt hash)'),
         ]
 
-        for key, value, value_type, description in config_defaults:
-            existing = AppConfig.query.filter_by(key=key).first()
-            if not existing:
-                config = AppConfig(key=key, value=value, value_type=value_type, description=description)
-                db.session.add(config)
-
         try:
+            for key, value, value_type, description in config_defaults:
+                existing = AppConfig.query.filter_by(key=key).first()
+                if not existing:
+                    config = AppConfig(key=key, value=value, value_type=value_type, description=description)
+                    db.session.add(config)
             db.session.commit()
-        except:
+        except OperationalError:
+            # Tables don't exist yet (e.g. during `flask db upgrade` on a fresh install).
+            # Seeding will succeed on the next normal startup after migrations run.
+            db.session.rollback()
+        except Exception:
             db.session.rollback()
 
     # Register template filters
@@ -348,9 +354,10 @@ def create_app() -> Flask:
         except Exception:
             return {'credentials_registered': False, 'in_pin_transition': False, 'auto_lock_timeout': 0}
 
-    from app.scheduler import init_scheduler, shutdown_scheduler
-    init_scheduler(app)
-    atexit.register(shutdown_scheduler)
+    if not _cli_mode:
+        from app.scheduler import init_scheduler, shutdown_scheduler
+        init_scheduler(app)
+        atexit.register(shutdown_scheduler)
 
     if not _cli_mode:
         def _repair_epub_metadata_background():
