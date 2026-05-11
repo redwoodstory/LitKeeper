@@ -708,7 +708,8 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
                 
                 cover_path = os.path.join(cover_directory, cover_filename)
                 
-                generate_cover_image(story.title, author_name or 'Unknown Author', cover_path)
+                category_name = story.category.name if story.category else None
+                generate_cover_image(story.title, author_name or 'Unknown Author', cover_path, category=category_name)
                 cover_regenerated = True
                 log_action(f"Auto-regenerated cover for story: {story.title}")
                 
@@ -1085,8 +1086,8 @@ def regenerate_cover(story_id: int) -> ResponseReturnValue:
         cover_path = os.path.join(cover_directory, cover_filename)
         
         author_name = story.author.name if story.author else 'Unknown Author'
-        
-        generate_cover_image(story.title, author_name, cover_path)
+        category_name = story.category.name if story.category else None
+        generate_cover_image(story.title, author_name, cover_path, category=category_name)
         log_action(f"Regenerated cover for story: {story.title}")
         
         epub_updated = False

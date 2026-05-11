@@ -313,6 +313,21 @@
         Regenerate all cover images using the latest templates and update all EPUBs.
       </p>
 
+      <div class="mb-4">
+        <label id="coversCategoryToggle" class="flex items-center gap-3 cursor-pointer">
+          <div class="relative">
+            <input type="checkbox" class="sr-only peer" {{ 'checked' if covers_show_category else '' }}
+              hx-post="/settings/toggle-covers-show-category" hx-target="#coversCategoryToggle" hx-swap="outerHTML">
+            <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-checked:bg-primary rounded-full transition-colors duration-200 peer-focus:ring-2 peer-focus:ring-primary/30"></div>
+            <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+          </div>
+          <div>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Show category on covers</span>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Displays an abbreviated category label on generated cover images.</p>
+          </div>
+        </label>
+      </div>
+
       <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
         hx-indicator="#btnCoversNew" id="btnCoversNew"
         class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">

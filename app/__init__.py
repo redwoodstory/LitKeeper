@@ -490,7 +490,8 @@ def create_app() -> Flask:
                                 except Exception:
                                     pass
 
-                            generate_cover_image(story.title, author_name, cover_path)
+                            category_name = story.category.name if story.category else None
+                            generate_cover_image(story.title, author_name, cover_path, category=category_name)
                             generated += 1
 
                         if generated > 0:

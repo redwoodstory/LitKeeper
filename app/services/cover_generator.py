@@ -12,7 +12,19 @@ from .logger import log_error
 
 warnings.filterwarnings('ignore', category=FutureWarning, module='ebooklib')
 
-def generate_cover_image(title: str, author: str, cover_path: str) -> None:
+_CATEGORY_OVERRIDES: dict[str, str] = {
+    "I/T": "Taboo",
+}
+
+def abbreviate_category(name: str) -> str:
+    if name in _CATEGORY_OVERRIDES:
+        return _CATEGORY_OVERRIDES[name]
+    if '&' in name:
+        return name.split('&')[0].strip()
+    return name
+
+
+def generate_cover_image(title: str, author: str, cover_path: str, category: Optional[str] = None) -> None:
     """
     Generate a cover image with a gradient background, a simulated spine effect,
     and styled text that mimics the provided design.
@@ -21,6 +33,7 @@ def generate_cover_image(title: str, author: str, cover_path: str) -> None:
         title: The title of the story.
         author: The author's name.
         cover_path: The file path to save the generated cover.
+        category: Optional category name; rendered as a badge when covers_show_category is enabled.
     """
     try:
         width, height = 1200, 1600
@@ -114,10 +127,46 @@ def generate_cover_image(title: str, author: str, cover_path: str) -> None:
             draw.text((x, current_y), line, fill=(255, 255, 255), font=title_font)
             current_y += line_height + 40
 
+        title_bottom_y = current_y
+
+        author_y = height - 300
         author_bbox = draw.textbbox((0, 0), author, font=author_font)
         author_width = author_bbox[2] - author_bbox[0]
-        author_position = ((width - author_width) // 2, height - 300)
-        draw.text(author_position, author, fill=(255, 255, 255), font=author_font)
+        draw.text(((width - author_width) // 2, author_y), author, fill=(255, 255, 255), font=author_font)
+
+        if category:
+            try:
+                from app.models.config import AppConfig
+                cfg = AppConfig.query.filter_by(key='covers_show_category').first()
+                show_category = cfg.get_value() if cfg else False
+            except Exception:
+                show_category = False
+
+            if show_category:
+                abbrev = abbreviate_category(category)
+                try:
+                    cat_font = ImageFont.truetype(title_font_path, 90)
+                except Exception:
+                    cat_font = ImageFont.load_default()
+
+                cat_bbox = draw.textbbox((0, 0), abbrev, font=cat_font)
+                cat_w = cat_bbox[2] - cat_bbox[0]
+                cat_h = cat_bbox[3] - cat_bbox[1]
+
+                # Center vertically in the gap between title bottom and author
+                gap_center_y = (title_bottom_y + author_y) // 2
+                cat_y = gap_center_y - cat_h // 2 - cat_bbox[1]
+                cat_x = (width - cat_w) // 2 - cat_bbox[0]
+
+                # Thin decorative lines flanking the text
+                line_y = gap_center_y
+                line_color = (*accent, 160)
+                margin = spine_width + 80
+                text_margin = 30
+                draw.line([(margin, line_y), (cat_x - text_margin, line_y)], fill=line_color, width=2)
+                draw.line([(cat_x + cat_w + text_margin, line_y), (width - margin, line_y)], fill=line_color, width=2)
+
+                draw.text((cat_x, cat_y), abbrev, fill=(255, 255, 255), font=cat_font)
 
         image = image.resize((600, 800), Image.Resampling.LANCZOS)
         image.save(cover_path, "JPEG", quality=95, optimize=True)

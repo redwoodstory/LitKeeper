@@ -54,7 +54,7 @@ def create_html_file(
         cover_path = os.path.join(cover_directory, cover_filename)
 
         if not os.path.exists(cover_path):
-            generate_cover_image(story_title, story_author, cover_path)
+            generate_cover_image(story_title, story_author, cover_path, category=story_category)
 
         from .story_downloader import split_story_chapters
         chapter_texts = split_story_chapters(story_content)

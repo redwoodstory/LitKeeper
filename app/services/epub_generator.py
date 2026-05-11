@@ -103,7 +103,7 @@ def create_epub_file(
             cover_image_path = os.path.join(cover_directory, cover_filename)
 
             if not os.path.exists(cover_image_path):
-                generate_cover_image(story_title, story_author, cover_image_path)
+                generate_cover_image(story_title, story_author, cover_image_path, category=story_category)
 
         book = epub.EpubBook()
 

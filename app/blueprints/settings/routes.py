@@ -29,6 +29,8 @@ def index() -> ResponseReturnValue:
     opds_auth_enabled = opds_cfgs['opds_auth_enabled'].get_value() if 'opds_auth_enabled' in opds_cfgs else False
     opds_username = opds_cfgs['opds_username'].value if 'opds_username' in opds_cfgs else ''
     opds_url = url_for('opds.root', _external=True)
+    covers_category_config = AppConfig.query.filter_by(key='covers_show_category').first()
+    covers_show_category = covers_category_config.get_value() if covers_category_config else False
 
     return render_template(
         'settings.html',
@@ -42,6 +44,7 @@ def index() -> ResponseReturnValue:
         opds_auth_enabled=opds_auth_enabled,
         opds_username=opds_username,
         opds_url=opds_url,
+        covers_show_category=covers_show_category,
     )
 
 
@@ -174,6 +177,36 @@ def regenerate_covers() -> ResponseReturnValue:
     except Exception as e:
         log_error(f"Error in regenerate_covers: {str(e)}\n{traceback.format_exc()}")
         return '<p class="text-sm text-red-600 mt-2">An error occurred. Check the logs.</p>', 500
+
+
+@settings.route('/toggle-covers-show-category', methods=['POST'])
+def toggle_covers_show_category() -> ResponseReturnValue:
+    try:
+        config = AppConfig.query.filter_by(key='covers_show_category').first()
+        if config:
+            config.set_value(not config.get_value())
+        else:
+            config = AppConfig(key='covers_show_category', value_type='bool', description='Show abbreviated category label on generated cover images')
+            config.set_value(True)
+            db.session.add(config)
+        db.session.commit()
+        enabled = config.get_value()
+        checked = 'checked' if enabled else ''
+        return f'''<label id="coversCategoryToggle" class="flex items-center gap-3 cursor-pointer">
+  <div class="relative">
+    <input type="checkbox" class="sr-only peer" {checked}
+      hx-post="/settings/toggle-covers-show-category" hx-target="#coversCategoryToggle" hx-swap="outerHTML">
+    <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-checked:bg-primary rounded-full transition-colors duration-200 peer-focus:ring-2 peer-focus:ring-primary/30"></div>
+    <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+  </div>
+  <div>
+    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Show category on covers</span>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Displays an abbreviated category label on generated cover images.</p>
+  </div>
+</label>'''
+    except Exception as e:
+        log_error(f"Error toggling covers_show_category: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Error updating setting"}), 500
 
 
 @settings.route('/repair-epub-metadata', methods=['POST'])

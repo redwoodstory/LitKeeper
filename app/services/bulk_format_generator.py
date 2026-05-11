@@ -228,7 +228,8 @@ class BulkFormatGeneratorService:
                 cover_filename = f"{story.id}_{story.filename_base}.jpg"
                 cover_path = os.path.join(cover_dir, cover_filename)
 
-                generate_cover_image(story.title, author_name, cover_path)
+                category_name = story.category.name if story.category else None
+                generate_cover_image(story.title, author_name, cover_path, category=category_name)
 
                 epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
                 if epub_fmt and os.path.exists(epub_fmt.file_path):
