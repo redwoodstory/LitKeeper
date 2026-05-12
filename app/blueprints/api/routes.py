@@ -700,20 +700,23 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         cover_regenerated = False
         epub_updated = False
         cover_filename = f"{story.id}_{story.filename_base}.jpg"
-        
+        current_category = story.category.name if story.category else None
+        current_tags = [t.name for t in story.tags]
+
+        epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+        json_fmt = next((f for f in story.formats if f.format_type == 'json'), None)
+
         if old_title != title or old_author != author_name:
             try:
                 cover_directory = get_cover_directory()
                 os.makedirs(cover_directory, exist_ok=True)
-                
+
                 cover_path = os.path.join(cover_directory, cover_filename)
-                
-                category_name = story.category.name if story.category else None
-                generate_cover_image(story.title, author_name or 'Unknown Author', cover_path, category=category_name)
+
+                generate_cover_image(story.title, author_name or 'Unknown Author', cover_path, category=current_category)
                 cover_regenerated = True
                 log_action(f"Auto-regenerated cover for story: {story.title}")
-                
-                epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+
                 if epub_fmt and os.path.exists(epub_fmt.file_path):
                     if EpubService.update_epub_cover(epub_fmt.file_path, cover_path):
                         epub_updated = True
@@ -721,10 +724,48 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
 
                 story.cover_filename = cover_filename
                 db.session.commit()
-                    
+
             except Exception as cover_error:
                 log_error(f"Error regenerating cover during metadata update: {str(cover_error)}")
-        
+
+        if json_fmt and os.path.exists(json_fmt.file_path):
+            try:
+                import json as _json
+                with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
+                    story_data = _json.load(f)
+
+                story_data['title'] = title
+                story_data['author'] = author_name
+                story_data['category'] = current_category
+                story_data['tags'] = current_tags
+                story_data['description'] = description if description else None
+
+                tmp_path = json_fmt.file_path + '.tmp'
+                with open(tmp_path, 'w', encoding='utf-8') as f:
+                    _json.dump(story_data, f, ensure_ascii=False, indent=2)
+                os.replace(tmp_path, json_fmt.file_path)
+
+                json_fmt.json_data = _json.dumps(story_data, ensure_ascii=False)
+                db.session.commit()
+                log_action(f"Updated JSON file for story: {story.title}")
+            except Exception as json_error:
+                log_error(f"Error updating JSON file during metadata update: {str(json_error)}")
+
+        if epub_fmt and os.path.exists(epub_fmt.file_path):
+            try:
+                if EpubService.update_epub_metadata(
+                    epub_fmt.file_path,
+                    title=title,
+                    author=author_name or 'Unknown Author',
+                    category=current_category,
+                    tags=current_tags,
+                    description=description if description else None,
+                ):
+                    epub_updated = True
+                    log_action(f"Updated EPUB metadata for story: {story.title}")
+            except Exception as epub_error:
+                log_error(f"Error updating EPUB metadata: {str(epub_error)}")
+
         return jsonify({
             "success": True,
             "message": "Metadata updated successfully",

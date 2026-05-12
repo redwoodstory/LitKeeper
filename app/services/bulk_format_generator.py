@@ -343,6 +343,126 @@ class BulkFormatGeneratorService:
             "message": summary,
         }
 
+    def sync_metadata_to_files(self) -> dict:
+        """Find stories whose JSON/EPUB content is stale vs the DB, and repair them in-place."""
+        self._write_log("Starting metadata sync check (DB → JSON/EPUB)")
+
+        stories = Story.query.options(joinedload(Story.formats)).all()
+        total = len(stories)
+        synced = 0
+        already_ok = 0
+        errors: list[dict] = []
+
+        for story in stories:
+            try:
+                db_title = story.title or ''
+                db_author = story.author.name if story.author else ''
+                db_category = story.category.name if story.category else None
+                db_tags = sorted(t.name for t in story.tags)
+                db_description = story.description or None
+
+                json_fmt = next((f for f in story.formats if f.format_type == 'json'), None)
+                epub_fmt = next((f for f in story.formats if f.format_type == 'epub'), None)
+
+                needs_sync = False
+
+                if json_fmt and os.path.exists(json_fmt.file_path):
+                    try:
+                        with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        file_title = data.get('title', '')
+                        file_author = data.get('author', '')
+                        file_tags = sorted(data.get('tags') or [])
+                        if file_title != db_title or file_author != db_author or file_tags != db_tags:
+                            needs_sync = True
+                    except Exception:
+                        needs_sync = True
+
+                if epub_fmt and os.path.exists(epub_fmt.file_path):
+                    try:
+                        import zipfile as _zf
+                        import xml.etree.ElementTree as _ET
+                        import re as _re
+                        DC = 'http://purl.org/dc/elements/1.1/'
+                        OPF = 'http://www.idpf.org/2007/opf'
+                        with _zf.ZipFile(epub_fmt.file_path, 'r') as zf:
+                            names = zf.namelist()
+                            opf_name = next(
+                                (n for n in names if n.lower().endswith('content.opf') or n.lower().endswith('package.opf')),
+                                None
+                            )
+                            if opf_name:
+                                root = _ET.fromstring(zf.read(opf_name).decode('utf-8'))
+                                ns = {'dc': DC, 'opf': OPF}
+                                epub_title = next((el.text or '' for el in root.findall('.//dc:title', ns)), '')
+                                epub_author = next((el.text or '' for el in root.findall('.//dc:creator', ns)), '')
+                                if epub_title != db_title or epub_author != db_author:
+                                    needs_sync = True
+
+                            if not needs_sync:
+                                nav_name = next((n for n in names if n.lower().endswith('nav.xhtml')), None)
+                                if nav_name:
+                                    nav_text = zf.read(nav_name).decode('utf-8')
+                                    h2_match = _re.search(r'<h2[^>]*>([^<]*)</h2>', nav_text)
+                                    if h2_match and h2_match.group(1) != db_title:
+                                        needs_sync = True
+                    except Exception:
+                        needs_sync = True
+
+                if not needs_sync:
+                    already_ok += 1
+                    continue
+
+                self._write_log(f"Syncing: [{story.id}] {db_title}")
+
+                if json_fmt and os.path.exists(json_fmt.file_path):
+                    try:
+                        with open(json_fmt.file_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        data['title'] = db_title
+                        data['author'] = db_author
+                        data['category'] = db_category
+                        data['tags'] = db_tags
+                        data['description'] = db_description
+                        tmp = json_fmt.file_path + '.tmp'
+                        with open(tmp, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        os.replace(tmp, json_fmt.file_path)
+                        json_fmt.json_data = json.dumps(data, ensure_ascii=False)
+                    except Exception as e:
+                        self._write_log(f"  JSON patch failed for story {story.id}: {e}", "error")
+
+                if epub_fmt and os.path.exists(epub_fmt.file_path):
+                    EpubService.update_epub_metadata(
+                        epub_fmt.file_path,
+                        title=db_title,
+                        author=db_author or 'Unknown Author',
+                        category=db_category,
+                        tags=db_tags,
+                        description=db_description,
+                    )
+
+                story.updated_at = datetime.utcnow()
+                db.session.commit()
+                synced += 1
+
+            except Exception as e:
+                db.session.rollback()
+                msg = f"✗ Error syncing story {story.id}: {e}"
+                self._write_log(msg, "error")
+                errors.append({"story_id": story.id, "error": str(e)})
+
+        summary = f"Metadata sync complete: {synced} synced, {already_ok} already up-to-date, {len(errors)} errors out of {total} stories"
+        self._write_log(summary)
+        return {
+            "success": True,
+            "total": total,
+            "synced": synced,
+            "already_ok": already_ok,
+            "errors": errors,
+            "message": summary,
+        }
+
     def get_generation_log(self) -> dict:
         if not os.path.exists(self.log_file):
             return {

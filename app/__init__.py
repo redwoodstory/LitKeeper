@@ -395,6 +395,10 @@ def create_app() -> Flask:
                         result = BulkFormatGeneratorService().repair_all_epub_metadata()
                         if result['repaired'] > 0:
                             print(f"[startup] EPUB metadata repair: {result['repaired']} fixed, {result['skipped']} already clean")
+
+                        sync_result = BulkFormatGeneratorService().sync_metadata_to_files()
+                        if sync_result['synced'] > 0:
+                            print(f"[startup] Metadata sync: {sync_result['synced']} stories updated, {sync_result['already_ok']} already in sync")
                     except Exception as e:
                         print(f"[startup] EPUB metadata repair error: {e}")
             threading.Thread(target=_run, daemon=True).start()

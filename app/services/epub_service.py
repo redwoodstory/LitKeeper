@@ -87,6 +87,114 @@ class EpubService:
         return progress
     
     @staticmethod
+    def update_epub_metadata(
+        epub_path: str,
+        title: str,
+        author: str,
+        category: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        description: Optional[str] = None,
+        all_authors: Optional[list[str]] = None,
+    ) -> bool:
+        """Patch title, author, category, tags, and description inside an existing EPUB in-place."""
+        try:
+            if not os.path.exists(epub_path):
+                log_error(f"EPUB file not found: {epub_path}")
+                return False
+
+            import tempfile
+            import shutil
+            from .epub_generator import format_metadata_content
+
+            DC = 'http://purl.org/dc/elements/1.1/'
+            OPF = 'http://www.idpf.org/2007/opf'
+
+            new_metadata_content = format_metadata_content(category, tags, description, all_authors)
+            new_metadata_xhtml = EpubService._XHTML_WRAPPER.format(
+                title='Story Information',
+                body=new_metadata_content,
+            ).encode('utf-8')
+
+            temp_dir = tempfile.mkdtemp()
+            temp_epub = os.path.join(temp_dir, 'temp.epub')
+
+            try:
+                with zipfile.ZipFile(epub_path, 'r') as zip_in:
+                    with zipfile.ZipFile(temp_epub, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                        for item in zip_in.infolist():
+                            data = zip_in.read(item.filename)
+                            name = item.filename.lower()
+
+                            if name.endswith('content.opf') or name.endswith('package.opf'):
+                                try:
+                                    from html import escape as _he
+                                    text = data.decode('utf-8')
+                                    et = _he(title)
+                                    ea = _he(author)
+                                    text = re.sub(
+                                        r'(<dc:title[^>]*>)[^<]*(</dc:title>)',
+                                        lambda m: f'{m.group(1)}{et}{m.group(2)}',
+                                        text, count=1,
+                                    )
+                                    text = re.sub(
+                                        r'(<dc:creator[^>]*>)[^<]*(</dc:creator>)',
+                                        lambda m: f'{m.group(1)}{ea}{m.group(2)}',
+                                        text, count=1,
+                                    )
+                                    data = text.encode('utf-8')
+                                except Exception as opf_err:
+                                    log_error(f"OPF patch failed: {opf_err}")
+
+                            elif name.endswith('nav.xhtml'):
+                                try:
+                                    from html import escape as _he
+                                    et = _he(title)
+                                    text = data.decode('utf-8')
+                                    text = re.sub(
+                                        r'(<title>)[^<]*(</title>)',
+                                        lambda m: f'{m.group(1)}{et}{m.group(2)}',
+                                        text, count=1,
+                                    )
+                                    text = re.sub(
+                                        r'(<h2[^>]*>)[^<]*(</h2>)',
+                                        lambda m: f'{m.group(1)}{et}{m.group(2)}',
+                                        text, count=1,
+                                    )
+                                    data = text.encode('utf-8')
+                                except Exception as nav_err:
+                                    log_error(f"nav.xhtml patch failed: {nav_err}")
+
+                            elif name.endswith('toc.ncx'):
+                                try:
+                                    NCX_NS = 'http://www.daisy.org/z3986/2005/ncx/'
+                                    ET.register_namespace('', NCX_NS)
+                                    root = ET.fromstring(data.decode('utf-8'))
+                                    doc_title = root.find(f'{{{NCX_NS}}}docTitle')
+                                    if doc_title is not None:
+                                        text_el = doc_title.find(f'{{{NCX_NS}}}text')
+                                        if text_el is not None:
+                                            text_el.text = title
+                                    data = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+                                except Exception as ncx_err:
+                                    log_error(f"toc.ncx patch failed: {ncx_err}")
+
+                            elif 'metadata.xhtml' in name:
+                                data = new_metadata_xhtml
+
+                            zip_out.writestr(item, data)
+
+                shutil.move(temp_epub, epub_path)
+                return True
+
+            finally:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+
+        except Exception as e:
+            log_error(f"Error updating EPUB metadata: {str(e)}\n{traceback.format_exc()}")
+            return False
+
+    @staticmethod
     def update_epub_cover(epub_path: str, cover_image_path: str) -> bool:
         """Update the cover image in an existing EPUB file using direct ZIP manipulation.
 
