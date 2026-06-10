@@ -393,6 +393,9 @@ class AuthorScraper:
         series_titles: dict[str, str] = {}
 
         # Phase 0 — hydration data: extract all story slugs present on the page
+        # Titles here are derived from slugs (e.g. "my-story-1" → "My Story 1") and will be
+        # overwritten by real anchor text in Phase 2.
+        results_index: dict[str, int] = {}  # url -> index in results, for Phase 2 title correction
         scripts = soup.find_all('script', src=False)
         if scripts:
             biggest = max(scripts, key=lambda s: len(s.get_text()))
@@ -401,6 +404,7 @@ class AuthorScraper:
                 clean = f'https://www.literotica.com/s/{slug}'
                 if clean not in seen_story:
                     seen_story.add(clean)
+                    results_index[clean] = len(results)
                     results.append({'url': clean, 'title': slug.replace('-', ' ').title(), 'is_series': False})
             log_action(f"[AuthorScraper] Phase 0 hydration: found {len(seen_story)} story slugs")
 
@@ -449,10 +453,14 @@ class AuthorScraper:
                 clean = href.split('?')[0]
                 if clean in series_chapter_urls:
                     continue
+                title_text = html_module.unescape(link.get_text(strip=True)) or 'Unknown Story'
                 if clean not in seen_story:
                     seen_story.add(clean)
-                    title_text = html_module.unescape(link.get_text(strip=True)) or 'Unknown Story'
+                    results_index[clean] = len(results)
                     results.append({'url': clean, 'title': title_text, 'is_series': False})
+                elif title_text and title_text != 'Unknown Story' and clean in results_index:
+                    # Overwrite the slug-derived title from Phase 0 with the real DOM title
+                    results[results_index[clean]]['title'] = title_text
 
         return results, series_to_chapters, series_titles
 

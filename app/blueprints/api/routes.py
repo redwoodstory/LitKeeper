@@ -1374,6 +1374,18 @@ def preview_author_stories() -> ResponseReturnValue:
         if not stories:
             return jsonify({"success": False, "message": "No stories found for this author. The page may have changed or the author has no public submissions."}), 404
 
+        from app.models import SeenLiteroticaUrl, DownloadQueueItem
+        story_urls = [s['url'] for s in stories]
+        seen_urls = {
+            r.url for r in SeenLiteroticaUrl.query.filter(SeenLiteroticaUrl.url.in_(story_urls)).all()
+        }
+        queued_urls = {
+            r.url for r in DownloadQueueItem.query.filter(DownloadQueueItem.url.in_(story_urls)).all()
+        }
+        for s in stories:
+            s['in_library'] = s['url'] in seen_urls
+            s['is_queued'] = s['url'] in queued_urls
+
         return jsonify({
             "success": True,
             "author_name": author_name,
@@ -1408,9 +1420,12 @@ def queue_author_stories() -> ResponseReturnValue:
 
         from app.models import DownloadQueueItem, Author, SeenLiteroticaUrl, db
 
-        author_obj = Author.query.filter_by(literotica_url=canonical).first()
+        author_name = canonical.rstrip('/').split('/')[-1]
+        author_obj = (
+            Author.query.filter_by(literotica_url=canonical).first()
+            or Author.query.filter_by(name=author_name).first()
+        )
         if not author_obj:
-            author_name = canonical.rstrip('/').split('/')[-1]
             author_obj = Author(
                 name=author_name,
                 literotica_url=canonical,
@@ -1418,6 +1433,8 @@ def queue_author_stories() -> ResponseReturnValue:
             )
             db.session.add(author_obj)
         else:
+            if not author_obj.literotica_url:
+                author_obj.literotica_url = canonical
             author_obj.watch_enabled = watch
 
         # Update known_story_urls with all submitted URLs (the full author story list)

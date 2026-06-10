@@ -42,29 +42,20 @@
         <!-- Toolbar -->
         <div class="flex items-center gap-3 px-6 py-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
           <span class="text-xs text-slate-500 dark:text-slate-400">Sort by</span>
-          <!-- Field toggle -->
           <div class="flex rounded-md overflow-hidden border border-slate-200 dark:border-slate-600 text-xs font-medium">
-            <button onclick="setSortField('date')" id="sort-field-date"
-              class="px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
-              Date
-            </button>
             <button onclick="setSortField('score')" id="sort-field-score"
-              class="px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+              class="px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
               Rating
             </button>
+            <button onclick="setSortField('date')" id="sort-field-date"
+              class="px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+              Date
+            </button>
           </div>
-          <!-- Direction toggle -->
           <button onclick="toggleSortDir()" id="sort-dir-btn"
             class="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
             ↓ Newest first
           </button>
-          <!-- Select all checkbox -->
-          <label class="ml-auto flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" id="selectAllCheckbox" checked
-              onchange="selectAllAuthorStories(this.checked)"
-              class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary cursor-pointer">
-            <span class="text-xs text-slate-500 dark:text-slate-400">Select all</span>
-          </label>
         </div>
 
         <!-- Story list -->
@@ -75,7 +66,7 @@
     </div>
 
     <!-- Footer -->
-    <div id="authorPreviewFooter" class="hidden flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+    <div id="authorPreviewFooter" class="hidden flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
       {% if auto_watch_enabled %}
       <label class="flex items-center gap-2.5 cursor-pointer select-none">
         <button
@@ -88,16 +79,13 @@
         </button>
         <span class="text-sm text-slate-700 dark:text-slate-300">Watch author for new stories</span>
       </label>
-      {% else %}
-      <div></div>
       {% endif %}
-      <div class="flex items-center gap-3 sm:ml-auto">
-        <button onclick="closeAuthorPreviewModal()"
-          class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all duration-200">
-          Cancel
+      <div class="ml-auto flex items-center gap-3">
+        <button id="addAllStoriesBtn" onclick="addAllStories()" class="hidden px-4 py-2 text-sm font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-all duration-200">
+          Add All
         </button>
-        <button id="authorPreviewAddBtn" onclick="submitAuthorQueue()" class="btn-primary text-sm">
-          Add Selected (<span id="authorPreviewCount">0</span>)
+        <button onclick="closeAuthorPreviewModal()" class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all duration-200">
+          Close
         </button>
       </div>
     </div>
@@ -108,14 +96,12 @@
 <script>
 let _authorPreviewUrl = null;
 let _authorPreviewStories = [];
-let _authorPreviewSort = { field: 'date', dir: 'desc' };
-let _authorPreviewCheckedUrls = null;
+let _authorPreviewSort = { field: 'score', dir: 'desc' };
 
 function openAuthorPreviewModal(authorUrl) {
   _authorPreviewUrl = authorUrl;
   _authorPreviewStories = [];
-  _authorPreviewSort = { field: 'date', dir: 'desc' };
-  _authorPreviewCheckedUrls = null;
+  _authorPreviewSort = { field: 'score', dir: 'desc' };
 
   _setAuthorPreviewState('loading');
   document.getElementById('authorPreviewTitle').textContent = 'Author Stories';
@@ -154,10 +140,13 @@ async function _fetchAuthorPreview(authorUrl) {
       return;
     }
     _authorPreviewStories = data.stories || [];
-    const count = _authorPreviewStories.length;
+    const total = _authorPreviewStories.length;
+    const inLibrary = _authorPreviewStories.filter(s => s.in_library || s.is_queued).length;
     document.getElementById('authorPreviewTitle').textContent = data.author_name || 'Author Stories';
     document.getElementById('authorPreviewSubtitle').textContent =
-      `${count} ${count === 1 ? 'work' : 'works'} found`;
+      inLibrary > 0
+        ? `${total} ${total === 1 ? 'work' : 'works'} · ${inLibrary} already in library`
+        : `${total} ${total === 1 ? 'work' : 'works'} found`;
     _updateSortUI();
     _renderAuthorStoryList();
     _setAuthorPreviewState('results');
@@ -246,59 +235,68 @@ function _getSortedStories() {
 
 function _renderAuthorStoryList() {
   const list = document.getElementById('authorStoryList');
-
-  // Preserve checkbox state across re-renders (null means first render — default all checked)
-  if (_authorPreviewCheckedUrls !== null) {
-    _authorPreviewCheckedUrls = new Set(
-      Array.from(document.querySelectorAll('#authorStoryList input[type="checkbox"]:checked'))
-        .map(cb => cb.value)
-    );
+  const sorted = _getSortedStories();
+  const addAllBtn = document.getElementById('addAllStoriesBtn');
+  const pendingCount = _authorPreviewStories.filter(s => !s.in_library && !s.is_queued).length;
+  if (addAllBtn) {
+    addAllBtn.classList.toggle('hidden', pendingCount === 0);
+    addAllBtn.textContent = 'Add All';
   }
 
-  const sorted = _getSortedStories();
-  list.innerHTML = sorted.map((story, idx) => {
+  list.innerHTML = sorted.map(story => {
     const score = story.score ? parseFloat(story.score).toFixed(2) : null;
     const date = story.date_approve || null;
-    const checkId = `story-check-${idx}`;
-    const isChecked = _authorPreviewCheckedUrls === null || _authorPreviewCheckedUrls.has(story.url);
+    const inLibrary = story.in_library || story.is_queued;
+    const statusLabel = story.in_library ? 'In library' : (story.is_queued ? 'Queued' : null);
 
-    const category = story.category || null;
-    const description = story.description || null;
+    const tags = [];
+    if (story.category) {
+      tags.push(`<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">${_escHtml(story.category)}</span>`);
+    }
+    if (story.is_series) {
+      const label = story.chapter_count > 1 ? `${story.chapter_count}-part series` : 'Series';
+      tags.push(`<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">${label}</span>`);
+    }
 
     const metaParts = [];
     if (score) metaParts.push(`<span title="Literotica score">★ ${score}</span>`);
     if (date) metaParts.push(`<span>${_escHtml(date)}</span>`);
-    if (category) metaParts.push(`<span>${_escHtml(category)}</span>`);
-    if (story.is_series) {
-      const label = story.chapter_count > 1 ? `${story.chapter_count}-part series` : 'Series';
-      metaParts.push(`<span class="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-medium">${label}</span>`);
-    }
 
+    const tagsRow = tags.length
+      ? `<div class="flex flex-wrap gap-1.5 mt-1">${tags.join('')}</div>`
+      : '';
     const metaRow = metaParts.length
-      ? `<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400">${metaParts.join('')}</div>`
+      ? `<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-400 dark:text-slate-500">${metaParts.join('')}</div>`
       : '';
-    const descRow = description
-      ? `<p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500 line-clamp-1">${_escHtml(description)}</p>`
+    const descRow = story.description
+      ? `<p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500 line-clamp-1">${_escHtml(story.description)}</p>`
       : '';
+
+    const rowBg = inLibrary
+      ? 'bg-slate-50/60 dark:bg-slate-700/20'
+      : 'hover:bg-slate-50 dark:hover:bg-slate-700/40';
+
+    const btn = inLibrary
+      ? `<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed" title="${statusLabel}">${statusLabel}</button>`
+      : `<button data-story-url="${_escAttr(story.url)}" onclick="addSingleStory(this)" class="flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-colors duration-150">Add</button>`;
 
     return `
-      <label for="${checkId}" class="flex items-start gap-3 px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 cursor-pointer transition-colors duration-100">
-        <input type="checkbox" id="${checkId}" value="${_escAttr(story.url)}" ${isChecked ? 'checked' : ''}
-          class="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary cursor-pointer"
-          onchange="updateAuthorPreviewCount()">
+      <div class="flex items-center gap-3 px-5 py-3 transition-colors duration-100 ${rowBg}">
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-slate-900 dark:text-white truncate">${_escHtml(story.title)}</p>
-          ${metaRow}${descRow}
+          <p class="text-sm font-medium ${inLibrary ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'} truncate flex items-center gap-1.5">
+            <span class="truncate">${_escHtml(story.title)}</span>
+            <a href="${_escAttr(story.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Open on Literotica"
+              class="flex-shrink-0 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 transition-colors duration-150">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+          </p>
+          ${tagsRow}${metaRow}${descRow}
         </div>
-      </label>`;
+        ${btn}
+      </div>`;
   }).join('');
-
-  // Mark first render done — future re-renders will preserve checkbox state
-  if (_authorPreviewCheckedUrls === null) {
-    _authorPreviewCheckedUrls = new Set(sorted.map(s => s.url));
-  }
-
-  updateAuthorPreviewCount();
 }
 
 function _escHtml(str) {
@@ -309,27 +307,6 @@ function _escHtml(str) {
 function _escAttr(str) {
   if (!str) return '';
   return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-// --- Selection ---
-
-function updateAuthorPreviewCount() {
-  const checkboxes = document.querySelectorAll('#authorStoryList input[type="checkbox"]');
-  const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
-  document.getElementById('authorPreviewCount').textContent = checked;
-  const addBtn = document.getElementById('authorPreviewAddBtn');
-  if (addBtn) addBtn.disabled = checked === 0;
-
-  const selectAll = document.getElementById('selectAllCheckbox');
-  if (selectAll) {
-    selectAll.checked = checkboxes.length > 0 && checked === checkboxes.length;
-    selectAll.indeterminate = checked > 0 && checked < checkboxes.length;
-  }
-}
-
-function selectAllAuthorStories(checked) {
-  document.querySelectorAll('#authorStoryList input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
-  updateAuthorPreviewCount();
 }
 
 // --- Watch toggle ---
@@ -345,36 +322,72 @@ function toggleAuthorWatchPref() {
   btn.querySelector('span').classList.toggle('translate-x-0', isOn);
 }
 
-// --- Submit ---
+// --- Add all stories ---
 
-async function submitAuthorQueue() {
-  const checkboxes = document.querySelectorAll('#authorStoryList input[type="checkbox"]:checked');
-  const storyUrls = Array.from(checkboxes).map(cb => cb.value);
-  if (storyUrls.length === 0) return;
+async function addAllStories() {
+  const pending = _authorPreviewStories.filter(s => !s.in_library && !s.is_queued);
+  if (!pending.length) return;
+
+  const btn = document.getElementById('addAllStoriesBtn');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
 
   const watchToggle = document.getElementById('authorWatchToggle');
   const watch = watchToggle ? watchToggle.getAttribute('aria-checked') === 'true' : false;
-
-  const btn = document.getElementById('authorPreviewAddBtn');
-  btn.disabled = true;
-  btn.textContent = 'Adding…';
 
   try {
     const res = await fetch('/api/authors/queue-stories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ author_url: _authorPreviewUrl, story_urls: storyUrls, watch }),
+      body: JSON.stringify({ author_url: _authorPreviewUrl, story_urls: pending.map(s => s.url), watch }),
     });
     const data = await res.json();
-    closeAuthorPreviewModal();
-    window.toast?.show(
-      data.message || (data.success ? 'Stories queued!' : 'Error queuing stories.'),
-      data.success ? 'success' : 'error'
-    );
-    if (data.success) setTimeout(() => location.reload(), 1200);
+    if (data.success) {
+      pending.forEach(s => { s.is_queued = true; });
+      _renderAuthorStoryList();
+      window.toast?.show(data.message || `${pending.length} stories queued!`, 'success');
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Add All';
+      window.toast?.show(data.message || 'Failed to queue stories.', 'error');
+    }
   } catch (err) {
     btn.disabled = false;
-    btn.innerHTML = `Add Selected (<span id="authorPreviewCount">${storyUrls.length}</span>)`;
+    btn.textContent = `Add All (${pending.length})`;
+    window.toast?.show('Request failed. Please try again.', 'error');
+  }
+}
+
+// --- Add single story ---
+
+async function addSingleStory(btn) {
+  const storyUrl = btn.dataset.storyUrl;
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  const watchToggle = document.getElementById('authorWatchToggle');
+  const watch = watchToggle ? watchToggle.getAttribute('aria-checked') === 'true' : false;
+
+  try {
+    const res = await fetch('/api/authors/queue-stories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author_url: _authorPreviewUrl, story_urls: [storyUrl], watch }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      btn.textContent = 'Queued';
+      btn.className = 'flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed';
+      btn.removeAttribute('onclick');
+      window.toast?.show(data.message || 'Story queued!', 'success');
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Add';
+      window.toast?.show(data.message || 'Failed to queue story.', 'error');
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Add';
     window.toast?.show('Request failed. Please try again.', 'error');
   }
 }
