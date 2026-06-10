@@ -170,36 +170,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   </div>
 </div>
 
-<!-- Author URL confirmation modal -->
-<div id="authorModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none">
-  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeAuthorModal()"></div>
-  <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full p-5 border border-slate-200/60 dark:border-gray-700/60">
-    <div class="flex items-start gap-3 mb-4">
-      <div class="flex-shrink-0 w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-        </svg>
-      </div>
-      <div class="min-w-0">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white leading-tight">Queue all stories from this author?</h3>
-        <p id="authorModalUrl" class="text-xs text-primary mt-0.5 truncate"></p>
-      </div>
-    </div>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-5">
-      LitKeeper will scan the author's profile and queue every published story. Each one is downloaded individually — this may take time for prolific authors.
-    </p>
-    <div class="flex gap-2 justify-end">
-      <button type="button" onclick="closeAuthorModal()"
-        class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-        Cancel
-      </button>
-      <button type="button" id="authorModalConfirm" class="btn-primary text-sm px-4 py-2">
-        Confirm
-      </button>
-    </div>
-  </div>
-</div>
+{% include "components/author_preview_modal.html" %}
 
 <script>
   const AUTHOR_URL_RE = /literotica\.com\/(authors?|members?)\/[^/?#]+/i;
@@ -207,13 +178,6 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
 
   function isAuthorUrl(url) { return AUTHOR_URL_RE.test(url); }
   function isSeriesUrl(url) { return SERIES_URL_RE.test(url); }
-
-  function closeAuthorModal() {
-    document.getElementById('authorModal').style.display = 'none';
-  }
-  function openAuthorModal() {
-    document.getElementById('authorModal').style.display = 'flex';
-  }
 
   function closeSeriesModal() {
     document.getElementById('seriesModal').style.display = 'none';
@@ -279,14 +243,10 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
       }
     }
 
-    // Author URL alone → existing scan flow
+    // Author URL alone → preview modal
     if (isAuthorUrl(url) && !combineOpen) {
-      document.getElementById('authorModalUrl').textContent = url;
-      openAuthorModal();
-      document.getElementById('authorModalConfirm').onclick = async () => {
-        closeAuthorModal();
-        await submitAuthorUrl(url);
-      };
+      document.getElementById('url').value = '';
+      openAuthorPreviewModal(url);
       return;
     }
 
@@ -334,30 +294,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
     }
   }
 
-  async function submitAuthorUrl(url) {
-    const btn = document.getElementById('downloadBtn');
-    btn.disabled = true;
-    btn.textContent = 'Queuing…';
-    try {
-      const res = await fetch('/api/queue/author', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_url: url })
-      });
-      const data = await res.json();
-      if (data.success) {
-        window.toast?.show('Author scan queued — check Download History', 'success');
-        document.getElementById('url').value = '';
-      } else {
-        window.toast?.show(data.message || 'Failed to queue author scan', 'error');
-      }
-    } catch {
-      window.toast?.show('Request failed. Please try again.', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Download';
-    }
-  }
+
 </script>
 
 {% if enable_library %}

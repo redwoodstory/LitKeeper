@@ -1351,6 +1351,134 @@ def queue_author_download() -> ResponseReturnValue:
         return jsonify({"success": False, "message": "Internal server error"}), 500
 
 
+@api.route('/authors/preview', methods=['POST'])
+def preview_author_stories() -> ResponseReturnValue:
+    """Synchronously scrape an author page and return story list with metadata. No DB writes."""
+    try:
+        data = request.get_json() or {}
+        author_url = (data.get('author_url') or '').strip()
+
+        if not author_url:
+            return jsonify({"success": False, "message": "author_url is required"}), 400
+
+        from app.services.author_scraper import is_author_url, normalize_author_url, AuthorScraper
+        if not is_author_url(author_url):
+            return jsonify({"success": False, "message": "URL does not appear to be a Literotica author page"}), 400
+
+        canonical = normalize_author_url(author_url) or author_url
+        author_name = canonical.rstrip('/').split('/')[-1]
+
+        scraper = AuthorScraper()
+        stories = scraper.scrape_story_list_with_metadata(canonical, skip_jitter=True)
+
+        if not stories:
+            return jsonify({"success": False, "message": "No stories found for this author. The page may have changed or the author has no public submissions."}), 404
+
+        return jsonify({
+            "success": True,
+            "author_name": author_name,
+            "author_url": canonical,
+            "stories": stories,
+        })
+
+    except Exception as e:
+        log_error(f"Error previewing author stories: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Failed to fetch author page. Please try again."}), 500
+
+
+@api.route('/authors/queue-stories', methods=['POST'])
+def queue_author_stories() -> ResponseReturnValue:
+    """Queue selected stories from an author preview and optionally enable author watching."""
+    try:
+        data = request.get_json() or {}
+        author_url = (data.get('author_url') or '').strip()
+        story_urls = data.get('story_urls') or []
+        watch = bool(data.get('watch', False))
+
+        if not author_url:
+            return jsonify({"success": False, "message": "author_url is required"}), 400
+        if not story_urls:
+            return jsonify({"success": False, "message": "No story URLs provided"}), 400
+
+        from app.services.author_scraper import is_author_url, normalize_author_url
+        if not is_author_url(author_url):
+            return jsonify({"success": False, "message": "Invalid author URL"}), 400
+
+        canonical = normalize_author_url(author_url) or author_url
+
+        from app.models import DownloadQueueItem, Author, SeenLiteroticaUrl, db
+
+        author_obj = Author.query.filter_by(literotica_url=canonical).first()
+        if not author_obj:
+            author_name = canonical.rstrip('/').split('/')[-1]
+            author_obj = Author(
+                name=author_name,
+                literotica_url=canonical,
+                watch_enabled=watch,
+            )
+            db.session.add(author_obj)
+        else:
+            author_obj.watch_enabled = watch
+
+        # Update known_story_urls with all submitted URLs (the full author story list)
+        all_known = list(set(author_obj.get_known_story_urls() + story_urls))
+        author_obj.set_known_story_urls(all_known)
+
+        from datetime import datetime
+        author_obj.last_watch_check_at = datetime.utcnow()
+        db.session.flush()
+
+        enqueued = 0
+        skipped = 0
+
+        for story_url in story_urls:
+            active = DownloadQueueItem.query.filter(
+                DownloadQueueItem.url == story_url,
+                DownloadQueueItem.status.in_(['pending', 'processing', 'rate_limited'])
+            ).first()
+            if active:
+                skipped += 1
+                continue
+
+            if SeenLiteroticaUrl.query.filter_by(url=story_url).first():
+                skipped += 1
+                continue
+
+            child = DownloadQueueItem(
+                url=story_url,
+                formats=json.dumps(['epub', 'html']),
+                status='pending',
+                job_type='single',
+                author=author_obj.name,
+                progress_message='Queued from author preview',
+            )
+            db.session.add(child)
+            enqueued += 1
+
+        db.session.commit()
+        if enqueued:
+            current_app.download_worker.wake()
+
+        log_action(f"[AuthorPreview] Queued {enqueued} stories for {canonical} (skipped {skipped}, watch={watch})")
+
+        parts = [f"Queued {enqueued} {'story' if enqueued == 1 else 'stories'}"]
+        if skipped:
+            parts.append(f"{skipped} already queued or downloaded")
+        if watch:
+            parts.append("author added to watch list")
+
+        return jsonify({
+            "success": True,
+            "queued": enqueued,
+            "skipped": skipped,
+            "message": " — ".join(parts),
+        })
+
+    except Exception as e:
+        log_error(f"Error queuing author stories: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
 @api.route('/authors', methods=['GET'])
 def list_authors() -> ResponseReturnValue:
     """List all authors that have a Literotica URL (watchable authors)."""

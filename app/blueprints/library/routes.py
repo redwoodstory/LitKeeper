@@ -18,6 +18,12 @@ library = Blueprint('library', __name__)
 
 PER_PAGE = 40
 
+def _get_auto_watch_enabled() -> bool:
+    from app.models import AppConfig
+    cfg = AppConfig.query.filter_by(key='auto_watch_authors_enabled').first()
+    return cfg.get_value() if cfg else False
+
+
 @library.route("/", methods=["GET", "POST"])
 def index() -> ResponseReturnValue:
     if request.method == "POST":
@@ -45,7 +51,7 @@ def index() -> ResponseReturnValue:
                 f"/library/filter?{urlencode({'page': 2, 'sort_by': 'date', 'sort_order': 'desc', 'category': 'all', 'search': ''})}"
                 if has_more else None
             )
-            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, total_stories=total_stories, has_more=has_more, next_url=next_url)
+            return render_template("index.html", stories=stories, categories=categories, error=error_msg, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, total_stories=total_stories, has_more=has_more, next_url=next_url, auto_watch_enabled=_get_auto_watch_enabled())
 
     enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
 
@@ -119,10 +125,10 @@ def index() -> ResponseReturnValue:
                     'description': _s.description,
                 }
 
-        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story, total_stories=total_stories, has_more=has_more, next_url=next_url)
+        return render_template("index.html", stories=stories, categories=categories, mount_warning=mount_warning, legacy_info=legacy_info, enable_library=enable_library, sync_status=sync_status, open_modal_story=open_modal_story, total_stories=total_stories, has_more=has_more, next_url=next_url, auto_watch_enabled=_get_auto_watch_enabled())
     except Exception as e:
         log_error(f"Error loading index: {str(e)}\n{traceback.format_exc()}")
-        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, legacy_info={"has_legacy_mounts": False}, enable_library=enable_library, total_stories=0, has_more=False, next_url=None)
+        return render_template("index.html", stories=[], categories=[], mount_warning={"show_warning": False}, legacy_info={"has_legacy_mounts": False}, enable_library=enable_library, total_stories=0, has_more=False, next_url=None, auto_watch_enabled=False)
 
 @library.route('/sync-banner')
 def sync_banner():

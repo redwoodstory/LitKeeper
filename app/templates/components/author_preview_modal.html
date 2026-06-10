@@ -1,0 +1,381 @@
+<div id="authorPreviewModal" class="hidden fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onclick="closeAuthorPreviewModal()">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+      <div>
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white" id="authorPreviewTitle">Author Stories</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5" id="authorPreviewSubtitle"></p>
+      </div>
+      <button onclick="closeAuthorPreviewModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-4 flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+
+      <!-- Loading state -->
+      <div id="authorPreviewLoading" class="flex flex-col items-center justify-center py-16 px-6">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 dark:border-white"></div>
+        <p class="mt-4 text-slate-600 dark:text-slate-400 text-sm">Fetching story list from Literotica…</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="authorPreviewError" class="hidden flex flex-col items-center justify-center py-16 px-6 text-center">
+        <svg class="w-10 h-10 text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+        <p class="text-slate-900 dark:text-white font-medium mb-1">Could not load stories</p>
+        <p id="authorPreviewErrorMsg" class="text-slate-500 dark:text-slate-400 text-sm mb-4"></p>
+        <button onclick="retryAuthorPreview()"
+          class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all duration-200">
+          Try Again
+        </button>
+      </div>
+
+      <!-- Results state -->
+      <div id="authorPreviewResults" class="hidden flex flex-col flex-1 min-h-0">
+
+        <!-- Toolbar -->
+        <div class="flex items-center gap-3 px-6 py-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+          <span class="text-xs text-slate-500 dark:text-slate-400">Sort by</span>
+          <!-- Field toggle -->
+          <div class="flex rounded-md overflow-hidden border border-slate-200 dark:border-slate-600 text-xs font-medium">
+            <button onclick="setSortField('date')" id="sort-field-date"
+              class="px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
+              Date
+            </button>
+            <button onclick="setSortField('score')" id="sort-field-score"
+              class="px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+              Rating
+            </button>
+          </div>
+          <!-- Direction toggle -->
+          <button onclick="toggleSortDir()" id="sort-dir-btn"
+            class="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+            ↓ Newest first
+          </button>
+          <!-- Select all checkbox -->
+          <label class="ml-auto flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="selectAllCheckbox" checked
+              onchange="selectAllAuthorStories(this.checked)"
+              class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary cursor-pointer">
+            <span class="text-xs text-slate-500 dark:text-slate-400">Select all</span>
+          </label>
+        </div>
+
+        <!-- Story list -->
+        <div id="authorStoryList" class="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div id="authorPreviewFooter" class="hidden flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      {% if auto_watch_enabled %}
+      <label class="flex items-center gap-2.5 cursor-pointer select-none">
+        <button
+          id="authorWatchToggle"
+          role="switch"
+          aria-checked="true"
+          onclick="toggleAuthorWatchPref()"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-green-600">
+          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5"></span>
+        </button>
+        <span class="text-sm text-slate-700 dark:text-slate-300">Watch author for new stories</span>
+      </label>
+      {% else %}
+      <div></div>
+      {% endif %}
+      <div class="flex items-center gap-3 sm:ml-auto">
+        <button onclick="closeAuthorPreviewModal()"
+          class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all duration-200">
+          Cancel
+        </button>
+        <button id="authorPreviewAddBtn" onclick="submitAuthorQueue()" class="btn-primary text-sm">
+          Add Selected (<span id="authorPreviewCount">0</span>)
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let _authorPreviewUrl = null;
+let _authorPreviewStories = [];
+let _authorPreviewSort = { field: 'date', dir: 'desc' };
+let _authorPreviewCheckedUrls = null;
+
+function openAuthorPreviewModal(authorUrl) {
+  _authorPreviewUrl = authorUrl;
+  _authorPreviewStories = [];
+  _authorPreviewSort = { field: 'date', dir: 'desc' };
+  _authorPreviewCheckedUrls = null;
+
+  _setAuthorPreviewState('loading');
+  document.getElementById('authorPreviewTitle').textContent = 'Author Stories';
+  document.getElementById('authorPreviewSubtitle').textContent = '';
+
+  document.getElementById('authorPreviewModal').classList.remove('hidden');
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+
+  _fetchAuthorPreview(authorUrl);
+}
+
+function closeAuthorPreviewModal() {
+  document.getElementById('authorPreviewModal').classList.add('hidden');
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
+}
+
+function retryAuthorPreview() {
+  if (_authorPreviewUrl) {
+    _setAuthorPreviewState('loading');
+    _fetchAuthorPreview(_authorPreviewUrl);
+  }
+}
+
+async function _fetchAuthorPreview(authorUrl) {
+  try {
+    const res = await fetch('/api/authors/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author_url: authorUrl }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      _showAuthorPreviewError(data.message || 'Failed to load stories.');
+      return;
+    }
+    _authorPreviewStories = data.stories || [];
+    const count = _authorPreviewStories.length;
+    document.getElementById('authorPreviewTitle').textContent = data.author_name || 'Author Stories';
+    document.getElementById('authorPreviewSubtitle').textContent =
+      `${count} ${count === 1 ? 'work' : 'works'} found`;
+    _updateSortUI();
+    _renderAuthorStoryList();
+    _setAuthorPreviewState('results');
+  } catch (err) {
+    _showAuthorPreviewError('Request failed. Check your connection and try again.');
+  }
+}
+
+function _showAuthorPreviewError(msg) {
+  document.getElementById('authorPreviewErrorMsg').textContent = msg;
+  _setAuthorPreviewState('error');
+}
+
+function _setAuthorPreviewState(state) {
+  document.getElementById('authorPreviewLoading').classList.toggle('hidden', state !== 'loading');
+  document.getElementById('authorPreviewError').classList.toggle('hidden', state !== 'error');
+  document.getElementById('authorPreviewResults').classList.toggle('hidden', state !== 'results');
+  document.getElementById('authorPreviewFooter').classList.toggle('hidden', state !== 'results');
+}
+
+// --- Sort ---
+
+function setSortField(field) {
+  _authorPreviewSort.field = field;
+  _updateSortUI();
+  _renderAuthorStoryList();
+}
+
+function toggleSortDir() {
+  _authorPreviewSort.dir = _authorPreviewSort.dir === 'desc' ? 'asc' : 'desc';
+  _updateSortUI();
+  _renderAuthorStoryList();
+}
+
+function _updateSortUI() {
+  const { field, dir } = _authorPreviewSort;
+  const dateBtn = document.getElementById('sort-field-date');
+  const scoreBtn = document.getElementById('sort-field-score');
+  if (dateBtn && scoreBtn) {
+    const setActive = (btn, active) => {
+      btn.classList.toggle('bg-slate-900', active);
+      btn.classList.toggle('dark:bg-slate-100', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('dark:text-slate-900', active);
+      btn.classList.toggle('bg-white', !active);
+      btn.classList.toggle('dark:bg-slate-700', !active);
+      btn.classList.toggle('text-slate-600', !active);
+      btn.classList.toggle('dark:text-slate-300', !active);
+    };
+    setActive(dateBtn, field === 'date');
+    setActive(scoreBtn, field === 'score');
+  }
+  const dirBtn = document.getElementById('sort-dir-btn');
+  if (dirBtn) {
+    dirBtn.textContent = field === 'date'
+      ? (dir === 'desc' ? '↓ Newest first' : '↑ Oldest first')
+      : (dir === 'desc' ? '↓ Highest first' : '↑ Lowest first');
+  }
+}
+
+function _parseDate(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.split('/');
+  if (parts.length === 3) return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+  return new Date(dateStr);
+}
+
+function _getSortedStories() {
+  const { field, dir } = _authorPreviewSort;
+  return [..._authorPreviewStories].sort((a, b) => {
+    let aVal, bVal;
+    if (field === 'score') {
+      aVal = parseFloat(a.score) || 0;
+      bVal = parseFloat(b.score) || 0;
+    } else {
+      aVal = _parseDate(a.date_approve) || new Date(0);
+      bVal = _parseDate(b.date_approve) || new Date(0);
+    }
+    if (aVal < bVal) return dir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+// --- Render ---
+
+function _renderAuthorStoryList() {
+  const list = document.getElementById('authorStoryList');
+
+  // Preserve checkbox state across re-renders (null means first render — default all checked)
+  if (_authorPreviewCheckedUrls !== null) {
+    _authorPreviewCheckedUrls = new Set(
+      Array.from(document.querySelectorAll('#authorStoryList input[type="checkbox"]:checked'))
+        .map(cb => cb.value)
+    );
+  }
+
+  const sorted = _getSortedStories();
+  list.innerHTML = sorted.map((story, idx) => {
+    const score = story.score ? parseFloat(story.score).toFixed(2) : null;
+    const date = story.date_approve || null;
+    const checkId = `story-check-${idx}`;
+    const isChecked = _authorPreviewCheckedUrls === null || _authorPreviewCheckedUrls.has(story.url);
+
+    const category = story.category || null;
+    const description = story.description || null;
+
+    const metaParts = [];
+    if (score) metaParts.push(`<span title="Literotica score">★ ${score}</span>`);
+    if (date) metaParts.push(`<span>${_escHtml(date)}</span>`);
+    if (category) metaParts.push(`<span>${_escHtml(category)}</span>`);
+    if (story.is_series) {
+      const label = story.chapter_count > 1 ? `${story.chapter_count}-part series` : 'Series';
+      metaParts.push(`<span class="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-medium">${label}</span>`);
+    }
+
+    const metaRow = metaParts.length
+      ? `<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400">${metaParts.join('')}</div>`
+      : '';
+    const descRow = description
+      ? `<p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500 line-clamp-1">${_escHtml(description)}</p>`
+      : '';
+
+    return `
+      <label for="${checkId}" class="flex items-start gap-3 px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 cursor-pointer transition-colors duration-100">
+        <input type="checkbox" id="${checkId}" value="${_escAttr(story.url)}" ${isChecked ? 'checked' : ''}
+          class="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary cursor-pointer"
+          onchange="updateAuthorPreviewCount()">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-slate-900 dark:text-white truncate">${_escHtml(story.title)}</p>
+          ${metaRow}${descRow}
+        </div>
+      </label>`;
+  }).join('');
+
+  // Mark first render done — future re-renders will preserve checkbox state
+  if (_authorPreviewCheckedUrls === null) {
+    _authorPreviewCheckedUrls = new Set(sorted.map(s => s.url));
+  }
+
+  updateAuthorPreviewCount();
+}
+
+function _escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _escAttr(str) {
+  if (!str) return '';
+  return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// --- Selection ---
+
+function updateAuthorPreviewCount() {
+  const checkboxes = document.querySelectorAll('#authorStoryList input[type="checkbox"]');
+  const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+  document.getElementById('authorPreviewCount').textContent = checked;
+  const addBtn = document.getElementById('authorPreviewAddBtn');
+  if (addBtn) addBtn.disabled = checked === 0;
+
+  const selectAll = document.getElementById('selectAllCheckbox');
+  if (selectAll) {
+    selectAll.checked = checkboxes.length > 0 && checked === checkboxes.length;
+    selectAll.indeterminate = checked > 0 && checked < checkboxes.length;
+  }
+}
+
+function selectAllAuthorStories(checked) {
+  document.querySelectorAll('#authorStoryList input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
+  updateAuthorPreviewCount();
+}
+
+// --- Watch toggle ---
+
+function toggleAuthorWatchPref() {
+  const btn = document.getElementById('authorWatchToggle');
+  const isOn = btn.getAttribute('aria-checked') === 'true';
+  btn.setAttribute('aria-checked', String(!isOn));
+  btn.classList.toggle('bg-green-600', !isOn);
+  btn.classList.toggle('bg-gray-200', isOn);
+  btn.classList.toggle('dark:bg-gray-700', isOn);
+  btn.querySelector('span').classList.toggle('translate-x-5', !isOn);
+  btn.querySelector('span').classList.toggle('translate-x-0', isOn);
+}
+
+// --- Submit ---
+
+async function submitAuthorQueue() {
+  const checkboxes = document.querySelectorAll('#authorStoryList input[type="checkbox"]:checked');
+  const storyUrls = Array.from(checkboxes).map(cb => cb.value);
+  if (storyUrls.length === 0) return;
+
+  const watchToggle = document.getElementById('authorWatchToggle');
+  const watch = watchToggle ? watchToggle.getAttribute('aria-checked') === 'true' : false;
+
+  const btn = document.getElementById('authorPreviewAddBtn');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  try {
+    const res = await fetch('/api/authors/queue-stories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author_url: _authorPreviewUrl, story_urls: storyUrls, watch }),
+    });
+    const data = await res.json();
+    closeAuthorPreviewModal();
+    window.toast?.show(
+      data.message || (data.success ? 'Stories queued!' : 'Error queuing stories.'),
+      data.success ? 'success' : 'error'
+    );
+    if (data.success) setTimeout(() => location.reload(), 1200);
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = `Add Selected (<span id="authorPreviewCount">${storyUrls.length}</span>)`;
+    window.toast?.show('Request failed. Please try again.', 'error');
+  }
+}
+</script>
