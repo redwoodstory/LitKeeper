@@ -506,7 +506,9 @@
       const rowBg = inLibrary ? 'bg-slate-50/60 dark:bg-slate-700/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/40';
       const titleColor = inLibrary ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white';
 
-      const btn = inLibrary
+      const btn = story.is_adding
+        ? '<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed">…</button>'
+        : inLibrary
         ? '<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed" title="' + statusLabel + '">' + statusLabel + '</button>'
         : '<button data-story-url="' + _escAttr(story.url) + '" onclick="_cbAddSingle(this)" class="flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-colors duration-150">Add</button>';
 
@@ -530,9 +532,15 @@
   window._cbAddSingle = async function (btn) {
     if (btn.disabled) return;
     const url = btn.dataset.storyUrl;
+
+    // Mark story as adding in the data model so concurrent re-renders preserve the '…' state
+    const storyRef = _stories.find(s => s.url === url);
+    if (storyRef) storyRef.is_adding = true;
+
     btn.disabled = true;
     btn.removeAttribute('onclick');
     btn.textContent = '…';
+
     try {
       const res = await fetch('/api/browse/queue-stories', {
         method: 'POST',
@@ -540,23 +548,25 @@
         body: JSON.stringify({ story_urls: [url] }),
       });
       const data = await res.json();
+
+      // Update data model first, then re-render — avoids stale btn reference
+      // if a concurrent category/sort fetch replaced the DOM while we awaited
+      const story = _stories.find(s => s.url === url);
+      if (story) {
+        story.is_adding = false;
+        if (data.success) story.is_queued = true;
+      }
+      _cbRenderList();
+
       if (data.success) {
-        const story = _stories.find(s => s.url === url);
-        if (story) story.is_queued = true;
-        btn.textContent = 'Queued';
-        btn.className = 'flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed';
-        _updateAddAllBtn();
         window.toast?.show(data.message || 'Story queued!', 'success');
       } else {
-        btn.disabled = false;
-        btn.setAttribute('onclick', '_cbAddSingle(this)');
-        btn.textContent = 'Add';
         window.toast?.show(data.message || 'Failed to queue story.', 'error');
       }
     } catch {
-      btn.disabled = false;
-      btn.setAttribute('onclick', '_cbAddSingle(this)');
-      btn.textContent = 'Add';
+      const story = _stories.find(s => s.url === url);
+      if (story) story.is_adding = false;
+      _cbRenderList();
       window.toast?.show('Request failed. Please try again.', 'error');
     }
   };

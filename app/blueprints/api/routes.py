@@ -1777,9 +1777,10 @@ def browse_queue_stories() -> ResponseReturnValue:
         db.session.commit()
 
         if queued > 0:
-            from app import download_worker
-            if download_worker:
-                download_worker.wake()
+            try:
+                current_app.download_worker.wake()
+            except Exception:
+                pass
 
         msg = f"{queued} {'story' if queued == 1 else 'stories'} queued"
         if skipped:
