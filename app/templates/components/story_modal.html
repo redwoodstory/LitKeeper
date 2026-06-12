@@ -1,20 +1,35 @@
 {% from 'macros.html' import format_badge, category_tag %}
 
 {% macro story_info_section(story) %}
-<h2 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1.5 md:mb-2 md:pr-12">{{ story.title }}</h2>
+<h2 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1.5 md:mb-2 md:pr-12 flex items-center gap-2">
+  <span>{{ story.title }}</span>
+  {% if story.source_url %}
+  <a href="{{ story.source_url }}" target="_blank" rel="noopener noreferrer"
+     class="flex-shrink-0 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+     title="View on Literotica">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+    </svg>
+  </a>
+  {% endif %}
+</h2>
 {% if story.author %}
 <p class="text-gray-600 dark:text-gray-400 mb-2 text-sm md:text-base">
-  by {% if story.author.literotica_url %}<a href="{{ story.author.literotica_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 underline decoration-dotted">{{ story.author.name if story.author.name is defined else story.author }}</a>{% else %}{{ story.author.name if story.author.name is defined else story.author }}{% endif %}
-</p>
-{% endif %}
-{% if story.source_url %}
-<p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
-  <a href="{{ story.source_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-    </svg>
-    View source
-  </a>
+  by {% if story.author.literotica_url %}
+    <button onclick="openAuthorPreviewModal('{{ story.author.literotica_url }}')"
+            class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200 underline decoration-dotted">
+      {{ story.author.name if story.author.name is defined else story.author }}
+    </button>
+    <a href="{{ story.author.literotica_url }}" target="_blank" rel="noopener noreferrer"
+       class="ml-1 inline-flex items-center text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+       title="View on Literotica">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+    </a>
+  {% else %}
+    {{ story.author.name if story.author.name is defined else story.author }}
+  {% endif %}
 </p>
 {% endif %}
 {% if story.series_url %}

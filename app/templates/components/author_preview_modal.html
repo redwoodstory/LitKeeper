@@ -68,16 +68,23 @@
     <!-- Footer -->
     <div id="authorPreviewFooter" class="hidden flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
       {% if auto_watch_enabled %}
-      <label class="flex items-center gap-2.5 cursor-pointer select-none">
+      <!-- Shown alongside Add All when pending stories exist -->
+      <label id="authorWatchLabel" class="hidden items-center gap-2 cursor-pointer select-none">
+        <input type="checkbox" id="authorWatchCheckbox" checked
+          class="h-4 w-4 rounded border-slate-300 dark:border-slate-500 text-green-600 focus:ring-green-500 focus:ring-offset-0 cursor-pointer">
+        <span class="text-sm text-slate-600 dark:text-slate-400">Watch for new stories</span>
+      </label>
+      <!-- Shown when all stories are already in library and author exists in DB -->
+      <label id="authorWatchStandaloneLabel" class="hidden items-center gap-2 cursor-pointer select-none">
         <button
-          id="authorWatchToggle"
+          id="authorWatchStandaloneToggle"
           role="switch"
-          aria-checked="true"
-          onclick="toggleAuthorWatchPref()"
-          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-green-600">
-          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5"></span>
+          aria-checked="false"
+          onclick="toggleAuthorWatchDirect()"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 bg-slate-200 dark:bg-slate-600">
+          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
         </button>
-        <span class="text-sm text-slate-700 dark:text-slate-300">Watch author for new stories</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400">Watch for new stories</span>
       </label>
       {% endif %}
       <div class="ml-auto flex items-center gap-3">
@@ -97,15 +104,21 @@
 let _authorPreviewUrl = null;
 let _authorPreviewStories = [];
 let _authorPreviewSort = { field: 'score', dir: 'desc' };
+let _authorId = null;
+let _authorWatched = false;
 
 function openAuthorPreviewModal(authorUrl) {
   _authorPreviewUrl = authorUrl;
   _authorPreviewStories = [];
   _authorPreviewSort = { field: 'score', dir: 'desc' };
+  _authorId = null;
+  _authorWatched = false;
 
   _setAuthorPreviewState('loading');
   document.getElementById('authorPreviewTitle').textContent = 'Author Stories';
   document.getElementById('authorPreviewSubtitle').textContent = '';
+
+  if (typeof closeStoryModal === 'function') closeStoryModal();
 
   document.getElementById('authorPreviewModal').classList.remove('hidden');
   document.documentElement.style.overflow = 'hidden';
@@ -140,6 +153,8 @@ async function _fetchAuthorPreview(authorUrl) {
       return;
     }
     _authorPreviewStories = data.stories || [];
+    _authorId = data.author_id || null;
+    _authorWatched = data.watch_enabled || false;
     const total = _authorPreviewStories.length;
     const inLibrary = _authorPreviewStories.filter(s => s.in_library || s.is_queued).length;
     document.getElementById('authorPreviewTitle').textContent = data.author_name || 'Author Stories';
@@ -243,6 +258,19 @@ function _renderAuthorStoryList() {
     addAllBtn.textContent = 'Add All';
   }
 
+  const watchLabel = document.getElementById('authorWatchLabel');
+  const standaloneLabel = document.getElementById('authorWatchStandaloneLabel');
+  if (watchLabel) {
+    watchLabel.classList.toggle('hidden', pendingCount === 0);
+    watchLabel.classList.toggle('flex', pendingCount > 0);
+  }
+  if (standaloneLabel) {
+    const showStandalone = pendingCount === 0 && _authorId !== null;
+    standaloneLabel.classList.toggle('hidden', !showStandalone);
+    standaloneLabel.classList.toggle('flex', showStandalone);
+    if (showStandalone) _syncStandaloneWatchToggle();
+  }
+
   list.innerHTML = sorted.map(story => {
     const score = story.score ? parseFloat(story.score).toFixed(2) : null;
     const date = story.date_approve || null;
@@ -309,17 +337,34 @@ function _escAttr(str) {
   return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// --- Watch toggle ---
+// --- Watch toggle (standalone: all-already-added case) ---
 
-function toggleAuthorWatchPref() {
-  const btn = document.getElementById('authorWatchToggle');
-  const isOn = btn.getAttribute('aria-checked') === 'true';
-  btn.setAttribute('aria-checked', String(!isOn));
-  btn.classList.toggle('bg-green-600', !isOn);
-  btn.classList.toggle('bg-gray-200', isOn);
-  btn.classList.toggle('dark:bg-gray-700', isOn);
-  btn.querySelector('span').classList.toggle('translate-x-5', !isOn);
-  btn.querySelector('span').classList.toggle('translate-x-0', isOn);
+function _syncStandaloneWatchToggle() {
+  const btn = document.getElementById('authorWatchStandaloneToggle');
+  if (!btn) return;
+  btn.setAttribute('aria-checked', String(_authorWatched));
+  btn.classList.toggle('bg-green-600', _authorWatched);
+  btn.classList.toggle('bg-slate-200', !_authorWatched);
+  btn.classList.toggle('dark:bg-slate-600', !_authorWatched);
+  btn.querySelector('span').classList.toggle('translate-x-5', _authorWatched);
+  btn.querySelector('span').classList.toggle('translate-x-0', !_authorWatched);
+}
+
+async function toggleAuthorWatchDirect() {
+  if (!_authorId) return;
+  try {
+    const res = await fetch(`/api/authors/${_authorId}/toggle-watch`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success !== false) {
+      _authorWatched = data.watch_enabled;
+      _syncStandaloneWatchToggle();
+      window.toast?.show(data.message || (_authorWatched ? 'Now watching author.' : 'Stopped watching author.'), 'success');
+    } else {
+      window.toast?.show(data.message || 'Failed to update watch status.', 'error');
+    }
+  } catch {
+    window.toast?.show('Request failed. Please try again.', 'error');
+  }
 }
 
 // --- Add all stories ---
@@ -332,8 +377,8 @@ async function addAllStories() {
   btn.disabled = true;
   btn.textContent = 'Adding…';
 
-  const watchToggle = document.getElementById('authorWatchToggle');
-  const watch = watchToggle ? watchToggle.getAttribute('aria-checked') === 'true' : false;
+  const watchCheckbox = document.getElementById('authorWatchCheckbox');
+  const watch = watchCheckbox ? watchCheckbox.checked : false;
 
   try {
     const res = await fetch('/api/authors/queue-stories', {
@@ -365,14 +410,11 @@ async function addSingleStory(btn) {
   btn.disabled = true;
   btn.textContent = '…';
 
-  const watchToggle = document.getElementById('authorWatchToggle');
-  const watch = watchToggle ? watchToggle.getAttribute('aria-checked') === 'true' : false;
-
   try {
     const res = await fetch('/api/authors/queue-stories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ author_url: _authorPreviewUrl, story_urls: [storyUrl], watch }),
+      body: JSON.stringify({ author_url: _authorPreviewUrl, story_urls: [storyUrl] }),
     });
     const data = await res.json();
     if (data.success) {

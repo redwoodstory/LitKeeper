@@ -85,10 +85,14 @@ class AuthorScraper:
 
         session = get_session()
         try:
-            works_url = canonical.rstrip('/') + '/works'
-            resp = session.get(works_url, timeout=20)
-            if resp.status_code == 404:
+            is_memberpage = 'memberpage.php' in canonical
+            if is_memberpage:
                 resp = session.get(canonical, timeout=20)
+            else:
+                works_url = canonical.rstrip('/') + '/works'
+                resp = session.get(works_url, timeout=20)
+                if resp.status_code == 404:
+                    resp = session.get(canonical, timeout=20)
             resp.raise_for_status()
             html_text = resp.text
         except Exception as e:

@@ -96,26 +96,41 @@ class DownloadQueueWorker:
             return DEFAULT_MAX_DAILY_DOWNLOADS
 
     def _reset_rate_limited_items(self):
-        """Requeue items that were rate-limited and are now in a new UTC day. Runs at most once per day."""
-        today = datetime.utcnow().strftime('%Y-%m-%d')
-        if self._last_rate_limit_reset_date == today:
-            return
-        self._last_rate_limit_reset_date = today
-
+        """Requeue rate-limited items that should now be allowed to proceed."""
         from app.models import DownloadQueueItem, db
         from .logger import log_action
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        rate_limited = DownloadQueueItem.query.filter(
-            DownloadQueueItem.status == 'rate_limited',
-            DownloadQueueItem.completed_at < today_start
-        ).all()
-        if rate_limited:
-            log_action(f"[DOWNLOAD WORKER] Resetting {len(rate_limited)} rate-limited items for new day")
-            for it in rate_limited:
-                it.status = 'pending'
-                it.progress_message = None
-                it.completed_at = None
-            db.session.commit()
+
+        # Requeue items rate-limited on previous days (at most once per UTC day)
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        if self._last_rate_limit_reset_date != today:
+            self._last_rate_limit_reset_date = today
+            prev_limited = DownloadQueueItem.query.filter(
+                DownloadQueueItem.status == 'rate_limited',
+                DownloadQueueItem.completed_at < today_start
+            ).all()
+            if prev_limited:
+                log_action(f"[DOWNLOAD WORKER] Resetting {len(prev_limited)} rate-limited items from previous days")
+                for it in prev_limited:
+                    it.status = 'pending'
+                    it.progress_message = None
+                    it.completed_at = None
+                db.session.commit()
+
+        # Requeue today's rate-limited items if we're now under the cap (e.g. cap was raised)
+        daily_cap = self._get_daily_cap()
+        if self._daily_downloads_today() < daily_cap:
+            today_limited = DownloadQueueItem.query.filter(
+                DownloadQueueItem.status == 'rate_limited',
+                DownloadQueueItem.completed_at >= today_start
+            ).all()
+            if today_limited:
+                log_action(f"[DOWNLOAD WORKER] Resetting {len(today_limited)} rate-limited items — now under daily cap of {daily_cap}")
+                for it in today_limited:
+                    it.status = 'pending'
+                    it.progress_message = None
+                    it.completed_at = None
+                db.session.commit()
 
     def _daily_downloads_today(self) -> int:
         """Count completed downloads since midnight UTC."""
@@ -194,10 +209,7 @@ class DownloadQueueWorker:
 
             if item.job_type != 'author' and downloaded:
                 from .notifier import send_notification
-                send_notification(
-                    f"Story Downloaded",
-                    f"'{item.title or 'Story'}' has been added to your library"
-                )
+                send_notification(f"Story Downloaded: '{item.title or 'Story'}' has been added to your library")
 
         except Exception as e:
             error_msg = str(e)
