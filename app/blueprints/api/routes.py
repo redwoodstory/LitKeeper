@@ -1690,3 +1690,147 @@ def reset_all_exclusions() -> ResponseReturnValue:
         return jsonify({"success": False, "message": "Internal server error"}), 500
 
 
+# ---------------------------------------------------------------------------
+# Category Browse
+# ---------------------------------------------------------------------------
+
+@api.route('/browse/categories', methods=['GET'])
+def browse_categories() -> ResponseReturnValue:
+    from app.services.category_scraper import CATEGORIES
+    return jsonify({"success": True, "categories": [{"slug": s, "label": l} for s, l, _ in CATEGORIES]})
+
+
+@api.route('/browse/category', methods=['GET'])
+def browse_category() -> ResponseReturnValue:
+    try:
+        slug = (request.args.get('category') or '').strip()
+        sort = (request.args.get('sort') or 'top_all').strip()
+        try:
+            page = max(1, int(request.args.get('page') or 1))
+        except ValueError:
+            page = 1
+
+        from app.services.category_scraper import CategoryScraper, valid_category, CATEGORIES
+        if not slug or not valid_category(slug):
+            return jsonify({"success": False, "message": "Invalid or missing category"}), 400
+
+        scraper = CategoryScraper()
+        result = scraper.fetch_category(slug, sort, page)
+        stories = result['stories']
+
+        if not stories:
+            return jsonify({"success": False, "message": "No stories found. The category page may be temporarily unavailable."}), 404
+
+        from app.models import SeenLiteroticaUrl, DownloadQueueItem
+        story_urls = [s['url'] for s in stories]
+        seen_urls = {r.url for r in SeenLiteroticaUrl.query.filter(SeenLiteroticaUrl.url.in_(story_urls)).all()}
+        queued_urls = {r.url for r in DownloadQueueItem.query.filter(DownloadQueueItem.url.in_(story_urls)).all()}
+        for s in stories:
+            s['in_library'] = s['url'] in seen_urls
+            s['is_queued'] = s['url'] in queued_urls
+
+        label = next((l for sl, l, _ in CATEGORIES if sl == slug), slug)
+        return jsonify({
+            "success": True,
+            "category_slug": slug,
+            "category_label": label,
+            "sort": sort,
+            "page": result['page'],
+            "total_pages": result['total_pages'],
+            "stories": stories,
+        })
+
+    except Exception as e:
+        log_error(f"Error browsing category: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Failed to fetch category. Please try again."}), 500
+
+
+@api.route('/browse/queue-stories', methods=['POST'])
+def browse_queue_stories() -> ResponseReturnValue:
+    try:
+        data = request.get_json() or {}
+        story_urls = [u for u in (data.get('story_urls') or []) if isinstance(u, str) and u.strip()]
+        if not story_urls:
+            return jsonify({"success": False, "message": "No story URLs provided"}), 400
+
+        from app.models import DownloadQueueItem, SeenLiteroticaUrl, db
+        seen_urls = {r.url for r in SeenLiteroticaUrl.query.filter(SeenLiteroticaUrl.url.in_(story_urls)).all()}
+        existing_queued = {r.url for r in DownloadQueueItem.query.filter(DownloadQueueItem.url.in_(story_urls)).all()}
+
+        queued = 0
+        skipped = 0
+        for url in story_urls:
+            url = url.strip()
+            if url in seen_urls or url in existing_queued:
+                skipped += 1
+                continue
+            item = DownloadQueueItem(
+                url=url,
+                status='pending',
+                job_type='single',
+                progress_message='Queued from category browse',
+            )
+            item.set_formats(['epub', 'html'])
+            db.session.add(item)
+            queued += 1
+
+        db.session.commit()
+
+        if queued > 0:
+            from app import download_worker
+            if download_worker:
+                download_worker.wake()
+
+        msg = f"{queued} {'story' if queued == 1 else 'stories'} queued"
+        if skipped:
+            msg += f", {skipped} already in library"
+        return jsonify({"success": True, "queued": queued, "skipped": skipped, "message": msg})
+
+    except Exception as e:
+        from app.models import db
+        db.session.rollback()
+        log_error(f"Error queueing browse stories: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/browse/global', methods=['GET'])
+def browse_global() -> ResponseReturnValue:
+    try:
+        mode = (request.args.get('mode') or 'top_rated').strip()
+        try:
+            page = max(1, int(request.args.get('page') or 1))
+        except ValueError:
+            page = 1
+
+        from app.services.category_scraper import CategoryScraper, GLOBAL_MODES
+        if mode not in GLOBAL_MODES:
+            return jsonify({"success": False, "message": "Invalid mode"}), 400
+
+        scraper = CategoryScraper()
+        result = scraper.fetch_global(mode, page)
+        stories = result['stories']
+
+        if not stories:
+            return jsonify({"success": False, "message": "No stories found. The page may be temporarily unavailable."}), 404
+
+        from app.models import SeenLiteroticaUrl, DownloadQueueItem
+        story_urls = [s['url'] for s in stories]
+        seen_urls = {r.url for r in SeenLiteroticaUrl.query.filter(SeenLiteroticaUrl.url.in_(story_urls)).all()}
+        queued_urls = {r.url for r in DownloadQueueItem.query.filter(DownloadQueueItem.url.in_(story_urls)).all()}
+        for s in stories:
+            s['in_library'] = s['url'] in seen_urls
+            s['is_queued'] = s['url'] in queued_urls
+
+        return jsonify({
+            "success": True,
+            "mode": mode,
+            "page": result['page'],
+            "total_pages": result['total_pages'],
+            "stories": stories,
+        })
+
+    except Exception as e:
+        log_error(f"Error browsing global: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Failed to fetch stories. Please try again."}), 500
+
+

@@ -1,0 +1,632 @@
+<div id="categoryBrowseModal" class="hidden fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onclick="closeCategoryBrowseModal()">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+      <!-- Mode toggle -->
+      <div class="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden text-xs font-medium">
+        <button id="cb-mode-by_category" onclick="_cbSetMode('by_category')"
+          class="px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
+          By Category
+        </button>
+        <button id="cb-mode-global" onclick="_cbSetMode('global')"
+          class="px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          Global Lists
+        </button>
+      </div>
+      <button onclick="closeCategoryBrowseModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-4 flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- By Category controls -->
+    <div id="cbCategoryRow" class="flex flex-col gap-2 px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+      <select id="cbCategorySelect"
+        onchange="_cbOnCategoryChange()"
+        class="w-full text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-500 transition-colors">
+        <option value="">Select a category…</option>
+      </select>
+      <div class="flex w-full rounded-md overflow-hidden border border-slate-200 dark:border-slate-600 text-xs font-medium">
+        <button onclick="_cbSetSort('top_all')" id="cb-sort-top_all"
+          class="flex-1 px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
+          All Time
+        </button>
+        <button onclick="_cbSetSort('top_12mo')" id="cb-sort-top_12mo"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          12 Months
+        </button>
+        <button onclick="_cbSetSort('top_30d')" id="cb-sort-top_30d"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          30 Days
+        </button>
+        <button onclick="_cbSetSort('newest')" id="cb-sort-newest"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          Newest
+        </button>
+      </div>
+    </div>
+
+    <!-- Global Lists controls -->
+    <div id="cbGlobalRow" class="hidden items-center gap-2 px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+      <div class="flex w-full rounded-md overflow-hidden border border-slate-200 dark:border-slate-600 text-xs font-medium">
+        <button onclick="_cbSetGlobalTab('top_rated')" id="cb-global-top_rated"
+          class="flex-1 px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
+          Top Rated
+        </button>
+        <button onclick="_cbSetGlobalTab('most_read')" id="cb-global-most_read"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          Most Read
+        </button>
+        <button onclick="_cbSetGlobalTab('newest')" id="cb-global-newest"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          Newest
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter + count row -->
+    <div class="flex items-center gap-3 px-5 py-2 border-b border-slate-100 dark:border-slate-700/60 flex-shrink-0">
+      <label class="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
+        <input type="checkbox" id="cbFilterChapters" checked
+          onchange="_cbRenderList()"
+          class="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-300 focus:ring-slate-500 focus:ring-offset-0 cursor-pointer">
+        <span class="text-xs text-slate-500 dark:text-slate-400">Hide Ch. 2+</span>
+      </label>
+      <span id="cbCountLabel" class="text-xs text-slate-400 dark:text-slate-500 truncate"></span>
+      <button id="cbAddAllBtn" onclick="_cbAddAll()" class="hidden ml-auto flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-all duration-200 whitespace-nowrap">
+        Add All Visible
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+
+      <!-- Idle state -->
+      <div id="cbIdle" class="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <svg class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/>
+        </svg>
+        <p id="cbIdleMsg" class="text-slate-400 dark:text-slate-500 text-sm">Select a category above to start browsing</p>
+      </div>
+
+      <!-- Loading state -->
+      <div id="cbLoading" class="hidden flex flex-col items-center justify-center py-16 px-6">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 dark:border-white"></div>
+        <p class="mt-4 text-slate-500 dark:text-slate-400 text-sm">Fetching stories from Literotica…</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="cbError" class="hidden flex flex-col items-center justify-center py-16 px-6 text-center">
+        <svg class="w-10 h-10 text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+        <p class="text-slate-700 dark:text-slate-200 font-medium mb-1">Could not load stories</p>
+        <p id="cbErrorMsg" class="text-slate-500 dark:text-slate-400 text-sm mb-4"></p>
+        <button onclick="_cbRetry()"
+          class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all duration-200">
+          Try Again
+        </button>
+      </div>
+
+      <!-- Results list -->
+      <div id="cbResults" class="hidden flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">
+        <!-- Populated by JS -->
+      </div>
+
+    </div>
+
+    <!-- Footer: pagination only, hidden when single-page -->
+    <div id="cbFooter" class="hidden flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-5 py-3 flex items-center gap-2">
+      <button id="cbPrevBtn" onclick="_cbPrevPage()"
+        class="px-3 py-2 text-sm font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+        ← Prev
+      </button>
+      <span id="cbPageLabel" class="flex-1 text-center text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap"></span>
+      <button id="cbNextBtn" onclick="_cbNextPage()"
+        class="px-3 py-2 text-sm font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+        Next →
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  let _stories = [];
+  let _cbMode = 'by_category';
+  let _currentSort = 'top_all';
+  let _currentCategory = '';
+  let _cbGlobalTab = 'top_rated';
+  let _cbPage = 1;
+  let _cbTotalPages = 1;
+
+  const _CH_RE = /\b(?:ch(?:apter)?\.?\s*0*([2-9]|\d{2,})|pt\.?\s*0*([2-9]|\d{2,})|part\s+0*([2-9]|\d{2,})|episode\s+0*([2-9]|\d{2,})|act\s+0*([2-9]|\d{2,})|vol(?:ume)?\.?\s*0*([2-9]|\d{2,}))\b/i;
+  const _TRAILING_NUM_RE = /[#\s](\d+)\s*$|^\d+$/;
+
+  function _isChapter2Plus(title) {
+    if (_CH_RE.test(title)) return true;
+    const m = _TRAILING_NUM_RE.exec(title);
+    return m ? parseInt(m[1] ?? m[0], 10) >= 2 : false;
+  }
+
+  function _formatReadCount(n) {
+    const v = parseInt((n || '').replace(/,/g, ''));
+    if (isNaN(v)) return n;
+    if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return Math.round(v / 1e3) + 'K';
+    return String(v);
+  }
+
+  function _setState(state) {
+    document.getElementById('cbIdle').classList.toggle('hidden', state !== 'idle');
+    document.getElementById('cbLoading').classList.toggle('hidden', state !== 'loading');
+    document.getElementById('cbError').classList.toggle('hidden', state !== 'error');
+    document.getElementById('cbResults').classList.toggle('hidden', state !== 'results');
+    if (state !== 'results') {
+      document.getElementById('cbResults').style.opacity = '';
+      document.getElementById('cbFooter').classList.add('hidden');
+    }
+  }
+
+  function _updatePager() {
+    const footer = document.getElementById('cbFooter');
+    const prevBtn = document.getElementById('cbPrevBtn');
+    const nextBtn = document.getElementById('cbNextBtn');
+    const pageLabel = document.getElementById('cbPageLabel');
+    const showPager = _cbTotalPages > 1;
+    footer.classList.toggle('hidden', !showPager);
+    if (showPager) {
+      pageLabel.textContent = 'Page ' + _cbPage + ' of ' + _cbTotalPages;
+      prevBtn.disabled = _cbPage <= 1;
+      nextBtn.disabled = _cbPage >= _cbTotalPages;
+    }
+  }
+
+  function _esc(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function _escAttr(str) {
+    if (!str) return '';
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── Mode toggle ──────────────────────────────────────────────────────
+
+  window._cbSetMode = function (mode) {
+    _cbMode = mode;
+    _stories = [];
+    _cbPage = 1;
+    _cbTotalPages = 1;
+    document.getElementById('cbCountLabel').textContent = '';
+    document.getElementById('cbAddAllBtn').classList.add('hidden');
+
+    const isCat = mode === 'by_category';
+    document.getElementById('cbCategoryRow').classList.toggle('hidden', !isCat);
+    document.getElementById('cbCategoryRow').classList.toggle('flex', isCat);
+    document.getElementById('cbGlobalRow').classList.toggle('hidden', isCat);
+    document.getElementById('cbGlobalRow').classList.toggle('flex', !isCat);
+
+    _updateModeUI();
+
+    if (!isCat) {
+      _setState('loading');
+      _fetchGlobal(_cbGlobalTab, 1);
+    } else if (_currentCategory) {
+      _setState('loading');
+      _fetchCategory(_currentCategory, _currentSort, 1);
+    } else {
+      document.getElementById('cbIdleMsg').textContent = 'Select a category above to start browsing';
+      _setState('idle');
+    }
+  };
+
+  function _updateModeUI() {
+    ['by_category', 'global'].forEach(m => {
+      const btn = document.getElementById('cb-mode-' + m);
+      if (!btn) return;
+      const active = m === _cbMode;
+      btn.classList.toggle('bg-slate-900', active);
+      btn.classList.toggle('dark:bg-slate-100', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('dark:text-slate-900', active);
+      btn.classList.toggle('bg-white', !active);
+      btn.classList.toggle('dark:bg-slate-700', !active);
+      btn.classList.toggle('text-slate-600', !active);
+      btn.classList.toggle('dark:text-slate-300', !active);
+      btn.classList.toggle('hover:bg-slate-50', !active);
+      btn.classList.toggle('dark:hover:bg-slate-600', !active);
+      btn.classList.toggle('border-l', m === 'global');
+      btn.classList.toggle('border-slate-200', m === 'global');
+      btn.classList.toggle('dark:border-slate-600', m === 'global');
+    });
+  }
+
+  // ── Open / close ─────────────────────────────────────────────────────
+
+  window.openCategoryBrowseModal = function (mode) {
+    _stories = [];
+    _cbPage = 1;
+    _cbTotalPages = 1;
+    document.getElementById('cbCountLabel').textContent = '';
+    const addAllBtn = document.getElementById('cbAddAllBtn');
+    _cbResetAddAll(addAllBtn);
+    addAllBtn.classList.add('hidden');
+
+    const sel = document.getElementById('cbCategorySelect');
+    if (sel.options.length <= 1) {
+      fetch('/api/browse/categories')
+        .then(r => r.json())
+        .then(data => {
+          if (data.categories) {
+            data.categories
+              .sort((a, b) => a.label.localeCompare(b.label))
+              .forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.slug;
+                opt.textContent = cat.label;
+                sel.appendChild(opt);
+              });
+          }
+        });
+    }
+
+    document.getElementById('categoryBrowseModal').classList.remove('hidden');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    const targetMode = (mode === 'global') ? 'global' : 'by_category';
+    _cbSetMode(targetMode);
+  };
+
+  window.closeCategoryBrowseModal = function () {
+    document.getElementById('categoryBrowseModal').classList.add('hidden');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  };
+
+  // ── By-category controls ─────────────────────────────────────────────
+
+  window._cbOnCategoryChange = function () {
+    const slug = document.getElementById('cbCategorySelect').value;
+    if (!slug) {
+      _stories = [];
+      _setState('idle');
+      document.getElementById('cbCountLabel').textContent = '';
+      document.getElementById('cbAddAllBtn').classList.add('hidden');
+      return;
+    }
+    _currentCategory = slug;
+    _cbPage = 1;
+    _fetchCategory(slug, _currentSort, 1);
+  };
+
+  window._cbSetSort = function (sort) {
+    if (sort === _currentSort) return;
+    _currentSort = sort;
+    _cbPage = 1;
+    _updateSortUI();
+    if (_currentCategory) _fetchCategory(_currentCategory, sort, 1);
+  };
+
+  function _updateSortUI() {
+    ['top_all', 'top_12mo', 'top_30d', 'newest'].forEach(s => {
+      const btn = document.getElementById('cb-sort-' + s);
+      if (!btn) return;
+      const active = s === _currentSort;
+      btn.classList.toggle('bg-slate-900', active);
+      btn.classList.toggle('dark:bg-slate-100', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('dark:text-slate-900', active);
+      btn.classList.toggle('bg-white', !active);
+      btn.classList.toggle('dark:bg-slate-700', !active);
+      btn.classList.toggle('text-slate-600', !active);
+      btn.classList.toggle('dark:text-slate-300', !active);
+      btn.classList.toggle('hover:bg-slate-50', !active);
+      btn.classList.toggle('dark:hover:bg-slate-600', !active);
+    });
+  }
+
+  // ── Global list controls ─────────────────────────────────────────────
+
+  window._cbSetGlobalTab = function (tab) {
+    if (tab === _cbGlobalTab && !document.getElementById('cbResults').classList.contains('hidden')) return;
+    _cbGlobalTab = tab;
+    _cbPage = 1;
+    _updateGlobalTabUI();
+    _fetchGlobal(tab, 1);
+  };
+
+  function _updateGlobalTabUI() {
+    ['top_rated', 'most_read', 'newest'].forEach(t => {
+      const btn = document.getElementById('cb-global-' + t);
+      if (!btn) return;
+      const active = t === _cbGlobalTab;
+      btn.classList.toggle('bg-slate-900', active);
+      btn.classList.toggle('dark:bg-slate-100', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('dark:text-slate-900', active);
+      btn.classList.toggle('bg-white', !active);
+      btn.classList.toggle('dark:bg-slate-700', !active);
+      btn.classList.toggle('text-slate-600', !active);
+      btn.classList.toggle('dark:text-slate-300', !active);
+      btn.classList.toggle('hover:bg-slate-50', !active);
+      btn.classList.toggle('dark:hover:bg-slate-600', !active);
+    });
+  }
+
+  // ── Pagination ────────────────────────────────────────────────────────
+
+  window._cbPrevPage = function () { _cbGoPage(_cbPage - 1); };
+  window._cbNextPage = function () { _cbGoPage(_cbPage + 1); };
+
+  window._cbGoPage = function (page) {
+    if (page < 1 || page > _cbTotalPages) return;
+    _cbPage = page;
+    if (_cbMode === 'global') {
+      _fetchGlobal(_cbGlobalTab, page);
+    } else {
+      _fetchCategory(_currentCategory, _currentSort, page);
+    }
+  };
+
+  // ── Fetch helpers ─────────────────────────────────────────────────────
+
+  function _startLoadingInPlace() {
+    const inResults = !document.getElementById('cbResults').classList.contains('hidden');
+    if (!inResults) {
+      _setState('loading');
+      return false;
+    }
+    document.getElementById('cbResults').style.opacity = '0.4';
+    document.getElementById('cbCountLabel').textContent = 'Loading…';
+    return true;
+  }
+
+  function _finishLoadingInPlace(wasInPlace, data) {
+    if (!data.success) {
+      document.getElementById('cbResults').style.opacity = '';
+      document.getElementById('cbErrorMsg').textContent = data.message || 'Failed to load stories.';
+      _setState('error');
+      return false;
+    }
+    document.getElementById('cbResults').style.opacity = '';
+    return true;
+  }
+
+  async function _fetchCategory(slug, sort, page) {
+    const inPlace = _startLoadingInPlace();
+    try {
+      const url = '/api/browse/category?category=' + encodeURIComponent(slug)
+        + '&sort=' + encodeURIComponent(sort)
+        + '&page=' + page;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!_finishLoadingInPlace(inPlace, data)) return;
+      _stories = data.stories || [];
+      _cbPage = data.page || page;
+      _cbTotalPages = data.total_pages || 1;
+      _setState('results');
+      _cbRenderList();
+      _updatePager();
+      const list = document.getElementById('cbResults');
+      if (list) list.scrollTop = 0;
+    } catch (e) {
+      document.getElementById('cbResults').style.opacity = '';
+      document.getElementById('cbErrorMsg').textContent = 'Request failed. Check your connection and try again.';
+      _setState('error');
+    }
+  }
+
+  async function _fetchGlobal(mode, page) {
+    const inPlace = _startLoadingInPlace();
+    try {
+      const url = '/api/browse/global?mode=' + encodeURIComponent(mode) + '&page=' + page;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!_finishLoadingInPlace(inPlace, data)) return;
+      _stories = data.stories || [];
+      _cbPage = data.page || page;
+      _cbTotalPages = data.total_pages || 1;
+      _setState('results');
+      _cbRenderList();
+      _updatePager();
+      const list = document.getElementById('cbResults');
+      if (list) list.scrollTop = 0;
+    } catch (e) {
+      document.getElementById('cbResults').style.opacity = '';
+      document.getElementById('cbErrorMsg').textContent = 'Request failed. Check your connection and try again.';
+      _setState('error');
+    }
+  }
+
+  window._cbRetry = function () {
+    if (_cbMode === 'global') {
+      _fetchGlobal(_cbGlobalTab, _cbPage);
+    } else if (_currentCategory) {
+      _fetchCategory(_currentCategory, _currentSort, _cbPage);
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────
+
+  window._cbRenderList = function () {
+    const filterOn = document.getElementById('cbFilterChapters').checked;
+    const visible = _stories.filter(s => !(filterOn && _isChapter2Plus(s.title)));
+    const pending = visible.filter(s => !s.in_library && !s.is_queued);
+
+    const addAllBtn = document.getElementById('cbAddAllBtn');
+    addAllBtn.classList.toggle('hidden', pending.length === 0);
+    addAllBtn.textContent = 'Add All Visible';
+
+    const total = _stories.length;
+    const hidden = total - visible.length;
+    const label = hidden > 0
+      ? visible.length + ' of ' + total + ' stories (' + hidden + ' filtered)'
+      : total + (total === 1 ? ' story' : ' stories');
+    document.getElementById('cbCountLabel').textContent = label;
+
+    const list = document.getElementById('cbResults');
+    if (!visible.length) {
+      list.innerHTML = '<div class="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500 text-sm">No stories match the current filters.</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map(story => {
+      const score = story.score ? parseFloat(story.score).toFixed(2) : null;
+      const inLibrary = story.in_library || story.is_queued;
+      const statusLabel = story.in_library ? 'In library' : (story.is_queued ? 'Queued' : null);
+
+      const metaParts = [];
+      if (story.read_count) {
+        metaParts.push('<span title="Read count">' + _esc(_formatReadCount(story.read_count)) + ' reads</span>');
+      } else if (score) {
+        const ratingText = story.vote_count
+          ? '★ ' + _esc(score) + ' <span class="text-slate-300 dark:text-slate-600">(' + _esc(story.vote_count) + ')</span>'
+          : '★ ' + _esc(score);
+        metaParts.push('<span title="Rating (votes)">' + ratingText + '</span>');
+      }
+      if (story.date_approve) metaParts.push('<span>' + _esc(story.date_approve) + '</span>');
+      if (story.author_name) {
+        const authorHref = story.author_url ? ' href="' + _escAttr(story.author_url) + '" target="_blank" rel="noopener noreferrer"' : '';
+        metaParts.push('<a class="hover:underline"' + authorHref + '>' + _esc(story.author_name) + '</a>');
+      }
+
+      const metaRow = metaParts.length
+        ? '<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-400 dark:text-slate-500">' + metaParts.join('') + '</div>'
+        : '';
+      const descRow = story.description
+        ? '<p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500 line-clamp-1">' + _esc(story.description) + '</p>'
+        : '';
+
+      const rowBg = inLibrary ? 'bg-slate-50/60 dark:bg-slate-700/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/40';
+      const titleColor = inLibrary ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white';
+
+      const btn = inLibrary
+        ? '<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed" title="' + statusLabel + '">' + statusLabel + '</button>'
+        : '<button data-story-url="' + _escAttr(story.url) + '" onclick="_cbAddSingle(this)" class="flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-colors duration-150">Add</button>';
+
+      return '<div class="flex items-center gap-3 px-5 py-3 transition-colors duration-100 ' + rowBg + '">'
+        + '<div class="flex-1 min-w-0">'
+        + '<p class="text-sm font-medium ' + titleColor + ' truncate flex items-center gap-1.5">'
+        + '<span class="truncate">' + _esc(story.title) + '</span>'
+        + '<a href="' + _escAttr(story.url) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Open on Literotica" class="flex-shrink-0 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 transition-colors duration-150">'
+        + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>'
+        + '</a>'
+        + '</p>'
+        + metaRow + descRow
+        + '</div>'
+        + btn
+        + '</div>';
+    }).join('');
+  };
+
+  // ── Queue actions ─────────────────────────────────────────────────────
+
+  window._cbAddSingle = async function (btn) {
+    if (btn.disabled) return;
+    const url = btn.dataset.storyUrl;
+    btn.disabled = true;
+    btn.removeAttribute('onclick');
+    btn.textContent = '…';
+    try {
+      const res = await fetch('/api/browse/queue-stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ story_urls: [url] }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const story = _stories.find(s => s.url === url);
+        if (story) story.is_queued = true;
+        btn.textContent = 'Queued';
+        btn.className = 'flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed';
+        _updateAddAllBtn();
+        window.toast?.show(data.message || 'Story queued!', 'success');
+      } else {
+        btn.disabled = false;
+        btn.setAttribute('onclick', '_cbAddSingle(this)');
+        btn.textContent = 'Add';
+        window.toast?.show(data.message || 'Failed to queue story.', 'error');
+      }
+    } catch {
+      btn.disabled = false;
+      btn.setAttribute('onclick', '_cbAddSingle(this)');
+      btn.textContent = 'Add';
+      window.toast?.show('Request failed. Please try again.', 'error');
+    }
+  };
+
+  let _cbAddAllConfirming = false;
+  let _cbAddAllTimer = null;
+
+  function _cbResetAddAll(btn, label) {
+    clearTimeout(_cbAddAllTimer);
+    _cbAddAllConfirming = false;
+    btn.textContent = label || 'Add All Visible';
+    btn.className = btn.className
+      .replace(/\bbg-amber-500\b/g, 'bg-slate-900')
+      .replace(/\bdark:bg-amber-400\b/g, 'dark:bg-slate-100')
+      .replace(/\bhover:bg-amber-600\b/g, 'hover:bg-slate-700')
+      .replace(/\bdark:hover:bg-amber-300\b/g, 'dark:hover:bg-slate-300')
+      .replace(/\btext-slate-900\b/g, 'text-white')
+      .replace(/\bdark:text-slate-900\b/g, 'dark:text-slate-900');
+    btn.className = 'hidden ml-auto flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-all duration-200 whitespace-nowrap';
+  }
+
+  window._cbAddAll = async function () {
+    const filterOn = document.getElementById('cbFilterChapters').checked;
+    const visible = _stories.filter(s => !(filterOn && _isChapter2Plus(s.title)));
+    const pending = visible.filter(s => !s.in_library && !s.is_queued);
+    if (!pending.length) return;
+
+    const btn = document.getElementById('cbAddAllBtn');
+
+    if (!_cbAddAllConfirming) {
+      _cbAddAllConfirming = true;
+      btn.textContent = 'Add ' + pending.length + (pending.length === 1 ? ' story?' : ' stories?');
+      btn.className = 'ml-auto flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 dark:bg-amber-400 text-white dark:text-slate-900 hover:bg-amber-600 dark:hover:bg-amber-300 transition-all duration-200 whitespace-nowrap';
+      _cbAddAllTimer = setTimeout(() => _cbResetAddAll(btn), 4000);
+      return;
+    }
+
+    clearTimeout(_cbAddAllTimer);
+    _cbAddAllConfirming = false;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res = await fetch('/api/browse/queue-stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ story_urls: pending.map(s => s.url) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        pending.forEach(s => { s.is_queued = true; });
+        _cbRenderList();
+        window.toast?.show(data.message || pending.length + ' stories queued!', 'success');
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Add All Visible';
+        window.toast?.show(data.message || 'Failed to queue stories.', 'error');
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = 'Add All Visible';
+      window.toast?.show('Request failed. Please try again.', 'error');
+    }
+  };
+
+  function _updateAddAllBtn() {
+    const filterOn = document.getElementById('cbFilterChapters').checked;
+    const visible = _stories.filter(s => !(filterOn && _isChapter2Plus(s.title)));
+    const pending = visible.filter(s => !s.in_library && !s.is_queued);
+    document.getElementById('cbAddAllBtn').classList.toggle('hidden', pending.length === 0);
+  }
+})();
+</script>
