@@ -321,7 +321,9 @@ def read_story(story_id: int) -> ResponseReturnValue:
         epub_filename = os.path.basename(epub_fmt.file_path) if epub_fmt else None
         return render_template('reader.html', story=story_data, story_id=story_db.id, progress=progress,
                                target_chapter=target_chapter, target_para=target_para,
-                               epub_filename=epub_filename)
+                               epub_filename=epub_filename,
+                               literotica_page_count=story_db.literotica_page_count,
+                               current_rating=story_db.rating)
 
     except Exception as e:
         log_error(f"Error loading story {story_id}: {str(e)}\n{traceback.format_exc()}")

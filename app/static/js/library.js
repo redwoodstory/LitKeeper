@@ -91,3 +91,10 @@ if (categoryFilter) {
 document.addEventListener('DOMContentLoaded', () => {
   initializeLibraryFilters();
 });
+
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && sessionStorage.getItem('litkeeper_reload')) {
+    sessionStorage.removeItem('litkeeper_reload');
+    window.location.reload();
+  }
+});

@@ -334,6 +334,8 @@
     }
 
     let scrollTimer = null;
+    // Pre-suppress if the story was already at/near the end when opened
+    let completionShown = !!(initialProgress && (initialProgress.percentage || 0) >= 0.99);
     window.addEventListener('scroll', () => {
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
@@ -344,6 +346,10 @@
         const para = p ? parseInt(p.dataset.para, 10) : 0;
         const paragraphId = p ? p.id : null;
         saveProgress(chapter, para, Math.round(window.scrollY), pct, paragraphId);
+        if (pct >= 0.99 && !completionShown) {
+          completionShown = true;
+          showCompletionModal();
+        }
       }, 1500);
     }, { passive: true });
 
@@ -421,6 +427,72 @@
     } else {
       // Only restore reading position when not jumping to a specific quote
       requestAnimationFrame(() => requestAnimationFrame(restorePosition));
+    }
+
+    // --- Shared star rating helper ---
+    function initStarWidget(container, initialRating, onRate) {
+      const stars = container.querySelectorAll('[data-value]');
+      let activeRating = initialRating;
+
+      function updateStars(rating) {
+        stars.forEach(s => s.classList.toggle('active', parseInt(s.dataset.value, 10) <= rating));
+      }
+      updateStars(activeRating);
+
+      stars.forEach(star => {
+        star.addEventListener('mouseenter', () => updateStars(parseInt(star.dataset.value, 10)));
+        star.addEventListener('mouseleave', () => updateStars(activeRating));
+        star.addEventListener('click', async () => {
+          const val = parseInt(star.dataset.value, 10);
+          const newRating = val === activeRating ? null : val;
+          activeRating = newRating || 0;
+          updateStars(activeRating);
+          onRate(newRating);
+        });
+      });
+    }
+
+    async function postRating(rating) {
+      sessionStorage.setItem('litkeeper_reload', '1');
+      try {
+        await fetch(`/api/story/${storyId}/rating`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating })
+        });
+      } catch (_) {}
+    }
+
+    // --- Header rating widget ---
+    const headerWidget = document.getElementById('header-rating-widget');
+    if (headerWidget) {
+      initStarWidget(headerWidget, window.CURRENT_RATING || 0, postRating);
+    }
+
+    // --- Completion modal ---
+    function showCompletionModal() {
+      const modal = document.getElementById('completion-modal');
+      if (!modal) return;
+
+      // Set up comments link
+      const sourceUrl = (typeof window.SOURCE_URL !== 'undefined' ? window.SOURCE_URL : '');
+      const commentsLink = document.getElementById('completion-comments-link');
+      if (sourceUrl && commentsLink) {
+        commentsLink.href = sourceUrl.replace(/\/?$/, '') + '/comments';
+        commentsLink.style.display = 'flex';
+      }
+
+      // Set up star rating
+      const starsContainer = modal.querySelector('.completion-modal-stars');
+      initStarWidget(starsContainer, window.CURRENT_RATING || 0, postRating);
+
+      // Dismiss
+      const dismissBtn = document.getElementById('completion-modal-dismiss');
+      const overlay = document.getElementById('completion-modal-overlay');
+      dismissBtn?.addEventListener('click', () => { window.location.href = '/'; });
+      overlay?.addEventListener('click', () => { modal.classList.remove('active'); });
+
+      modal.classList.add('active');
     }
 
     // --- Save quote ---

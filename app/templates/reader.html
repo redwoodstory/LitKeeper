@@ -23,6 +23,13 @@
     {% if story.description %}
     <p class="story-description">{{ story.description }}</p>
     {% endif %}
+    {% if story_id %}
+    <div class="story-header-rating" id="header-rating-widget">
+      {% for i in range(1, 6) %}
+      <button class="header-star" data-value="{{ i }}" aria-label="{{ i }} star{{ 's' if i != 1 else '' }}">★</button>
+      {% endfor %}
+    </div>
+    {% endif %}
   </header>
 
   {% if story.chapters|length > 1 %}
@@ -56,15 +63,53 @@
     {% endif %}
     {% endfor %}
   </div>
+
+  {% if story.source_url %}
+  <div class="story-comments-footer">
+    <a href="{{ story.source_url.rstrip('/') }}/comments" target="_blank" rel="noopener noreferrer" class="story-comments-link">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      View Comments
+    </a>
+  </div>
+  {% endif %}
 </article>
 {% if story_id %}
 <script>
   window.STORY_ID = {{ story_id }};
   window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'paragraph_id': progress.paragraph_id, 'percentage': progress.percentage, 'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else none} | tojson | safe }}{% else %}null{% endif %};
+  window.SOURCE_URL = {{ (story.source_url or '') | tojson }};
+  window.CURRENT_RATING = {{ (current_rating or 0) | tojson }};
   {% if target_chapter is not none %}
   window.TARGET_CHAPTER = {{ target_chapter }};
   window.TARGET_PARA = {{ target_para if target_para is not none else 0 }};
   {% endif %}
 </script>
 {% endif %}
+
+<div id="completion-modal" class="completion-modal" role="dialog" aria-modal="true" aria-labelledby="completion-modal-title">
+  <div class="completion-modal-overlay" id="completion-modal-overlay"></div>
+  <div class="completion-modal-card">
+    <div class="completion-modal-icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+    </div>
+    <p id="completion-modal-title" class="completion-modal-title">You finished it!</p>
+    <p class="completion-modal-subtitle">How would you rate this story?</p>
+    <div class="completion-modal-stars">
+      {% for i in range(1, 6) %}
+      <button class="completion-star" data-value="{{ i }}" aria-label="{{ i }} star{{ 's' if i != 1 else '' }}">★</button>
+      {% endfor %}
+    </div>
+    <div class="completion-modal-divider"></div>
+    <a id="completion-comments-link"
+       href="#"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="completion-comments-link"
+       style="display:none">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      View Comments
+    </a>
+    <button id="completion-modal-dismiss" class="completion-dismiss-btn">Done</button>
+  </div>
+</div>
 {% endblock %}
