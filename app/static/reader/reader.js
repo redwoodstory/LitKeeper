@@ -334,8 +334,6 @@
     }
 
     let scrollTimer = null;
-    // Pre-suppress if the story was already at/near the end when opened
-    let completionShown = !!(initialProgress && (initialProgress.percentage || 0) >= 0.99);
     window.addEventListener('scroll', () => {
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
@@ -346,10 +344,6 @@
         const para = p ? parseInt(p.dataset.para, 10) : 0;
         const paragraphId = p ? p.id : null;
         saveProgress(chapter, para, Math.round(window.scrollY), pct, paragraphId);
-        if (pct >= 0.99 && !completionShown) {
-          completionShown = true;
-          showCompletionModal();
-        }
       }, 1500);
     }, { passive: true });
 
@@ -469,30 +463,29 @@
       initStarWidget(headerWidget, window.CURRENT_RATING || 0, postRating);
     }
 
-    // --- Completion modal ---
-    function showCompletionModal() {
-      const modal = document.getElementById('completion-modal');
+    // --- Rate story modal ---
+    let rateStoryModalInited = false;
+    function showRateStoryModal() {
+      const modal = document.getElementById('rate-story-modal');
       if (!modal) return;
 
-      // Set up comments link
-      const sourceUrl = (typeof window.SOURCE_URL !== 'undefined' ? window.SOURCE_URL : '');
-      const commentsLink = document.getElementById('completion-comments-link');
-      if (sourceUrl && commentsLink) {
-        commentsLink.href = sourceUrl.replace(/\/?$/, '') + '/comments';
-        commentsLink.style.display = 'flex';
+      if (!rateStoryModalInited) {
+        rateStoryModalInited = true;
+        const starsContainer = modal.querySelector('.rate-story-modal-stars');
+        initStarWidget(starsContainer, window.CURRENT_RATING || 0, (rating) => {
+          postRating(rating);
+          setTimeout(() => modal.classList.remove('active'), 400);
+        });
+        document.getElementById('rate-story-modal-overlay')
+          ?.addEventListener('click', () => modal.classList.remove('active'));
       }
 
-      // Set up star rating
-      const starsContainer = modal.querySelector('.completion-modal-stars');
-      initStarWidget(starsContainer, window.CURRENT_RATING || 0, postRating);
-
-      // Dismiss
-      const dismissBtn = document.getElementById('completion-modal-dismiss');
-      const overlay = document.getElementById('completion-modal-overlay');
-      dismissBtn?.addEventListener('click', () => { window.location.href = '/'; });
-      overlay?.addEventListener('click', () => { modal.classList.remove('active'); });
-
       modal.classList.add('active');
+    }
+
+    const rateStoryBtn = document.getElementById('rate-story-btn');
+    if (rateStoryBtn) {
+      rateStoryBtn.addEventListener('click', showRateStoryModal);
     }
 
     // --- Save quote ---

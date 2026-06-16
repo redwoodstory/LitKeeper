@@ -590,40 +590,44 @@ a:hover {
   transform: scale(0.9);
 }
 
-/* --- Inline story footer comments link --- */
-.story-comments-footer {
+/* --- Inline story footer actions --- */
+.story-end-actions {
   display: flex;
   justify-content: center;
+  gap: 0.75rem;
   padding: 2.5rem 0 1rem;
+  flex-wrap: wrap;
 }
 
-.story-comments-link {
+.story-end-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
   border: 1px solid var(--separator-color);
   border-radius: 999px;
+  background: none;
   color: var(--secondary-text);
   font-size: 0.875rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   text-decoration: none;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.story-comments-link svg {
+.story-end-btn svg {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
 }
 
-.story-comments-link:hover {
+.story-end-btn:hover {
   color: var(--accent-color);
   border-color: var(--accent-color);
 }
 
-/* --- Completion modal --- */
-.completion-modal {
+/* --- Rate story modal --- */
+.rate-story-modal {
   display: none;
   position: fixed;
   inset: 0;
@@ -633,22 +637,22 @@ a:hover {
 }
 
 @media (min-width: 480px) {
-  .completion-modal {
+  .rate-story-modal {
     align-items: center;
   }
 }
 
-.completion-modal.active {
+.rate-story-modal.active {
   display: flex;
 }
 
-.completion-modal-overlay {
+.rate-story-modal-overlay {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
 }
 
-.completion-modal-card {
+.rate-story-modal-card {
   position: relative;
   background: var(--bg-color);
   border: 1px solid var(--separator-color);
@@ -666,52 +670,30 @@ a:hover {
 }
 
 @media (min-width: 480px) {
-  .completion-modal-card {
+  .rate-story-modal-card {
     border-radius: 20px;
     box-shadow: 0 8px 48px rgba(0, 0, 0, 0.2);
   }
 }
 
-[data-theme="dark"] .completion-modal-card {
+[data-theme="dark"] .rate-story-modal-card {
   box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.5);
 }
 
 @media (min-width: 480px) {
-  [data-theme="dark"] .completion-modal-card {
+  [data-theme="dark"] .rate-story-modal-card {
     box-shadow: 0 8px 48px rgba(0, 0, 0, 0.6);
   }
 }
 
-.completion-modal-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(16, 185, 129, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #10b981;
-}
-
-.completion-modal-icon svg {
-  width: 28px;
-  height: 28px;
-}
-
-.completion-modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+.rate-story-modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
   color: var(--text-color);
   margin: 0;
 }
 
-.completion-modal-subtitle {
-  font-size: 0.875rem;
-  color: var(--secondary-text);
-  margin: 0;
-}
-
-.completion-modal-stars {
+.rate-story-modal-stars {
   display: flex;
   gap: 6px;
   align-items: center;
@@ -735,58 +717,6 @@ a:hover {
 
 .completion-star:active {
   transform: scale(0.9);
-}
-
-.completion-modal-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--separator-color);
-}
-
-.completion-comments-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--separator-color);
-  border-radius: 10px;
-  background: var(--header-bg);
-  color: var(--text-color);
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.completion-comments-link:hover {
-  border-color: var(--accent-color);
-  color: var(--accent-color);
-}
-
-.completion-comments-link svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.completion-dismiss-btn {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 10px;
-  background: var(--text-color);
-  color: var(--bg-color);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-.completion-dismiss-btn:hover {
-  opacity: 0.85;
 }
 
 /* --- Quote save toast notification --- */

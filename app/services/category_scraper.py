@@ -269,7 +269,7 @@ class CategoryScraper:
     def _parse_spa_stories(self, soup: BeautifulSoup) -> list[dict]:
         results = []
         seen: set[str] = set()
-        for item in soup.find_all(lambda t: t.name == 'div' and self._has_prefix(t, '_works_item_')):
+        for item in soup.find_all(lambda t: t.name in ('div', 'article') and self._has_prefix(t, '_works_item_')):
             story = self._parse_spa_item(item)
             if story and story['url'] not in seen:
                 seen.add(story['url'])

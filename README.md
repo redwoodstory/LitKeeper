@@ -29,6 +29,36 @@ Originally built as a simple EPUB downloader for e-readers, LitKeeper has evolve
 * **Watch for New Stories:** Enable watching on any author to have LitKeeper automatically check for new stories they publish. Toggle per-author watching from **Settings → Watched Authors**.
 * **Auto-Download New Stories from Watched Authors:** A dedicated toggle under **Settings → Automation** enables scheduled automatic checks for new stories from watched authors, using the same weekly schedule as story auto-updates. The Watched Authors page is only accessible when this setting is enabled.
 
+### Custom Story Lists
+* **Browse a Personal Story List:** LitKeeper can read a custom list of story URLs from an external SQLite database placed in your data volume. This lets you maintain your own set of stories — sourced however you like — and browse, filter, and queue them for download inside LitKeeper's Browse modal under the **Custom List** tab.
+
+**Setup**
+
+Drop a file named `custom_url_dataset.db` into your `./data/` volume mount (the same directory that holds `litkeeper.db`). LitKeeper reads it directly — no import step required. Refresh your local file whenever you want to update the list.
+
+**Source database format**
+
+The database must be a SQLite file containing a `stories` table with the following columns:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `url` | TEXT (PRIMARY KEY) | Full Literotica story URL |
+| `title` | TEXT | Story title |
+| `score` | REAL | Rating (0–5) |
+| `views` | INTEGER | View count |
+| `favorites` | INTEGER | Favorites count |
+| `author_name` | TEXT | Author display name |
+| `author_url` | TEXT | Full URL to author profile |
+| `date_approve` | TEXT | Publish date (MM/DD/YYYY) |
+| `description` | TEXT | Short story description |
+| `category` | TEXT | Category slug |
+| `is_series` | INTEGER | 1 if part of a series, 0 otherwise |
+| `comments` | INTEGER | Number of comments |
+| `lists` | INTEGER | Number of reading lists the story appears on |
+| `series_parts` | INTEGER | Total parts in the series (NULL if not a series) |
+
+All columns other than `url` are optional. How you populate this database is up to you — a simple Python script, a spreadsheet export, or your own crawler.
+
 ## ⚠️ Migrating from V1
 
 If you are migrating from an older V1 instance of LitKeeper, please refer to the [V1 to V2 Migration Guide](MIGRATION.md) for detailed instructions on updating your configuration and importing your existing stories.
@@ -120,8 +150,9 @@ Volume mounts are required for data persistence between container restarts:
 **Directory structure:**
 ```
 ./data/
-  ├── litkeeper.db  # SQLite database
-  └── secret.key    # Auto-generated session key
+  ├── litkeeper.db     # SQLite database
+  ├── secret.key       # Auto-generated session key
+  └── custom_url_dataset.db   # Optional: your custom story list (see "Custom Story Lists")
 
 ./stories/
   ├── epubs/        # EPUB files

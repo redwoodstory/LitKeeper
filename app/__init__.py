@@ -259,6 +259,7 @@ def create_app() -> Flask:
     from .blueprints.authors import authors_bp
     from .blueprints.opds import opds_bp
     from .blueprints.auto_update_stories import auto_update_stories
+    from .blueprints.browse import browse_bp
 
     app.register_blueprint(api)
     app.register_blueprint(library)
@@ -272,6 +273,7 @@ def create_app() -> Flask:
     app.register_blueprint(authors_bp)
     app.register_blueprint(opds_bp)
     app.register_blueprint(auto_update_stories)
+    app.register_blueprint(browse_bp)
 
     @app.route('/favicon.ico')
     def favicon():

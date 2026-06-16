@@ -656,6 +656,7 @@ def redownload_cancel():
     click.echo(f'Removed {count} pending job(s). Any in-progress download will finish normally.')
 
 
+
 def register_commands(app):
     app.cli.add_command(sync_cli)
     app.cli.add_command(migration_cli)

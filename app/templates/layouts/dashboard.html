@@ -32,6 +32,15 @@
         </svg>
       </button>
       {% endif %}
+      <a href="/browse"
+         hx-boost="false"
+         class="hidden md:flex p-2 rounded-lg transition-all duration-200 {% if request.path.startswith('/browse') %}text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800{% else %}text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white{% endif %}"
+         aria-label="Browse Stories">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        </svg>
+      </a>
+
       <a href="/highlights/"
          hx-boost="false"
          class="hidden md:flex p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all duration-200"
@@ -184,7 +193,6 @@
 </div>
 
 {% include 'components/metadata_refresh_modal.html' %}
-{% include 'components/category_browse_modal.html' %}
 
 {% set p = request.path %}
 {% set tab_base = "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium" %}
@@ -202,6 +210,15 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
       </svg>
       <span>Library</span>
+    </a>
+
+    <a href="/browse" hx-boost="false"
+       class="{{ tab_base }} {{ tab_on if p.startswith('/browse') else tab_off }}"
+       aria-label="Browse">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+      </svg>
+      <span>Browse</span>
     </a>
 
     <a href="/queue/" hx-boost="false"

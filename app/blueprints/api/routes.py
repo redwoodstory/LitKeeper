@@ -9,6 +9,7 @@ from app.services.story_downloader import download_story, fetch_story_metadata
 from app.services.metadata_refresh_service import MetadataRefreshService
 from pydantic import ValidationError
 import os
+import sqlite3
 import base64
 from datetime import datetime
 import traceback
@@ -1794,6 +1795,160 @@ def browse_queue_stories() -> ResponseReturnValue:
         return jsonify({"success": False, "message": "Internal server error"}), 500
 
 
+@api.route('/browse/story-page-count', methods=['GET'])
+def browse_story_page_count() -> ResponseReturnValue:
+    url = (request.args.get('url') or '').strip()
+    if not url or 'literotica.com' not in url:
+        return jsonify({"success": False, "message": "Invalid URL"}), 400
+    try:
+        from app.services.story_downloader import fetch_story_metadata
+        meta = fetch_story_metadata(url)
+        if not meta:
+            return jsonify({"success": True, "page_count": None})
+        return jsonify({
+            "success": True,
+            "page_count": meta.get('page_count', 1),
+        })
+    except Exception as e:
+        log_error(f"[browse_story_page_count] {e}")
+        return jsonify({"success": True, "page_count": None})
+
+
+def _custom_list_db_path() -> str:
+    return os.path.join(current_app.root_path, 'data', 'custom_url_dataset.db')
+
+
+@api.route('/browse/custom_list/categories', methods=['GET'])
+def browse_custom_list_categories() -> ResponseReturnValue:
+    db_path = _custom_list_db_path()
+    if not os.path.exists(db_path):
+        return jsonify({"success": True, "categories": []})
+    try:
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT DISTINCT category FROM stories WHERE category IS NOT NULL ORDER BY category"
+        ).fetchall()
+        conn.close()
+        return jsonify({"success": True, "categories": [r[0] for r in rows]})
+    except Exception as e:
+        log_error(f"Error fetching custom list categories: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@api.route('/browse/custom_list', methods=['GET'])
+def browse_custom_list() -> ResponseReturnValue:
+    db_path = _custom_list_db_path()
+    if not os.path.exists(db_path):
+        return jsonify({"success": True, "stories": [], "page": 1, "total_pages": 1, "total_count": 0})
+
+    try:
+        category   = (request.args.get('category') or '').strip()
+        sort       = (request.args.get('sort') or 'score_desc').strip()
+        series     = (request.args.get('series') or 'all').strip()
+        date_range = (request.args.get('date_range') or 'all').strip()
+        try:
+            min_score = float(request.args.get('min_score') or 0)
+        except ValueError:
+            min_score = 0.0
+        try:
+            min_views = int(request.args.get('min_views') or 0)
+        except ValueError:
+            min_views = 0
+        try:
+            page = max(1, int(request.args.get('page') or 1))
+        except ValueError:
+            page = 1
+        try:
+            per_page = min(100, max(1, int(request.args.get('per_page') or 25)))
+        except ValueError:
+            per_page = 25
+
+        clauses: list[str] = []
+        params: list = []
+        if category:
+            clauses.append("category = ?")
+            params.append(category)
+        if min_score > 0:
+            clauses.append("score >= ?")
+            params.append(min_score)
+        if min_views > 0:
+            clauses.append("views >= ?")
+            params.append(min_views)
+        if series == 'only':
+            clauses.append("(is_series = 1 OR series_title(title))")
+        elif series == 'exclude':
+            clauses.append("(is_series = 0 AND NOT series_title(title))")
+        if date_range == '12mo':
+            clauses.append("date(substr(date_approve,7,4)||'-'||substr(date_approve,1,2)||'-'||substr(date_approve,4,2)) >= date('now','-12 months')")
+        elif date_range == '30d':
+            clauses.append("date(substr(date_approve,7,4)||'-'||substr(date_approve,1,2)||'-'||substr(date_approve,4,2)) >= date('now','-30 days')")
+
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+        _sort_map = {
+            'score_desc':     'score DESC',
+            'views_desc':     'views DESC',
+            'favorites_desc': 'favorites DESC',
+            'date_desc':      'date_approve DESC',
+            'date_asc':       'date_approve ASC',
+            'title_asc':      'title ASC',
+        }
+        order = _sort_map.get(sort, 'score DESC')
+
+        import re as _re
+        _series_re = _re.compile(r'\bch(?:apter)?\.?\s*\d+\b|\bpt\.?\s*\d+\b|#\d+', _re.IGNORECASE)
+
+        conn = sqlite3.connect(db_path)
+        conn.create_function("series_title", 1, lambda t: 1 if _series_re.search(t or '') else 0)
+        conn.row_factory = sqlite3.Row
+        total = conn.execute(f"SELECT COUNT(*) FROM stories {where}", params).fetchone()[0]
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, total_pages)
+        offset = (page - 1) * per_page
+        existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(stories)").fetchall()}
+        series_count_expr = "series_parts" if "series_parts" in existing_cols else ("chapter_count" if "chapter_count" in existing_cols else "NULL as chapter_count")
+        db_rows = conn.execute(
+            f"SELECT url, title, score, views, favorites, author_name, author_url, date_approve, description, category, is_series, {series_count_expr} as chapter_count "
+            f"FROM stories {where} ORDER BY {order} LIMIT ? OFFSET ?",
+            params + [per_page, offset],
+        ).fetchall()
+        conn.close()
+
+        story_urls = [r['url'] for r in db_rows]
+        from app.models import SeenLiteroticaUrl, DownloadQueueItem
+        seen_urls   = {r.url for r in SeenLiteroticaUrl.query.filter(SeenLiteroticaUrl.url.in_(story_urls)).all()}
+        queued_urls = {r.url for r in DownloadQueueItem.query.filter(DownloadQueueItem.url.in_(story_urls)).all()}
+
+        stories = [{
+            'url':           r['url'],
+            'title':         r['title'],
+            'score':         str(r['score']) if r['score'] is not None else None,
+            'vote_count':    str(r['favorites']) if r['favorites'] is not None else None,
+            'read_count':    str(r['views']) if r['views'] is not None else None,
+            'date_approve':  r['date_approve'],
+            'description':   r['description'],
+            'author_name':   r['author_name'],
+            'author_url':    r['author_url'],
+            'category':      r['category'],
+            'is_series':     bool(r['is_series']),
+            'chapter_count': int(r['chapter_count']) if r['chapter_count'] is not None else None,
+            'in_library':    r['url'] in seen_urls,
+            'is_queued':     r['url'] in queued_urls,
+        } for r in db_rows]
+
+        return jsonify({
+            "success":     True,
+            "page":        page,
+            "total_pages": total_pages,
+            "total_count": total,
+            "stories":     stories,
+        })
+
+    except Exception as e:
+        log_error(f"Error browsing custom list: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Failed to fetch custom list stories."}), 500
+
+
 @api.route('/browse/global', methods=['GET'])
 def browse_global() -> ResponseReturnValue:
     try:
@@ -1812,7 +1967,10 @@ def browse_global() -> ResponseReturnValue:
         stories = result['stories']
 
         if not stories:
-            return jsonify({"success": False, "message": "No stories found. The page may be temporarily unavailable."}), 404
+            msg = ("No newest stories returned. Literotica's API may have changed — check server logs."
+                   if mode == 'newest' else
+                   "No stories found. The page may be temporarily unavailable.")
+            return jsonify({"success": False, "message": msg}), 502
 
         from app.models import SeenLiteroticaUrl, DownloadQueueItem
         story_urls = [s['url'] for s in stories]

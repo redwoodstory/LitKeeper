@@ -13,6 +13,10 @@
           class="px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
           Global Lists
         </button>
+        <button id="cb-mode-custom_list" onclick="_cbSetMode('custom_list')"
+          class="px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          Custom List
+        </button>
       </div>
       <button onclick="closeCategoryBrowseModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-4 flex-shrink-0">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,9 +70,60 @@
       </div>
     </div>
 
+    <!-- Custom List controls -->
+    <div id="cbCustomListRow" class="hidden flex-col gap-2 px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+      <div class="flex gap-2">
+        <select id="cbCustomListCategory" onchange="_cbCustomListFetch(1)"
+          class="flex-1 text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-500 transition-colors">
+          <option value="">All Categories</option>
+        </select>
+        <select id="cbCustomListSort" onchange="_cbCustomListFetch(1)"
+          class="text-sm rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-500 transition-colors">
+          <option value="score_desc">Top Rated</option>
+          <option value="views_desc">Most Viewed</option>
+          <option value="favorites_desc">Most Favorited</option>
+          <option value="date_desc">Newest</option>
+          <option value="date_asc">Oldest</option>
+        </select>
+      </div>
+      <div class="flex w-full rounded-md overflow-hidden border border-slate-200 dark:border-slate-600 text-xs font-medium">
+        <button onclick="_cbCustomListSetDateRange('all')" id="cbCustomListDate-all"
+          class="flex-1 px-3 py-1.5 transition-colors bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900">
+          All Time
+        </button>
+        <button onclick="_cbCustomListSetDateRange('12mo')" id="cbCustomListDate-12mo"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          12 Months
+        </button>
+        <button onclick="_cbCustomListSetDateRange('30d')" id="cbCustomListDate-30d"
+          class="flex-1 px-3 py-1.5 transition-colors border-l border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600">
+          30 Days
+        </button>
+      </div>
+      <div class="flex gap-3 items-center flex-wrap mt-1">
+        <label class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          Min score
+          <input id="cbCustomListMinScore" type="number" step="0.1" min="0" max="5" value="4.5"
+            onchange="_cbCustomListFetch(1)"
+            class="w-16 text-sm rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-slate-400">
+        </label>
+        <label class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          Min views
+          <input id="cbCustomListMinViews" type="number" min="0" value="100"
+            onchange="_cbCustomListFetch(1)"
+            class="w-24 text-sm rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-slate-400">
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-500 dark:text-slate-400 ml-auto">
+          <input type="checkbox" id="cbCustomListHideSeries" onchange="_cbCustomListFetch(1)"
+            class="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-300 focus:ring-slate-500 focus:ring-offset-0 cursor-pointer">
+          Hide series
+        </label>
+      </div>
+    </div>
+
     <!-- Filter + count row -->
     <div class="flex items-center gap-3 px-5 py-2 border-b border-slate-100 dark:border-slate-700/60 flex-shrink-0">
-      <label class="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
+      <label id="cbFilterChaptersLabel" class="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
         <input type="checkbox" id="cbFilterChapters" checked
           onchange="_cbRenderList()"
           class="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-300 focus:ring-slate-500 focus:ring-offset-0 cursor-pointer">
@@ -135,6 +190,9 @@
 
 <script>
 (function () {
+  const _PAGE_COUNT_THRESHOLD = 2;
+  const _confirmTimers = new Map();
+
   let _stories = [];
   let _cbMode = 'by_category';
   let _currentSort = 'top_all';
@@ -142,6 +200,8 @@
   let _cbGlobalTab = 'top_rated';
   let _cbPage = 1;
   let _cbTotalPages = 1;
+  let _customListDateRange = 'all';
+  let _customListCatsLoaded = false;
 
   const _CH_RE = /\b(?:ch(?:apter)?\.?\s*0*([2-9]|\d{2,})|pt\.?\s*0*([2-9]|\d{2,})|part\s+0*([2-9]|\d{2,})|episode\s+0*([2-9]|\d{2,})|act\s+0*([2-9]|\d{2,})|vol(?:ume)?\.?\s*0*([2-9]|\d{2,}))\b/i;
   const _TRAILING_NUM_RE = /[#\s](\d+)\s*$|^\d+$/;
@@ -205,17 +265,26 @@
     document.getElementById('cbCountLabel').textContent = '';
     document.getElementById('cbAddAllBtn').classList.add('hidden');
 
-    const isCat = mode === 'by_category';
+    const isCat     = mode === 'by_category';
+    const isGlobal  = mode === 'global';
+    const isCustomList = mode === 'custom_list';
+
     document.getElementById('cbCategoryRow').classList.toggle('hidden', !isCat);
     document.getElementById('cbCategoryRow').classList.toggle('flex', isCat);
-    document.getElementById('cbGlobalRow').classList.toggle('hidden', isCat);
-    document.getElementById('cbGlobalRow').classList.toggle('flex', !isCat);
+    document.getElementById('cbGlobalRow').classList.toggle('hidden', !isGlobal);
+    document.getElementById('cbGlobalRow').classList.toggle('flex', isGlobal);
+    document.getElementById('cbCustomListRow').classList.toggle('hidden', !isCustomList);
+    document.getElementById('cbCustomListRow').classList.toggle('flex', isCustomList);
+    document.getElementById('cbFilterChaptersLabel').classList.toggle('hidden', isCustomList);
 
     _updateModeUI();
 
-    if (!isCat) {
+    if (isGlobal) {
       _setState('loading');
       _fetchGlobal(_cbGlobalTab, 1);
+    } else if (isCustomList) {
+      if (!_customListCatsLoaded) _loadCustomListCategories();
+      _cbCustomListFetch(1);
     } else if (_currentCategory) {
       _setState('loading');
       _fetchCategory(_currentCategory, _currentSort, 1);
@@ -226,7 +295,7 @@
   };
 
   function _updateModeUI() {
-    ['by_category', 'global'].forEach(m => {
+    ['by_category', 'global', 'custom_list'].forEach(m => {
       const btn = document.getElementById('cb-mode-' + m);
       if (!btn) return;
       const active = m === _cbMode;
@@ -240,9 +309,6 @@
       btn.classList.toggle('dark:text-slate-300', !active);
       btn.classList.toggle('hover:bg-slate-50', !active);
       btn.classList.toggle('dark:hover:bg-slate-600', !active);
-      btn.classList.toggle('border-l', m === 'global');
-      btn.classList.toggle('border-slate-200', m === 'global');
-      btn.classList.toggle('dark:border-slate-600', m === 'global');
     });
   }
 
@@ -279,7 +345,7 @@
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
 
-    const targetMode = (mode === 'global') ? 'global' : 'by_category';
+    const targetMode = (mode === 'global') ? 'global' : (mode === 'custom_list') ? 'custom_list' : 'by_category';
     _cbSetMode(targetMode);
   };
 
@@ -369,6 +435,8 @@
     _cbPage = page;
     if (_cbMode === 'global') {
       _fetchGlobal(_cbGlobalTab, page);
+    } else if (_cbMode === 'custom_list') {
+      _cbCustomListFetch(page);
     } else {
       _fetchCategory(_currentCategory, _currentSort, page);
     }
@@ -447,6 +515,8 @@
   window._cbRetry = function () {
     if (_cbMode === 'global') {
       _fetchGlobal(_cbGlobalTab, _cbPage);
+    } else if (_cbMode === 'custom_list') {
+      _cbCustomListFetch(_cbPage);
     } else if (_currentCategory) {
       _fetchCategory(_currentCategory, _currentSort, _cbPage);
     }
@@ -455,7 +525,7 @@
   // ── Render ────────────────────────────────────────────────────────────
 
   window._cbRenderList = function () {
-    const filterOn = document.getElementById('cbFilterChapters').checked;
+    const filterOn = _cbMode !== 'custom_list' && document.getElementById('cbFilterChapters').checked;
     const visible = _stories.filter(s => !(filterOn && _isChapter2Plus(s.title)));
     const pending = visible.filter(s => !s.in_library && !s.is_queued);
 
@@ -481,32 +551,62 @@
       const inLibrary = story.in_library || story.is_queued;
       const statusLabel = story.in_library ? 'In library' : (story.is_queued ? 'Queued' : null);
 
-      const metaParts = [];
-      if (story.read_count) {
-        metaParts.push('<span title="Read count">' + _esc(_formatReadCount(story.read_count)) + ' reads</span>');
-      } else if (score) {
-        const ratingText = story.vote_count
-          ? '★ ' + _esc(score) + ' <span class="text-slate-300 dark:text-slate-600">(' + _esc(story.vote_count) + ')</span>'
-          : '★ ' + _esc(score);
-        metaParts.push('<span title="Rating (votes)">' + ratingText + '</span>');
+      let metaRow = '';
+      let descRow = '';
+
+      if (_cbMode === 'custom_list') {
+        const _sep = '<span class="text-slate-200 dark:text-slate-700 select-none">·</span>';
+        const _metaClass = 'flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-slate-400 dark:text-slate-500';
+
+        const statsParts = [];
+        if (score) statsParts.push('<span title="Rating">★ ' + _esc(score) + '</span>');
+        if (story.vote_count) statsParts.push('<span title="Favorites">♥ ' + _esc(_formatReadCount(story.vote_count)) + '</span>');
+        if (story.read_count) statsParts.push('<span title="Views">' + _esc(_formatReadCount(story.read_count)) + ' views</span>');
+
+        const ctxParts = [];
+        if (story.date_approve) ctxParts.push('<span>' + _esc(story.date_approve) + '</span>');
+        if (story.author_name) {
+          const authorHref = story.author_url ? ' href="' + _escAttr(story.author_url) + '" target="_blank" rel="noopener noreferrer"' : '';
+          ctxParts.push('<a class="hover:underline"' + authorHref + '>' + _esc(story.author_name) + '</a>');
+        }
+        const noCatFilter = !document.getElementById('cbCustomListCategory').value;
+        if (noCatFilter && story.category) {
+          const catLabel = story.category.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          ctxParts.push('<span class="px-1.5 py-0.5 rounded-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold tracking-wide uppercase" style="font-size:10px">' + _esc(catLabel) + '</span>');
+        }
+
+        if (statsParts.length) metaRow += '<div class="' + _metaClass + '">' + statsParts.join(_sep) + '</div>';
+        if (ctxParts.length)   metaRow += '<div class="' + _metaClass + '">' + ctxParts.join(_sep) + '</div>';
+      } else {
+        const metaParts = [];
+        if (score) {
+          const ratingText = story.vote_count
+            ? '★ ' + _esc(score) + ' <span class="text-slate-300 dark:text-slate-600">(' + _esc(story.vote_count) + ')</span>'
+            : '★ ' + _esc(score);
+          metaParts.push('<span title="Rating">' + ratingText + '</span>');
+        }
+        if (story.read_count) metaParts.push('<span title="Views">' + _esc(_formatReadCount(story.read_count)) + ' views</span>');
+        if (story.date_approve) metaParts.push('<span>' + _esc(story.date_approve) + '</span>');
+        if (story.author_name) {
+          const authorHref = story.author_url ? ' href="' + _escAttr(story.author_url) + '" target="_blank" rel="noopener noreferrer"' : '';
+          metaParts.push('<a class="hover:underline"' + authorHref + '>' + _esc(story.author_name) + '</a>');
+        }
+        metaRow = metaParts.length
+          ? '<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-400 dark:text-slate-500">' + metaParts.join('') + '</div>'
+          : '';
+        descRow = story.description
+          ? '<p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500 line-clamp-1">' + _esc(story.description) + '</p>'
+          : '';
       }
-      if (story.date_approve) metaParts.push('<span>' + _esc(story.date_approve) + '</span>');
-      if (story.author_name) {
-        const authorHref = story.author_url ? ' href="' + _escAttr(story.author_url) + '" target="_blank" rel="noopener noreferrer"' : '';
-        metaParts.push('<a class="hover:underline"' + authorHref + '>' + _esc(story.author_name) + '</a>');
-      }
 
-      const metaRow = metaParts.length
-        ? '<div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-400 dark:text-slate-500">' + metaParts.join('') + '</div>'
-        : '';
-      const descRow = story.description
-        ? '<p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500 line-clamp-1">' + _esc(story.description) + '</p>'
-        : '';
+      const rowBg = 'hover:bg-slate-50 dark:hover:bg-slate-700/40';
+      const titleColor = 'text-slate-900 dark:text-white';
 
-      const rowBg = inLibrary ? 'bg-slate-50/60 dark:bg-slate-700/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/40';
-      const titleColor = inLibrary ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white';
-
-      const btn = story.is_adding
+      const btn = story.is_checking
+        ? '<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed">…</button>'
+        : story.needs_confirmation
+        ? '<button data-story-url="' + _escAttr(story.url) + '" onclick="_cbConfirmAdd(this)" class="flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 dark:bg-amber-400 text-white dark:text-slate-900 hover:bg-amber-600 dark:hover:bg-amber-300 transition-colors duration-150" title="Click to confirm">' + story.checked_page_count + ' pages - Add?</button>'
+        : story.is_adding
         ? '<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed">…</button>'
         : inLibrary
         ? '<button disabled class="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 cursor-not-allowed" title="' + statusLabel + '">' + statusLabel + '</button>'
@@ -529,18 +629,8 @@
 
   // ── Queue actions ─────────────────────────────────────────────────────
 
-  window._cbAddSingle = async function (btn) {
-    if (btn.disabled) return;
-    const url = btn.dataset.storyUrl;
-
-    // Mark story as adding in the data model so concurrent re-renders preserve the '…' state
-    const storyRef = _stories.find(s => s.url === url);
+  async function _cbDoQueue(url, storyRef) {
     if (storyRef) storyRef.is_adding = true;
-
-    btn.disabled = true;
-    btn.removeAttribute('onclick');
-    btn.textContent = '…';
-
     try {
       const res = await fetch('/api/browse/queue-stories', {
         method: 'POST',
@@ -548,27 +638,77 @@
         body: JSON.stringify({ story_urls: [url] }),
       });
       const data = await res.json();
-
-      // Update data model first, then re-render — avoids stale btn reference
-      // if a concurrent category/sort fetch replaced the DOM while we awaited
       const story = _stories.find(s => s.url === url);
       if (story) {
         story.is_adding = false;
         if (data.success) story.is_queued = true;
       }
       _cbRenderList();
-
-      if (data.success) {
-        window.toast?.show(data.message || 'Story queued!', 'success');
-      } else {
-        window.toast?.show(data.message || 'Failed to queue story.', 'error');
-      }
+      window.toast?.show(data.success ? (data.message || 'Story queued!') : (data.message || 'Failed to queue story.'),
+        data.success ? 'success' : 'error');
     } catch {
       const story = _stories.find(s => s.url === url);
       if (story) story.is_adding = false;
       _cbRenderList();
       window.toast?.show('Request failed. Please try again.', 'error');
     }
+  }
+
+  window._cbAddSingle = async function (btn) {
+    if (btn.disabled) return;
+    const url = btn.dataset.storyUrl;
+
+    const storyRef = _stories.find(s => s.url === url);
+    if (storyRef) storyRef.is_checking = true;
+    btn.disabled = true;
+    btn.removeAttribute('onclick');
+    btn.textContent = '…';
+
+    let pageCount = null;
+    try {
+      const r = await fetch('/api/browse/story-page-count?url=' + encodeURIComponent(url));
+      const d = await r.json();
+      if (d.success) pageCount = d.page_count;
+    } catch { /* network error — proceed without blocking */ }
+
+    if (storyRef) storyRef.is_checking = false;
+
+    if (pageCount !== null && pageCount > _PAGE_COUNT_THRESHOLD) {
+      if (storyRef) {
+        storyRef.needs_confirmation = true;
+        storyRef.checked_page_count = pageCount;
+      }
+      _cbRenderList();
+      const timer = setTimeout(() => {
+        const s = _stories.find(s => s.url === url);
+        if (s) { s.needs_confirmation = false; s.checked_page_count = null; }
+        _confirmTimers.delete(url);
+        _cbRenderList();
+      }, 10000);
+      _confirmTimers.set(url, timer);
+      return;
+    }
+
+    await _cbDoQueue(url, storyRef);
+  };
+
+  window._cbConfirmAdd = async function (btn) {
+    if (btn.disabled) return;
+    const url = btn.dataset.storyUrl;
+    const storyRef = _stories.find(s => s.url === url);
+
+    clearTimeout(_confirmTimers.get(url));
+    _confirmTimers.delete(url);
+
+    if (storyRef) {
+      storyRef.needs_confirmation = false;
+      storyRef.checked_page_count = null;
+    }
+    btn.disabled = true;
+    btn.removeAttribute('onclick');
+    btn.textContent = '…';
+
+    await _cbDoQueue(url, storyRef);
   };
 
   let _cbAddAllConfirming = false;
@@ -589,7 +729,7 @@
   }
 
   window._cbAddAll = async function () {
-    const filterOn = document.getElementById('cbFilterChapters').checked;
+    const filterOn = _cbMode !== 'custom_list' && document.getElementById('cbFilterChapters').checked;
     const visible = _stories.filter(s => !(filterOn && _isChapter2Plus(s.title)));
     const pending = visible.filter(s => !s.in_library && !s.is_queued);
     if (!pending.length) return;
@@ -632,8 +772,110 @@
     }
   };
 
+  // ── Custom List controls ─────────────────────────────────────────────
+
+  function _loadCustomListCategories() {
+    _customListCatsLoaded = true;
+    fetch('/api/browse/custom_list/categories')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success || !data.categories.length) return;
+        const sel = document.getElementById('cbCustomListCategory');
+        data.categories.forEach(slug => {
+          const opt = document.createElement('option');
+          opt.value = slug;
+          opt.textContent = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          sel.appendChild(opt);
+        });
+      })
+      .catch(() => {});
+  }
+
+  window._cbCustomListFetch = async function (page) {
+    const category  = document.getElementById('cbCustomListCategory').value;
+    const sort      = document.getElementById('cbCustomListSort').value;
+    const minScore   = document.getElementById('cbCustomListMinScore').value || '4.5';
+    const minViews   = document.getElementById('cbCustomListMinViews').value || '100';
+    const hideSeries = document.getElementById('cbCustomListHideSeries').checked;
+
+    const inPlace = _startLoadingInPlace();
+    try {
+      const params = new URLSearchParams({
+        category, sort,
+        series: hideSeries ? 'exclude' : 'all',
+        date_range: _customListDateRange,
+        min_score: minScore, min_views: minViews, page, per_page: 25,
+      });
+      const res  = await fetch('/api/browse/custom_list?' + params);
+      const data = await res.json();
+
+      if (!data.success) {
+        document.getElementById('cbResults').style.opacity = '';
+        if (data.message && data.message.includes('empty')) {
+          document.getElementById('cbIdleMsg').innerHTML =
+            'No custom list stories found.<br>'
+            + '<span class="text-xs mt-1 block">Place <code class="font-mono">custom_url_dataset.db</code> in your <code class="font-mono">./data/</code> volume mount.</span>';
+          _setState('idle');
+        } else {
+          document.getElementById('cbErrorMsg').textContent = data.message || 'Failed to load custom list stories.';
+          _setState('error');
+        }
+        return;
+      }
+
+      if (!data.stories || data.stories.length === 0) {
+        document.getElementById('cbResults').style.opacity = '';
+        if (data.total_count === 0 && !category && minScore === '0' && minViews === '0') {
+          document.getElementById('cbIdleMsg').innerHTML =
+            'No custom list stories found.<br>'
+            + '<span class="text-xs mt-1 block">Place <code class="font-mono">custom_url_dataset.db</code> in your <code class="font-mono">./data/</code> volume mount.</span>';
+          _setState('idle');
+        } else {
+          document.getElementById('cbIdleMsg').textContent = 'No stories match the current filters.';
+          _setState('idle');
+        }
+        return;
+      }
+
+      _stories = data.stories || [];
+      _cbPage = data.page || page;
+      _cbTotalPages = data.total_pages || 1;
+      document.getElementById('cbResults').style.opacity = '';
+      _setState('results');
+      _cbRenderList();
+      _updatePager();
+      const list = document.getElementById('cbResults');
+      if (list) list.scrollTop = 0;
+    } catch (e) {
+      document.getElementById('cbResults').style.opacity = '';
+      document.getElementById('cbErrorMsg').textContent = 'Request failed. Check your connection and try again.';
+      _setState('error');
+    }
+  };
+
+  window._cbCustomListSetDateRange = function (val) {
+    if (val === _customListDateRange) return;
+    _customListDateRange = val;
+    ['all', '12mo', '30d'].forEach(v => {
+      const btn = document.getElementById('cbCustomListDate-' + v);
+      if (!btn) return;
+      const active = v === _customListDateRange;
+      btn.classList.toggle('bg-slate-900', active);
+      btn.classList.toggle('dark:bg-slate-100', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('dark:text-slate-900', active);
+      btn.classList.toggle('bg-white', !active);
+      btn.classList.toggle('dark:bg-slate-700', !active);
+      btn.classList.toggle('text-slate-600', !active);
+      btn.classList.toggle('dark:text-slate-300', !active);
+      btn.classList.toggle('hover:bg-slate-50', !active);
+      btn.classList.toggle('dark:hover:bg-slate-600', !active);
+    });
+    _cbCustomListFetch(1);
+  };
+
   function _updateAddAllBtn() {
-    const filterOn = document.getElementById('cbFilterChapters').checked;
+    const filterOn = _cbMode !== 'custom_list' && document.getElementById('cbFilterChapters').checked;
     const visible = _stories.filter(s => !(filterOn && _isChapter2Plus(s.title)));
     const pending = visible.filter(s => !s.in_library && !s.is_queued);
     document.getElementById('cbAddAllBtn').classList.toggle('hidden', pending.length === 0);
