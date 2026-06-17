@@ -19,6 +19,8 @@ class AppConfig(BaseModel):
 
     def get_value(self):
         """Get typed value based on value_type"""
+        if self.value is None:
+            return None
         if self.value_type == 'bool':
             return self.value.lower() == 'true'
         elif self.value_type == 'int':

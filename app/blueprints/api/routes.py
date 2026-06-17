@@ -291,14 +291,22 @@ def get_story_cover(story_id: int) -> ResponseReturnValue:
     cover_path = os.path.join(cover_directory, filename)
     os.makedirs(cover_directory, exist_ok=True)
 
+    cache_headers = {
+        'Cache-Control': 'public, max-age=31536000, immutable',
+    }
+
     if os.path.exists(cover_path):
-        return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        response = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        response.headers.update(cache_headers)
+        return response
 
     epub_path = os.path.join(get_epub_directory(), f"{story.id}_{story.filename_base}.epub")
     if os.path.exists(epub_path):
         try:
             if extract_cover_from_epub(epub_path, cover_path):
-                return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+                response = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+                response.headers.update(cache_headers)
+                return response
         except Exception as e:
             log_error(f"Error extracting cover from EPUB for story {story_id}: {str(e)}")
 
@@ -318,9 +326,12 @@ def get_cover(filename: str) -> ResponseReturnValue:
         abort(403)
 
     cover_path = os.path.join(cover_directory, filename)
+    _cover_cache_headers = {'Cache-Control': 'public, max-age=31536000, immutable'}
 
     if os.path.exists(cover_path):
-        return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        r = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        r.headers.update(_cover_cache_headers)
+        return r
 
     os.makedirs(cover_directory, exist_ok=True)
 
@@ -374,13 +385,17 @@ def get_cover(filename: str) -> ResponseReturnValue:
     if os.path.exists(epub_path):
         try:
             if extract_cover_from_epub(epub_path, cover_path):
-                return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+                r = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+                r.headers.update(_cover_cache_headers)
+                return r
         except Exception as e:
             log_error(f"Error extracting cover from EPUB: {str(e)}\n{traceback.format_exc()}")
 
     try:
         generate_cover_image(title, author, cover_path)
-        return send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        r = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+        r.headers.update(_cover_cache_headers)
+        return r
     except Exception as e:
         log_error(f"Error generating cover: {str(e)}\n{traceback.format_exc()}")
         abort(500)

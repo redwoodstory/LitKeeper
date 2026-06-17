@@ -19,6 +19,11 @@ ET.register_namespace('opds', OPDS_SPEC)
 
 
 def _xml_response(root: ET.Element) -> object:
+    # Re-register before every serialization — other modules (epub_service) overwrite
+    # the global ET namespace map, causing Atom to serialize with ns0: prefix.
+    ET.register_namespace('', OPDS_NS)
+    ET.register_namespace('dc', DC_NS)
+    ET.register_namespace('opds', OPDS_SPEC)
     ET.indent(root, space='  ')
     xml_bytes = ET.tostring(root, encoding='utf-8', xml_declaration=True)
     resp = make_response(xml_bytes)

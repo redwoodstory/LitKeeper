@@ -167,6 +167,14 @@ class EpubService:
                             elif name.endswith('toc.ncx'):
                                 try:
                                     NCX_NS = 'http://www.daisy.org/z3986/2005/ncx/'
+                                    # Save and restore whichever URI held the default
+                                    # (empty) prefix before we claim it for NCX — this
+                                    # prevents permanent pollution of the global ET
+                                    # namespace map (OPDS relies on Atom being default).
+                                    _prev_default = next(
+                                        (uri for uri, pfx in list(ET._namespace_map.items()) if pfx == ''),
+                                        None
+                                    )
                                     ET.register_namespace('', NCX_NS)
                                     root = ET.fromstring(data.decode('utf-8'))
                                     doc_title = root.find(f'{{{NCX_NS}}}docTitle')
@@ -175,6 +183,9 @@ class EpubService:
                                         if text_el is not None:
                                             text_el.text = title
                                     data = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+                                    ET._namespace_map.pop(NCX_NS, None)
+                                    if _prev_default:
+                                        ET.register_namespace('', _prev_default)
                                 except Exception as ncx_err:
                                     log_error(f"toc.ncx patch failed: {ncx_err}")
 

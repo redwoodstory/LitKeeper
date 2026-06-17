@@ -8,7 +8,7 @@ from .html_generator import create_html_file
 from .cover_generator import generate_cover_image, extract_cover_from_epub
 from .file_operations import copy_to_external_path
 from .story_processor import download_story_and_create_files, StoryProcessingResult
-from .library import get_library_data
+from .library import get_library_data, get_all_category_names, get_stories_page
 
 __all__ = [
     'log_action',
@@ -29,4 +29,6 @@ __all__ = [
     'download_story_and_create_files',
     'StoryProcessingResult',
     'get_library_data',
+    'get_all_category_names',
+    'get_stories_page',
 ]

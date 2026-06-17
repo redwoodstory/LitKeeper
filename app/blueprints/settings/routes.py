@@ -296,6 +296,7 @@ def save_opds_settings() -> ResponseReturnValue:
         for key, (value_type, value) in updates.items():
             cfg = AppConfig.query.filter_by(key=key).first()
             if cfg:
+                cfg.value_type = value_type
                 cfg.set_value(value)
             else:
                 cfg = AppConfig(key=key, value_type=value_type, description='')

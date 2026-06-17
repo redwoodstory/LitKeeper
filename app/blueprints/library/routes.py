@@ -2,7 +2,7 @@ from __future__ import annotations
 from flask import Blueprint, render_template, request, send_from_directory, jsonify, abort, make_response
 from flask.typing import ResponseReturnValue
 from app.models import Story
-from app.services import download_story_and_create_files, log_error, log_action, get_library_data
+from app.services import download_story_and_create_files, log_error, log_action, get_all_category_names, get_stories_page
 from app.services.epub_service import EpubService
 from app.services.system_checks import check_mount_warning, check_legacy_mounts
 from app.utils import get_html_directory, get_epub_directory
@@ -40,13 +40,14 @@ def index() -> ResponseReturnValue:
             error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
             log_error(f"Validation error on index form: {error_msg}")
             enable_library = os.getenv('ENABLE_LIBRARY', 'true').lower() == 'true'
-            all_stories = get_library_data() if enable_library else []
-            total_stories = len(all_stories)
-            categories = sorted(set(s.get('category') for s in all_stories if s.get('category'))) if enable_library else []
             mount_warning = check_mount_warning()
             legacy_info = check_legacy_mounts()
-            has_more = enable_library and total_stories > PER_PAGE
-            stories = all_stories[:PER_PAGE] if has_more else all_stories
+            if enable_library:
+                categories = get_all_category_names()
+                stories, total_stories = get_stories_page(page=1, per_page=PER_PAGE)
+                has_more = total_stories > PER_PAGE
+            else:
+                categories, stories, total_stories, has_more = [], [], 0, False
             next_url = (
                 f"/library/filter?{urlencode({'page': 2, 'sort_by': 'date', 'sort_order': 'desc', 'category': 'all', 'search': ''})}"
                 if has_more else None
@@ -69,12 +70,12 @@ def index() -> ResponseReturnValue:
         if enable_library:
             sync_checker = SyncChecker()
             sync_status = sync_checker.check_sync()
-            
+
             log_action(f"[BANNER] Sync check: in_sync={sync_status['in_sync']}, orphaned_files={sync_status['orphaned_files_count']}, orphaned_db={sync_status['orphaned_db_count']}")
-            
+
             if not sync_status['in_sync'] and hasattr(current_app, 'automation'):
                 log_action(f"[BANNER] Automation state: has_completed_first_run={current_app.automation.has_completed_first_run}, is_processing={current_app.automation.is_processing}")
-                
+
                 if current_app.automation.is_processing:
                     log_action("[BANNER] Automation is currently processing, hiding banner")
                     sync_status = None
@@ -85,12 +86,13 @@ def index() -> ResponseReturnValue:
                 else:
                     log_action("[BANNER] Only orphaned DB records (no files to import), showing banner")
 
-        all_stories = get_library_data() if enable_library else []
-        total_stories = len(all_stories)
-        categories = sorted(set(s.get('category') for s in all_stories if s.get('category'))) if enable_library else []
+        if enable_library:
+            categories = get_all_category_names()
+            stories, total_stories = get_stories_page(page=1, per_page=PER_PAGE)
+            has_more = total_stories > PER_PAGE
+        else:
+            categories, stories, total_stories, has_more = [], [], 0, False
 
-        has_more = enable_library and total_stories > PER_PAGE
-        stories = all_stories[:PER_PAGE] if has_more else all_stories
         next_url = (
             f"/library/filter?{urlencode({'page': 2, 'sort_by': 'date', 'sort_order': 'desc', 'category': 'all', 'search': ''})}"
             if has_more else None
@@ -189,79 +191,17 @@ def filter_library() -> ResponseReturnValue:
             queue_only=raw_queue_only == 'true'
         )
 
-        stories = get_library_data()
-
-        if validated.search:
-            search_term = validated.search.lower()
-            scored_stories = []
-
-            for story in stories:
-                score = 0
-                title = story.get('title', '').lower()
-                author = story.get('author', '').lower()
-                category = story.get('category', '').lower()
-                tags = [tag.lower() for tag in story.get('tags', [])]
-
-                if search_term in title:
-                    score += 100
-                if search_term in author:
-                    score += 50
-                if search_term in category:
-                    score += 25
-                if any(search_term in tag for tag in tags):
-                    score += 10
-
-                if score > 0:
-                    scored_stories.append((score, story))
-
-            scored_stories.sort(key=lambda x: x[0], reverse=True)
-            stories = [story for _, story in scored_stories]
-
-        if validated.category and validated.category != 'all':
-            if validated.category == 'uncategorized':
-                stories = [s for s in stories if not s.get('category')]
-            else:
-                stories = [s for s in stories if s.get('category') == validated.category]
-
-        if validated.queue_only:
-            stories = [s for s in stories if s.get('in_queue')]
-
-        def get_sort_key(story: dict) -> tuple:
-            if validated.sort_by == 'name':
-                return (story.get('title', '').lower(),)
-            elif validated.sort_by == 'author':
-                return (story.get('author', '').lower(),)
-            elif validated.sort_by == 'category':
-                return (story.get('category', '').lower(),)
-            elif validated.sort_by == 'length':
-                return (story.get('word_count', 0),)
-            elif validated.sort_by == 'rating':
-                return (story.get('rating') or 0,)
-            elif validated.sort_by == 'last_opened':
-                # Stories never opened (None) should sort last when descending
-                return (story.get('last_opened_at') or '',)
-            else:
-                return (story.get('created_at', ''),)
-
-        if validated.sort_by == 'length':
-            log_action(f"[SORT DEBUG] Sorting by length, order={validated.sort_order}, reverse={validated.sort_order == 'desc'}")
-            sample_stories = stories[:3] if len(stories) >= 3 else stories
-            for s in sample_stories:
-                log_action(f"[SORT DEBUG] Sample: {s.get('title')} - word_count={s.get('word_count')}")
-
-        stories.sort(key=get_sort_key, reverse=(validated.sort_order == 'desc'))
-
-        if validated.sort_by == 'length':
-            sample_stories = stories[:3] if len(stories) >= 3 else stories
-            for s in sample_stories:
-                log_action(f"[SORT DEBUG] After sort: {s.get('title')} - word_count={s.get('word_count')}")
-
         page = request.args.get('page', 1, type=int)
-        total = len(stories)
-        start = (page - 1) * PER_PAGE
-        end = start + PER_PAGE
-        page_stories = stories[start:end]
-        has_more = end < total
+        page_stories, total = get_stories_page(
+            page=page,
+            per_page=PER_PAGE,
+            search=validated.search,
+            category=validated.category,
+            sort_by=validated.sort_by,
+            sort_order=validated.sort_order,
+            queue_only=validated.queue_only,
+        )
+        has_more = (page * PER_PAGE) < total
 
         next_url_params: dict = {
             'page': page + 1,

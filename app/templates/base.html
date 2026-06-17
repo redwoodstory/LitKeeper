@@ -201,6 +201,15 @@
     .modal-bottom-inset { bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
     @media (min-width: 768px) { .modal-bottom-inset { bottom: 0; } }
 
+    /* Story card cover shadow — CSS transition avoids inline reflow on hover */
+    .story-cover-shadow {
+      box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1);
+      transition: box-shadow 0.2s ease;
+    }
+    .story-cover-shadow:hover {
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+    }
+
   </style>
   {% endblock %}
 
