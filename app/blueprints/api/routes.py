@@ -1855,6 +1855,10 @@ def browse_custom_list() -> ResponseReturnValue:
         except ValueError:
             min_views = 0
         try:
+            min_faves = int(request.args.get('min_faves') or 0)
+        except ValueError:
+            min_faves = 0
+        try:
             page = max(1, int(request.args.get('page') or 1))
         except ValueError:
             page = 1
@@ -1869,11 +1873,14 @@ def browse_custom_list() -> ResponseReturnValue:
             clauses.append("category = ?")
             params.append(category)
         if min_score > 0:
-            clauses.append("score >= ?")
+            clauses.append("CAST(score AS REAL) >= ?")
             params.append(min_score)
         if min_views > 0:
-            clauses.append("views >= ?")
+            clauses.append("CAST(views AS INTEGER) >= ?")
             params.append(min_views)
+        if min_faves > 0:
+            clauses.append("CAST(favorites AS INTEGER) >= ?")
+            params.append(min_faves)
         if series == 'only':
             clauses.append("(is_series = 1 OR series_title(title))")
         elif series == 'exclude':
@@ -1882,8 +1889,16 @@ def browse_custom_list() -> ResponseReturnValue:
             clauses.append("date(substr(date_approve,7,4)||'-'||substr(date_approve,1,2)||'-'||substr(date_approve,4,2)) >= date('now','-12 months')")
         elif date_range == '30d':
             clauses.append("date(substr(date_approve,7,4)||'-'||substr(date_approve,1,2)||'-'||substr(date_approve,4,2)) >= date('now','-30 days')")
+        elif date_range == 'older_30d':
+            clauses.append("date(substr(date_approve,7,4)||'-'||substr(date_approve,1,2)||'-'||substr(date_approve,4,2)) < date('now','-30 days')")
 
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
+        _log.warning("[browse_custom_list] raw args: %s", dict(request.args))
+        _log.warning("[browse_custom_list] parsed: min_score=%r min_views=%r min_faves=%r", min_score, min_views, min_faves)
+        _log.warning("[browse_custom_list] WHERE: %s | params: %s", where, params)
 
         _sort_map = {
             'score_desc':     'score DESC',
@@ -1912,6 +1927,10 @@ def browse_custom_list() -> ResponseReturnValue:
             f"FROM stories {where} ORDER BY {order} LIMIT ? OFFSET ?",
             params + [per_page, offset],
         ).fetchall()
+        _log.warning("[browse_custom_list] total matching rows: %d | returned: %d", total, len(db_rows))
+        if db_rows:
+            _log.warning("[browse_custom_list] favorites sample (first 5): %s",
+                         [(r['title'][:40], r['favorites'], type(r['favorites']).__name__) for r in db_rows[:5]])
         conn.close()
 
         story_urls = [r['url'] for r in db_rows]
