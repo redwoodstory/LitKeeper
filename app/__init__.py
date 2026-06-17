@@ -295,11 +295,11 @@ def create_app() -> Flask:
         api_prefixes = ('/api/', '/epub/api/', '/epub/file/', '/queue/api/', '/download/')
         if not request.path.startswith(api_prefixes):
             return
-        # Valid Bearer token → iOS app, allow through
-        if request.headers.get('Authorization') == f'Bearer {_api_token}':
+        # Valid API key → iOS app, allow through
+        if request.headers.get('X-Api-Key') == _api_token:
             return
-        # No Authorization header → web browser, allow through (enforce_pin_lock handles auth)
-        if not request.headers.get('Authorization'):
+        # No X-Api-Key header → web browser, allow through (enforce_pin_lock handles auth)
+        if not request.headers.get('X-Api-Key'):
             return
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -307,8 +307,8 @@ def create_app() -> Flask:
     def enforce_pin_lock():
         from flask import make_response as _make_response
         from app.models.webauthn import WebAuthnCredential
-        # Bearer-authenticated requests (iOS app) are already validated by enforce_api_token
-        if _api_token and request.headers.get('Authorization') == f'Bearer {_api_token}':
+        # X-Api-Key-authenticated requests (iOS app) are already validated by enforce_api_token
+        if _api_token and request.headers.get('X-Api-Key') == _api_token:
             return
         exempt_prefixes = ('/auth/', '/static/', '/favicon', '/settings/theme-preference', '/opds')
         if request.path.startswith(exempt_prefixes):

@@ -96,7 +96,8 @@ services:
       - NOTIFICATION_URLS=
 
       # API token for headless/programmatic access (optional)
-      # Required for iOS app, curl, or automation scripts to authenticate via Bearer token
+      # Required for iOS app, curl, or automation scripts to authenticate
+      # Requests must include the header: X-Api-Key: <your-token>
       # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
       - LITKEEPER_API_TOKEN=
 
@@ -130,7 +131,7 @@ mkdir -p ./data ./stories
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENABLE_LIBRARY` | `true` | Show library UI with story management. Set to `false` for download-only mode (hides library, search, and reader features) |
-| `LITKEEPER_API_TOKEN` | - | Bearer token for API/headless access (iOS app, scripts, automation). When set, API requests must include `Authorization: Bearer <token>` |
+| `LITKEEPER_API_TOKEN` | - | API token for headless access (iOS app, scripts, automation). When set, API requests must include `X-Api-Key: <token>` |
 | `NOTIFICATION_URLS` | - | Apprise notification URLs (supports Telegram, Discord, Slack, Email, Pushover, etc.) |
 | `EXTERNAL_EPUB_PATH` | - | Optional path to copy EPUBs for external app integration (e.g., Calibre-Web auto-import) |
 | `WEBAUTHN_RP_ID` | *(auto)* | Passkey relying party hostname (e.g. `myapp.example.com`). Auto-detected from the request — only set this if a reverse proxy masks the real hostname. Bare hostname only, no port or scheme. |
