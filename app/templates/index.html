@@ -2,12 +2,12 @@
 {% from 'macros.html' import story_card_cover_grid %}
 
 {% block header %}
-<header class="mb-8">
+<header class="mb-3 md:mb-8">
   <div class="text-center">
     <h1 class="font-playfair text-4xl md:text-5xl font-medium text-gray-900 dark:text-white mb-2 tracking-wide">
       LitKeeper
     </h1>
-    <p class="font-playfair text-gray-600 dark:text-gray-400 text-lg italic">
+    <p class="hidden sm:block font-playfair text-gray-600 dark:text-gray-400 text-lg italic">
       Preserve your favorite stories
     </p>
   </div>
@@ -31,7 +31,7 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
 </script>
 
 <!-- Add stories panel (collapsed by default) -->
-<div id="addStoriesCard" class="card mb-8">
+<div id="addStoriesCard" class="-mx-4 px-4 py-4 mb-4 md:rounded-lg md:border md:border-slate-200/40 md:dark:border-transparent md:shadow-sm md:mx-0 md:px-6 md:py-6 md:mb-8 md:bg-white md:dark:bg-gray-800">
   <button id="addStoriesToggle" onclick="toggleAddStories()"
     class="w-full flex items-center justify-between gap-3 text-left group">
     <span class="flex items-center gap-2.5">
@@ -331,10 +331,10 @@ function toggleAddStories() {
 </script>
 
 {% if enable_library %}
-<div class="card">
-  <div class="flex items-center justify-between mb-4">
+<div class="-mx-4 px-4 py-4 md:rounded-lg md:border md:border-slate-200/40 md:dark:border-transparent md:shadow-sm md:mx-0 md:px-6 md:py-6 md:bg-white md:dark:bg-gray-800">
+  <div class="flex items-center justify-between mb-3">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Library</h2>
+      <h2 class="font-playfair text-2xl font-medium text-gray-900 dark:text-white tracking-wide">Library</h2>
       <p id="libraryCount" class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
         {% if total_stories == 0 %}
           No stories yet
@@ -359,7 +359,7 @@ function toggleAddStories() {
     {% endif %}
   </div>
 
-  <div id="libraryFilters" class="flex flex-col gap-2 mb-6 sm:flex-row sm:flex-wrap sm:items-center">
+  <div id="libraryFilters" class="flex flex-col gap-2 mb-4 md:mb-6 sm:flex-row sm:flex-wrap sm:items-center">
     {# Search — grows to fill available space on desktop #}
     <div class="relative sm:flex-1 sm:min-w-[180px]">
       <input type="text"
@@ -400,38 +400,36 @@ function toggleAddStories() {
       {% endfor %}
     </select>
 
-    {# Reading Queue toggle #}
-    <button type="button"
-            id="queueFilterToggle"
-            onclick="toggleQueueFilter(this)"
-            class="h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
-                   text-slate-500 dark:text-slate-400
-                   hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400
-                   transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
-            title="Filter by reading queue">
-      <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-      </svg>
-      <span>Reading Queue</span>
-    </button>
+    {# Reading Queue + Categories — side by side on mobile; sm:contents dissolves wrapper on desktop #}
+    <div class="flex gap-2 sm:contents">
+      <button type="button"
+              id="queueFilterToggle"
+              onclick="toggleQueueFilter(this)"
+              class="flex-1 sm:flex-none h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
+                     text-slate-500 dark:text-slate-400
+                     hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400
+                     transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
+              title="Filter by reading queue">
+        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+        </svg>
+        <span>Reading Queue</span>
+      </button>
 
-    {# Category labels toggle #}
-    <button type="button"
-            id="categoryLabelToggle"
-            onclick="toggleCategoryLabels(this)"
-            class="h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
-                   text-slate-500 dark:text-slate-400
-                   hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400
-                   transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
-            title="Show category labels on covers">
-      <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-      </svg>
-      <span>Categories</span>
-    </button>
-
-    {# Mobile divider between filters and sort #}
-    <hr class="sm:hidden border-slate-200 dark:border-slate-700">
+      <button type="button"
+              id="categoryLabelToggle"
+              onclick="toggleCategoryLabels(this)"
+              class="flex-1 sm:flex-none h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
+                     text-slate-500 dark:text-slate-400
+                     hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400
+                     transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
+              title="Show category labels on covers">
+        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+        </svg>
+        <span>Categories</span>
+      </button>
+    </div>
 
     {# Sort controls — grouped so they stay on one line on mobile; sm:contents dissolves the wrapper on desktop #}
     <div class="flex items-center gap-2 sm:contents">

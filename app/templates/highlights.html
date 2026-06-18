@@ -3,13 +3,13 @@
 {% block page_title %}Saved Quotes — LitKeeper{% endblock %}
 
 {% block header %}
-<header class="mb-8">
+<header class="mb-3 md:mb-8">
   <div class="flex items-center justify-between">
     <div>
       <h2 class="font-playfair text-3xl font-medium text-gray-900 dark:text-white tracking-wide">
         Saved Quotes
       </h2>
-      <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+      <p class="hidden sm:block text-gray-500 dark:text-gray-400 mt-1 text-sm">
         Passages you've highlighted while reading
       </p>
     </div>
@@ -41,11 +41,10 @@
   </a>
 </div>
 {% else %}
-<div class="space-y-4 pb-24 md:pb-8">
+<div class="-mx-4 divide-y divide-slate-100 dark:divide-slate-700/50 pb-24 md:pb-8">
   {% for h in highlights %}
-  <article class="highlight-card bg-white dark:bg-gray-800 rounded-xl border border-slate-200/60 dark:border-gray-700/60 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
-    <div class="p-5">
-      <blockquote class="border-l-4 border-blue-400 dark:border-blue-500 pl-4 mb-4">
+  <article class="highlight-card px-4 py-5 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-100">
+    <blockquote class="border-l-4 border-blue-400 dark:border-blue-500 pl-4 mb-4">
         <p class="text-gray-800 dark:text-gray-200 italic leading-relaxed text-sm md:text-base line-clamp-6">
           {{ h.quote_text }}
         </p>
@@ -90,7 +89,6 @@
           </button>
         </div>
       </div>
-    </div>
   </article>
   {% endfor %}
 </div>
