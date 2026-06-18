@@ -18,7 +18,7 @@ class Story(BaseModel, TimestampMixin):
     word_count = db.Column(db.Integer)
     chapter_count = db.Column(db.Integer, default=1)
 
-    filename_base = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    filename_base = db.Column(db.String(255), nullable=False, index=True)
     cover_filename = db.Column(db.String(255))
 
     imported_at = db.Column(db.DateTime)
