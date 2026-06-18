@@ -345,6 +345,18 @@ function toggleAddStories() {
         {% endif %}
       </p>
     </div>
+    {% if total_stories > 0 %}
+    <a href="/download/export/all"
+       hx-boost="false"
+       data-requires-online
+       class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-600 transition-all duration-200"
+       title="Download all EPUBs as a zip with friendly filenames">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+      </svg>
+      Export All
+    </a>
+    {% endif %}
   </div>
 
   <div id="libraryFilters" class="flex flex-col gap-2 mb-6 sm:flex-row sm:flex-wrap sm:items-center">
