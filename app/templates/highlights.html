@@ -20,6 +20,29 @@
     {% endif %}
   </div>
 </header>
+
+{% if highlights %}
+<div class="flex items-center gap-1.5 mb-4 flex-wrap">
+  <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">Sort:</span>
+  {% set sort_options = [
+    ('date_desc', 'Newest first'),
+    ('date_asc',  'Oldest first'),
+    ('story',     'By story'),
+    ('random',    'Random'),
+  ] %}
+  {% for value, label in sort_options %}
+  <a href="?sort={{ value }}"
+     class="px-3 py-1 rounded-full text-xs font-medium transition-all duration-150
+            {% if current_sort == value %}
+              bg-blue-600 text-white
+            {% else %}
+              bg-slate-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-slate-700
+            {% endif %}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}
 
 {% block main_content %}

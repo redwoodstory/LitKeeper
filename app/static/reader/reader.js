@@ -529,8 +529,9 @@
             })
           });
           if (resp.ok) {
+            const result = await resp.json();
             sel.removeAllRanges();
-            showQuoteToast('Quote saved');
+            showQuoteToast(result.duplicate ? 'Already saved' : 'Quote saved');
           } else {
             showQuoteToast('Could not save quote');
           }

@@ -1280,6 +1280,15 @@ def create_highlight() -> ResponseReturnValue:
 
     story = Story.query.get_or_404(story_id)
 
+    existing = Highlight.query.filter_by(
+        story_id=story.id,
+        chapter_index=int(chapter_index),
+        paragraph_index=int(paragraph_index),
+        quote_text=quote_text,
+    ).first()
+    if existing:
+        return jsonify({'success': True, 'id': existing.id, 'duplicate': True}), 200
+
     highlight = Highlight(
         story_id=story.id,
         chapter_index=int(chapter_index),
@@ -1299,7 +1308,7 @@ def delete_highlight(highlight_id: int) -> ResponseReturnValue:
     highlight = Highlight.query.get_or_404(highlight_id)
     db.session.delete(highlight)
     db.session.commit()
-    return '', 204
+    return '', 200
 
 
 @api.route('/queue/author', methods=['POST'])
