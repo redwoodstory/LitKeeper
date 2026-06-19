@@ -29,6 +29,9 @@ def get_stories_page(
     sort_by: str = 'date',
     sort_order: str = 'desc',
     queue_only: bool = False,
+    min_community_score: float = 0.0,
+    min_pages: int = 0,
+    max_pages: int = 0,
 ) -> Tuple[List[Dict], int]:
     """Return (page_stories, total_count). Uses DB-level ops when search is empty."""
     from app.models import Story, Category, db
@@ -48,6 +51,12 @@ def get_stories_page(
                 query = query.join(Category, Story.category_id == Category.id).filter(Category.name == category)
         if queue_only:
             query = query.filter(Story.in_queue == True)  # noqa: E712
+        if min_community_score > 0:
+            query = query.filter(Story.literotica_score >= min_community_score)
+        if min_pages > 0:
+            query = query.filter(Story.literotica_page_count >= min_pages)
+        if max_pages > 0:
+            query = query.filter(Story.literotica_page_count <= max_pages)
 
         all_stories = [s.to_library_dict() for s in query.all()]
 
@@ -91,12 +100,21 @@ def get_stories_page(
     if queue_only:
         query = query.filter(Story.in_queue == True)  # noqa: E712
 
+    if min_community_score > 0:
+        query = query.filter(Story.literotica_score >= min_community_score)
+    if min_pages > 0:
+        query = query.filter(Story.literotica_page_count >= min_pages)
+    if max_pages > 0:
+        query = query.filter(Story.literotica_page_count <= max_pages)
+
     col_map = {
         'date': Story.created_at,
         'name': Story.title,
         'length': Story.word_count,
         'rating': Story.rating,
         'last_opened': Story.last_opened_at,
+        'community_score': Story.literotica_score,
+        'pages': Story.literotica_page_count,
     }
     order_col = col_map.get(sort_by, Story.created_at)
     if sort_order == 'desc':

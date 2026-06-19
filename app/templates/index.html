@@ -431,6 +431,41 @@ function toggleAddStories() {
       </button>
     </div>
 
+    {# Community score + page length filters #}
+    <div class="flex gap-2 sm:contents">
+      <select id="minScoreFilter"
+              name="min_community_score"
+              data-requires-online
+              onchange="window._onFilterSelectChange(this)"
+              class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                     flex-1 sm:flex-none sm:w-36"
+              title="Filter by minimum community score">
+        <option value="">All Scores</option>
+        <option value="4.0">★ 4.0+</option>
+        <option value="4.5">★ 4.5+</option>
+        <option value="4.7">★ 4.7+</option>
+        <option value="4.9">★ 4.9+</option>
+      </select>
+
+      <select id="pageLengthFilter"
+              name="page_length"
+              data-requires-online
+              onchange="window._onPageLengthChange(this)"
+              class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
+                     flex-1 sm:flex-none sm:w-36"
+              title="Filter by page length"
+              data-min-pages="" data-max-pages="">
+        <option value="">All Lengths</option>
+        <option value="short">Short (&lt;10 pages)</option>
+        <option value="medium">Medium (10–50 pages)</option>
+        <option value="long">Long (&gt;50 pages)</option>
+      </select>
+    </div>
+
     {# Sort controls — grouped so they stay on one line on mobile; sm:contents dissolves the wrapper on desktop #}
     <div class="flex items-center gap-2 sm:contents">
       {# Vertical divider before sort (desktop only) #}
@@ -453,7 +488,9 @@ function toggleAddStories() {
         <option value="author">Author</option>
         <option value="category">Category</option>
         <option value="length">Story Length</option>
+        <option value="pages">Page Count</option>
         <option value="rating">Rating</option>
+        <option value="community_score">Community Score</option>
         <option value="last_opened">Last Opened</option>
       </select>
 
@@ -517,6 +554,29 @@ function toggleAddStories() {
 </style>
 
 <script>
+window._onFilterSelectChange = function(select) {
+  const libraryContent = document.getElementById('library-content');
+  if (!libraryContent) return;
+  const params = _buildLibraryParams();
+  fetch(`/library/filter?${params.toString()}`)
+    .then(r => r.text())
+    .then(html => { libraryContent.innerHTML = html; htmx.process(libraryContent); });
+};
+
+window._onPageLengthChange = function(select) {
+  const val = select.value;
+  if (val === 'short') {
+    select.dataset.minPages = ''; select.dataset.maxPages = '9';
+  } else if (val === 'medium') {
+    select.dataset.minPages = '10'; select.dataset.maxPages = '50';
+  } else if (val === 'long') {
+    select.dataset.minPages = '51'; select.dataset.maxPages = '';
+  } else {
+    select.dataset.minPages = ''; select.dataset.maxPages = '';
+  }
+  window._onFilterSelectChange(select);
+};
+
 function toggleCategoryLabels(btn) {
   const library = document.getElementById('library');
   const active = library.classList.toggle('show-categories');

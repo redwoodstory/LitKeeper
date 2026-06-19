@@ -453,9 +453,24 @@ class BackgroundAutomation:
                 try:
                     rate_limiter.wait_if_needed()
                     metadata = fetch_story_metadata(story.literotica_url)
-                    description = metadata.get('description') if metadata else None
+                    if not metadata:
+                        continue
+                    changed = False
+                    description = metadata.get('description')
                     if description:
                         story.description = description
+                        changed = True
+                    for meta_key, col_attr in (
+                        ('score',     'literotica_score'),
+                        ('views',     'literotica_views'),
+                        ('favorites', 'literotica_favorites'),
+                        ('comments',  'literotica_comments'),
+                    ):
+                        val = metadata.get(meta_key)
+                        if val is not None and getattr(story, col_attr) is None:
+                            setattr(story, col_attr, val)
+                            changed = True
+                    if changed:
                         db.session.commit()
                         updated += 1
                         log_action(f"[AUTOMATION] Backfilled description for '{story.title}'")

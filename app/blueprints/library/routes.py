@@ -183,12 +183,27 @@ def filter_library() -> ResponseReturnValue:
     try:
         raw_queue_only = request.args.get('queue_only')
         log_action(f"[FILTER DEBUG] raw queue_only='{raw_queue_only}', bool={raw_queue_only == 'true'}")
+        try:
+            min_community_score = float(request.args.get('min_community_score', 0) or 0)
+        except (ValueError, TypeError):
+            min_community_score = 0.0
+        try:
+            min_pages = int(request.args.get('min_pages', 0) or 0)
+        except (ValueError, TypeError):
+            min_pages = 0
+        try:
+            max_pages = int(request.args.get('max_pages', 0) or 0)
+        except (ValueError, TypeError):
+            max_pages = 0
         validated = LibraryFilterRequest(
             search=request.args.get('search', ''),
             category=request.args.get('category', 'all'),
             sort_by=request.args.get('sort_by', 'date'),
             sort_order=request.args.get('sort_order', 'desc'),
-            queue_only=raw_queue_only == 'true'
+            queue_only=raw_queue_only == 'true',
+            min_community_score=min_community_score,
+            min_pages=min_pages,
+            max_pages=max_pages,
         )
 
         page = request.args.get('page', 1, type=int)
@@ -200,6 +215,9 @@ def filter_library() -> ResponseReturnValue:
             sort_by=validated.sort_by,
             sort_order=validated.sort_order,
             queue_only=validated.queue_only,
+            min_community_score=validated.min_community_score,
+            min_pages=validated.min_pages,
+            max_pages=validated.max_pages,
         )
         has_more = (page * PER_PAGE) < total
 
@@ -212,6 +230,12 @@ def filter_library() -> ResponseReturnValue:
         }
         if validated.queue_only:
             next_url_params['queue_only'] = 'true'
+        if validated.min_community_score > 0:
+            next_url_params['min_community_score'] = validated.min_community_score
+        if validated.min_pages > 0:
+            next_url_params['min_pages'] = validated.min_pages
+        if validated.max_pages > 0:
+            next_url_params['max_pages'] = validated.max_pages
         next_url = f"/library/filter?{urlencode(next_url_params)}"
 
         template = "_library_more.html" if page > 1 else "_library_content.html"

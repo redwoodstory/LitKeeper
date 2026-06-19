@@ -556,6 +556,31 @@ def fetch_story_metadata(url: str) -> dict:
             desc_elem = soup.find('div', class_=lambda c: c and '_widget__info_' in str(c))
             description = desc_elem.get_text(strip=True) if desc_elem else None
 
+        score = views = favorites = comments = None
+        for item in soup.find_all(class_=lambda c: c and '_stats__item_' in str(c)):
+            icon = item.find(class_=lambda c: c and any(
+                x in str(c) for x in ('_star_', '_heart_', '_comment_', '_diagram_')
+            ))
+            if not icon:
+                continue
+            raw = item.get_text(strip=True)
+            digits = ''.join(ch for ch in raw if ch.isdigit() or ch == '.')
+            if not digits:
+                continue
+            try:
+                val = float(digits)
+            except ValueError:
+                continue
+            cls = ' '.join(icon.get('class', []))
+            if '_star_' in cls:
+                score = val
+            elif '_diagram_' in cls:
+                views = int(val)
+            elif '_heart_' in cls:
+                favorites = int(val)
+            elif '_comment_' in cls:
+                comments = int(val)
+
         return {
             'title': title,
             'author': author,
@@ -565,6 +590,10 @@ def fetch_story_metadata(url: str) -> dict:
             'page_count': page_count,
             'series_url': series_url,
             'description': description,
+            'score': score,
+            'views': views,
+            'favorites': favorites,
+            'comments': comments,
         }
 
     except Exception as e:

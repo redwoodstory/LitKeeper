@@ -152,6 +152,17 @@ class MetadataRefreshService:
             story.description = metadata['description']
             fields_changed.append('description')
 
+        for meta_key, col_attr in (
+            ('score',     'literotica_score'),
+            ('views',     'literotica_views'),
+            ('favorites', 'literotica_favorites'),
+            ('comments',  'literotica_comments'),
+        ):
+            val = metadata.get(meta_key)
+            if val is not None and getattr(story, col_attr) != val:
+                setattr(story, col_attr, val)
+                fields_changed.append(col_attr)
+
         story.last_metadata_refresh = datetime.utcnow()
         story.metadata_refresh_status = 'success'
         

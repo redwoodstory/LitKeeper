@@ -35,6 +35,10 @@ class Story(BaseModel, TimestampMixin):
     auto_refresh_exclusion_type = db.Column(db.String(50))
 
     rating = db.Column(db.Integer, nullable=True)
+    literotica_score     = db.Column(db.Float,   nullable=True)
+    literotica_views     = db.Column(db.Integer, nullable=True)
+    literotica_favorites = db.Column(db.Integer, nullable=True)
+    literotica_comments  = db.Column(db.Integer, nullable=True)
     in_queue = db.Column(db.Boolean, default=False, nullable=False)
     queued_at = db.Column(db.DateTime, nullable=True, index=True)
     last_opened_at = db.Column(db.DateTime, nullable=True, index=True)
@@ -99,6 +103,10 @@ class Story(BaseModel, TimestampMixin):
             'series_url': self.literotica_series_url,
             'is_series': bool(self.literotica_series_url and self.chapter_count > 1),
             'rating': self.rating,
+            'community_score': self.literotica_score,
+            'views':           self.literotica_views,
+            'favorites':       self.literotica_favorites,
+            'comments':        self.literotica_comments,
             'in_queue': bool(self.in_queue),
             'queued_at': self.queued_at.isoformat() if self.queued_at else None,
             'last_opened_at': self.last_opened_at.isoformat() if self.last_opened_at else None,

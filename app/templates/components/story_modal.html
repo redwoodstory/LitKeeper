@@ -117,6 +117,14 @@
   {% if story.word_count %} • {% if story.word_count < 1000 %}{{ story.word_count }} words{% else %}{{ "%.1f"|format(story.word_count / 1000) }}k words{% endif %}{% endif %}
   {% if story.size %} • {{ (story.size / 1024 / 1024)|round(2) }} MB{% endif %}
 </p>
+{% if story.community_score is not none %}
+<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+  <span class="text-amber-500 font-medium">★ {{ "%.2f"|format(story.community_score) }}</span> community score
+  {% if story.views %} • <span title="Views">👁 {% if story.views >= 1000 %}{{ "%.1f"|format(story.views / 1000) }}k{% else %}{{ story.views }}{% endif %}</span>{% endif %}
+  {% if story.favorites %} • <span title="Favorites">♥ {% if story.favorites >= 1000 %}{{ "%.1f"|format(story.favorites / 1000) }}k{% else %}{{ story.favorites }}{% endif %}</span>{% endif %}
+  {% if story.comments %} • <span title="Comments">💬 {{ story.comments }}</span>{% endif %}
+</p>
+{% endif %}
 {% endmacro %}
 
 {% macro story_actions_section(story) %}

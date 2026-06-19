@@ -61,6 +61,7 @@ def _get_or_create_story(
             duplicate.description = story_description
         if series_url:
             duplicate.literotica_series_url = series_url
+        _apply_community_stats(duplicate, source_url)
         db.session.flush()
         return duplicate
 
@@ -114,9 +115,38 @@ def _get_or_create_story(
             tag_objects.append(tag)
         story.tags = tag_objects
 
+    _apply_community_stats(story, source_url)
     _record_seen_urls(story)
 
     return story
+
+
+def _apply_community_stats(story, url: Optional[str]) -> None:
+    """Populate community stats from custom_url_dataset.db if available and not already set."""
+    if not url:
+        return
+    try:
+        from flask import current_app
+        import sqlite3 as _sqlite3
+        db_path = os.path.join(current_app.root_path, 'data', 'custom_url_dataset.db')
+        if not os.path.exists(db_path):
+            return
+        with _sqlite3.connect(db_path) as con:
+            row = con.execute(
+                "SELECT score, views, favorites, comments FROM stories WHERE url = ?", (url,)
+            ).fetchone()
+        if not row:
+            return
+        if story.literotica_score is None and row[0] is not None:
+            story.literotica_score = float(row[0])
+        if story.literotica_views is None and row[1] is not None:
+            story.literotica_views = int(row[1])
+        if story.literotica_favorites is None and row[2] is not None:
+            story.literotica_favorites = int(row[2])
+        if story.literotica_comments is None and row[3] is not None:
+            story.literotica_comments = int(row[3])
+    except Exception as e:
+        log_error(f"[community_stats] Could not apply stats for {url}: {e}")
 
 
 def _record_seen_urls(story) -> None:

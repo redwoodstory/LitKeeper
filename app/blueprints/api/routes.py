@@ -1116,6 +1116,10 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'is_series': bool(story.literotica_series_url and story.chapter_count > 1),
         'is_combined': bool(story.is_combined),
         'rating': story.rating,
+        'community_score': story.literotica_score,
+        'views': story.literotica_views,
+        'favorites': story.literotica_favorites,
+        'comments': story.literotica_comments,
         'in_queue': bool(story.in_queue),
         'description': story.description,
         'reading_progress': {
@@ -1840,6 +1844,17 @@ def browse_story_page_count() -> ResponseReturnValue:
 
 def _custom_list_db_path() -> str:
     return os.path.join(current_app.root_path, 'data', 'custom_url_dataset.db')
+
+
+@api.route('/sync_community_scores', methods=['POST'])
+def sync_community_scores_endpoint() -> ResponseReturnValue:
+    try:
+        from app.services.community_scores import sync_community_scores
+        updated = sync_community_scores()
+        return jsonify({"success": True, "updated": updated})
+    except Exception as e:
+        log_error(f"Error syncing community scores: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
 
 
 @api.route('/browse/custom_list/categories', methods=['GET'])

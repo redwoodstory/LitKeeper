@@ -600,6 +600,21 @@ def create_app() -> Flask:
 
         _self_heal_formats_background()
 
+        def _sync_community_scores_background():
+            import threading
+            def _run():
+                import time
+                time.sleep(5)
+                with app.app_context():
+                    try:
+                        from app.services.community_scores import sync_community_scores
+                        sync_community_scores()
+                    except Exception as e:
+                        print(f"[startup] Community scores sync error: {e}")
+            threading.Thread(target=_run, daemon=True).start()
+
+        _sync_community_scores_background()
+
         from app.services.download_queue_worker import DownloadQueueWorker
         app.download_worker = DownloadQueueWorker(app)
         app.download_worker.start()

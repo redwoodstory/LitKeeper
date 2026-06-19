@@ -29,22 +29,34 @@ window.resetReadingProgress = async function(storyId) {
 
 let _queueFilterActive = false;
 
-function refreshLibrary() {
+function _buildLibraryParams() {
+  const params = new URLSearchParams();
   const searchInput = document.getElementById('searchInput');
   const categoryFilter = document.getElementById('categoryFilter');
   const sortBy = document.getElementById('sortBy');
   const sortOrderToggle = document.getElementById('sortOrderToggle');
+  const minScoreFilter = document.getElementById('minScoreFilter');
+  const pageLengthFilter = document.getElementById('pageLengthFilter');
+  if (searchInput) params.append('search', searchInput.value);
+  if (categoryFilter) params.append('category', categoryFilter.value);
+  if (sortBy) params.append('sort_by', sortBy.value);
+  if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
+  if (_queueFilterActive) params.append('queue_only', 'true');
+  if (minScoreFilter && minScoreFilter.value) params.append('min_community_score', minScoreFilter.value);
+  if (pageLengthFilter && pageLengthFilter.dataset.minPages) params.append('min_pages', pageLengthFilter.dataset.minPages);
+  if (pageLengthFilter && pageLengthFilter.dataset.maxPages) params.append('max_pages', pageLengthFilter.dataset.maxPages);
+  return params;
+}
+
+function refreshLibrary() {
+  const searchInput = document.getElementById('searchInput');
 
   if (searchInput) {
     htmx.trigger(searchInput, 'keyup');
   } else {
     const libraryContent = document.getElementById('library-content');
     if (libraryContent) {
-      const params = new URLSearchParams();
-      if (categoryFilter) params.append('category', categoryFilter.value);
-      if (sortBy) params.append('sort_by', sortBy.value);
-      if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
-      if (_queueFilterActive) params.append('queue_only', 'true');
+      const params = _buildLibraryParams();
 
       fetch(`/library/filter?${params.toString()}`)
         .then(response => response.text())
@@ -60,9 +72,17 @@ function refreshLibrary() {
 }
 
 document.body.addEventListener('htmx:configRequest', function(evt) {
-  if (evt.detail.path === '/library/filter' && _queueFilterActive) {
-    evt.detail.parameters['queue_only'] = 'true';
-    console.log('[Queue Filter] htmx:configRequest - adding queue_only=true');
+  if (evt.detail.path === '/library/filter') {
+    if (_queueFilterActive) {
+      evt.detail.parameters['queue_only'] = 'true';
+    }
+    const minScore = document.getElementById('minScoreFilter');
+    if (minScore && minScore.value) evt.detail.parameters['min_community_score'] = minScore.value;
+    const pageLength = document.getElementById('pageLengthFilter');
+    if (pageLength) {
+      if (pageLength.dataset.minPages) evt.detail.parameters['min_pages'] = pageLength.dataset.minPages;
+      if (pageLength.dataset.maxPages) evt.detail.parameters['max_pages'] = pageLength.dataset.maxPages;
+    }
   }
 });
 
@@ -95,16 +115,7 @@ window.toggleQueueFilter = function(btn) {
   }
 
   // Direct fetch — avoids htmx's `changed` modifier suppressing the request
-  const params = new URLSearchParams();
-  const searchInput = document.getElementById('searchInput');
-  const categoryFilter = document.getElementById('categoryFilter');
-  const sortBy = document.getElementById('sortBy');
-  const sortOrderToggle = document.getElementById('sortOrderToggle');
-  if (searchInput) params.append('search', searchInput.value);
-  if (categoryFilter) params.append('category', categoryFilter.value);
-  if (sortBy) params.append('sort_by', sortBy.value);
-  if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
-  if (_queueFilterActive) params.append('queue_only', 'true');
+  const params = _buildLibraryParams();
 
   const libraryContent = document.getElementById('library-content');
   const url = `/library/filter?${params.toString()}`;
