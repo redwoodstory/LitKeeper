@@ -1,0 +1,166 @@
+<div id="chapterOrderModal" class="hidden fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onclick="closeChapterOrderModal()">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+      <div class="min-w-0">
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white truncate" id="chapterOrderTitle">Chapter Order Preview</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5" id="chapterOrderSubtitle"></p>
+      </div>
+      <button onclick="closeChapterOrderModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-4 flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+      <p class="text-xs text-slate-500 dark:text-slate-400 px-6 pt-4 pb-1 flex-shrink-0">
+        Drag chapters (or use the arrows) to fix the reading order. Chapter numbers below show how the finished book will be numbered.
+      </p>
+      <div id="chapterOrderList" class="flex-1 overflow-y-auto px-6 py-2 space-y-1.5">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-end gap-3">
+      <button onclick="closeChapterOrderModal()"
+        class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all duration-200">
+        Cancel
+      </button>
+      <button id="chapterOrderConfirmBtn" onclick="confirmChapterOrder()"
+        class="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 transition-all duration-200">
+        Download
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let _chapterOrderUrl = null;
+let _chapterOrderExtraUrls = [];
+let _chapterOrderParts = [];
+let _chapterOrderDragUrl = null;
+
+function openChapterOrderModal(url, seriesTitle, parts, extraUrls) {
+  _chapterOrderUrl = url;
+  _chapterOrderExtraUrls = extraUrls || [];
+  _chapterOrderParts = parts.map(p => ({ title: p.title, url: p.url }));
+
+  document.getElementById('chapterOrderTitle').textContent = seriesTitle || 'Chapter Order Preview';
+  document.getElementById('chapterOrderSubtitle').textContent =
+    `${_chapterOrderParts.length} chapters found — review the order before downloading`;
+
+  _renderChapterOrderList();
+
+  if (typeof closeStoryModal === 'function') closeStoryModal();
+
+  document.getElementById('chapterOrderModal').classList.remove('hidden');
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeChapterOrderModal() {
+  document.getElementById('chapterOrderModal').classList.add('hidden');
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
+}
+
+function _moveChapterOrderItem(fromIndex, toIndex) {
+  if (toIndex < 0 || toIndex >= _chapterOrderParts.length) return;
+  const [item] = _chapterOrderParts.splice(fromIndex, 1);
+  _chapterOrderParts.splice(toIndex, 0, item);
+  _renderChapterOrderList();
+}
+
+function _renderChapterOrderList() {
+  const list = document.getElementById('chapterOrderList');
+
+  list.innerHTML = _chapterOrderParts.map((part, i) => `
+    <div draggable="true"
+      data-url="${_escAttrCO(part.url)}"
+      ondragstart="_onChapterOrderDragStart(event, '${_escAttrCO(part.url)}')"
+      ondragover="_onChapterOrderDragOver(event)"
+      ondrop="_onChapterOrderDrop(event, '${_escAttrCO(part.url)}')"
+      ondragend="_onChapterOrderDragEnd(event)"
+      class="chapter-order-row flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors cursor-grab active:cursor-grabbing">
+      <svg class="w-4 h-4 text-slate-300 dark:text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/>
+      </svg>
+      <span class="flex-shrink-0 w-16 text-xs font-semibold text-slate-400 dark:text-slate-500">Chapter ${i + 1}</span>
+      <span class="flex-1 min-w-0 text-sm text-slate-900 dark:text-white truncate">${_escHtmlCO(part.title)}</span>
+      <div class="flex-shrink-0 flex items-center gap-0.5">
+        <button type="button" onclick="_moveChapterOrderItem(${i}, ${i - 1})" ${i === 0 ? 'disabled' : ''}
+          class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Move up">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+        </button>
+        <button type="button" onclick="_moveChapterOrderItem(${i}, ${i + 1})" ${i === _chapterOrderParts.length - 1 ? 'disabled' : ''}
+          class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Move down">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function _onChapterOrderDragStart(e, url) {
+  _chapterOrderDragUrl = url;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', url);
+  e.currentTarget.classList.add('opacity-40');
+}
+
+function _onChapterOrderDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('bg-slate-100', 'dark:bg-slate-600/40');
+}
+
+function _onChapterOrderDrop(e, targetUrl) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('bg-slate-100', 'dark:bg-slate-600/40');
+
+  const sourceUrl = _chapterOrderDragUrl;
+  if (!sourceUrl || sourceUrl === targetUrl) return;
+
+  const fromIndex = _chapterOrderParts.findIndex(p => p.url === sourceUrl);
+  const toIndex = _chapterOrderParts.findIndex(p => p.url === targetUrl);
+  if (fromIndex === -1 || toIndex === -1) return;
+
+  _moveChapterOrderItem(fromIndex, toIndex);
+}
+
+function _onChapterOrderDragEnd(e) {
+  _chapterOrderDragUrl = null;
+  document.querySelectorAll('#chapterOrderList .chapter-order-row').forEach(row => {
+    row.classList.remove('opacity-40', 'bg-slate-100', 'dark:bg-slate-600/40');
+  });
+}
+
+async function confirmChapterOrder() {
+  const btn = document.getElementById('chapterOrderConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Queuing…';
+
+  const orderedUrls = _chapterOrderParts.map(p => p.url);
+  try {
+    await submitDownload(_chapterOrderUrl, _chapterOrderExtraUrls, orderedUrls);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download';
+    closeChapterOrderModal();
+  }
+}
+
+function _escHtmlCO(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _escAttrCO(str) {
+  if (!str) return '';
+  return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>

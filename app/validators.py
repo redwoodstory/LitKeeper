@@ -8,7 +8,16 @@ class StoryDownloadRequest(BaseModel):
     url: str
     wait: bool = True
     format: list[Literal["epub", "html"]] = Field(default=["epub", "html"], min_length=1)
-    
+    chapter_order: list[str] | None = None
+
+    @field_validator('chapter_order')
+    @classmethod
+    def validate_chapter_order(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return None
+        cleaned = [u.strip() for u in v if isinstance(u, str) and u.strip()]
+        return cleaned or None
+
     @field_validator('url')
     @classmethod
     def validate_url(cls, v: str) -> str:
