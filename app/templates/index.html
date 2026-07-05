@@ -108,14 +108,14 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
         Download
       </button>
 
-      <label class="inline-flex items-center gap-2 cursor-pointer select-none"
+      <label id="previewOrderLabel" class="inline-flex items-center gap-2 cursor-pointer select-none"
         title="Preview and reorder the chapter list before a series is downloaded">
         <button type="button" id="previewOrderToggle" role="switch" aria-checked="false"
           onclick="togglePreviewOrderSwitch()"
-          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-slate-200 dark:bg-slate-600">
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed">
           <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
         </button>
-        <span class="text-sm text-gray-600 dark:text-gray-400">Preview chapter order</span>
+        <span id="previewOrderLabelText" class="text-sm text-gray-600 dark:text-gray-400">Preview chapter order</span>
       </label>
 
       <a href="/queue/" hx-boost="false"
@@ -234,20 +234,40 @@ function toggleAddStories() {
     if (!btn) return;
     const enabled = isPreviewOrderEnabled();
     btn.setAttribute('aria-checked', String(enabled));
-    btn.classList.toggle('bg-green-600', enabled);
-    btn.classList.toggle('bg-slate-200', !enabled);
-    btn.classList.toggle('dark:bg-slate-600', !enabled);
+    btn.classList.toggle('bg-green-600', enabled && !btn.disabled);
+    btn.classList.toggle('bg-slate-200', !enabled || btn.disabled);
+    btn.classList.toggle('dark:bg-slate-600', !enabled || btn.disabled);
     const knob = btn.querySelector('span');
     knob.classList.toggle('translate-x-5', enabled);
     knob.classList.toggle('translate-x-0', !enabled);
   }
 
   function togglePreviewOrderSwitch() {
+    const btn = document.getElementById('previewOrderToggle');
+    if (btn && btn.disabled) return;
     localStorage.setItem(PREVIEW_ORDER_KEY, String(!isPreviewOrderEnabled()));
     _syncPreviewOrderToggleUI();
   }
 
-  _syncPreviewOrderToggleUI();
+  function _syncPreviewOrderAvailability() {
+    const section = document.getElementById('combineSection');
+    const btn = document.getElementById('previewOrderToggle');
+    const label = document.getElementById('previewOrderLabel');
+    const labelText = document.getElementById('previewOrderLabelText');
+    if (!section || !btn) return;
+
+    const combineOpen = !section.classList.contains('hidden');
+    btn.disabled = combineOpen;
+    label.title = combineOpen
+      ? 'Not available while combining multiple stories or series into one file'
+      : 'Preview and reorder the chapter list before a series is downloaded';
+    label.classList.toggle('cursor-not-allowed', combineOpen);
+    label.classList.toggle('cursor-pointer', !combineOpen);
+    labelText.classList.toggle('opacity-40', combineOpen);
+    _syncPreviewOrderToggleUI();
+  }
+
+  _syncPreviewOrderAvailability();
 
   function closeSeriesModal() {
     document.getElementById('seriesModal').style.display = 'none';
@@ -290,6 +310,7 @@ function toggleAddStories() {
     const chevron = document.getElementById('combineChevron');
     const hidden = section.classList.toggle('hidden');
     chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+    _syncPreviewOrderAvailability();
   });
 
   document.getElementById('url').addEventListener('keydown', function(e) {
