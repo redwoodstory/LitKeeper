@@ -255,7 +255,7 @@ class DownloadQueueWorker:
         item.progress_message = 'Downloading story content...'
         db.session.commit()
 
-        story_data = download_story(item.url)
+        story_data = download_story(item.url, chapter_order=item.get_chapter_order())
         story_content, title, author, category, tags, author_url, page_count, series_url, story_description = story_data
 
         if not story_content or not title:

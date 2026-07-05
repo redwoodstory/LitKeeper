@@ -200,12 +200,43 @@ def _download_single_chapter(
     metadata['page_count'] = page_count
     return chapter_content, metadata
 
+def _reorder_parts(parts: list[dict], chapter_order: list[str]) -> list[dict]:
+    """Reorder freshly-fetched series parts according to a user-confirmed URL order.
+
+    Parts whose URL isn't in chapter_order (e.g. published after the preview was
+    shown) are appended at the end in their original (API) order. Entries in
+    chapter_order that no longer match a fetched part (e.g. removed since the
+    preview) are simply skipped.
+    """
+    from .logger import log_action
+
+    parts_by_url = {p['url']: p for p in parts}
+    ordered = [parts_by_url[u] for u in chapter_order if u in parts_by_url]
+
+    ordered_urls = {p['url'] for p in ordered}
+    leftovers = [p for p in parts if p['url'] not in ordered_urls]
+    if leftovers:
+        log_action(f"chapter_order: {len(leftovers)} part(s) not in confirmed order, appending at the end")
+
+    missing = [u for u in chapter_order if u not in parts_by_url]
+    if missing:
+        log_action(f"chapter_order: {len(missing)} confirmed URL(s) no longer present in series, skipping")
+
+    return ordered + leftovers
+
+
 def _download_from_series_page(
     series_url: str,
-    session: requests.Session
+    session: requests.Session,
+    chapter_order: Optional[list[str]] = None
 ) -> Optional[tuple[str, str, str, Optional[str], Optional[list[str]], Optional[str], int, str, Optional[str]]]:
     """
     Download complete story using series page as source of truth.
+
+    Args:
+        chapter_order: optional list of chapter URLs in the order confirmed by the
+            user in the chapter-order preview modal. When provided, the freshly
+            fetched parts are reordered to match before downloading.
 
     Returns:
         Same tuple as download_story() or None if failed
@@ -223,6 +254,8 @@ def _download_from_series_page(
 
         series_title = series_info.get('series_title', 'Unknown Series')
         parts = series_info['parts']
+        if chapter_order:
+            parts = _reorder_parts(parts, chapter_order)
         total_parts = len(parts)
         series_description = series_info.get('description')
 
@@ -287,11 +320,16 @@ def _download_from_series_page(
         log_error(f"Error in series-first download: {str(e)}", series_url)
         return None
 
-def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str], Optional[str]]:
-    """Download and extract the full story content and metadata from the given Literotica URL."""
+def download_story(url: str, chapter_order: Optional[list[str]] = None) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str], Optional[str]]:
+    """Download and extract the full story content and metadata from the given Literotica URL.
+
+    Args:
+        chapter_order: optional list of chapter URLs, in the order confirmed by the
+            user in the chapter-order preview modal. Only applies to series downloads.
+    """
     try:
         session = get_session()
-        
+
         url = url.split('?')[0]
         from .logger import log_action
         log_action(f"Normalized URL to start from page 1: {url}")
@@ -304,7 +342,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
 
         if series_url:
             try:
-                result = _download_from_series_page(series_url, session)
+                result = _download_from_series_page(series_url, session, chapter_order=chapter_order)
                 if result:
                     log_url(f"Successfully downloaded via series page")
                     return result

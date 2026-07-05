@@ -22,6 +22,7 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
 
     job_type = db.Column(db.String(20), nullable=False, default='single')
     extra_urls = db.Column(db.Text)
+    chapter_order = db.Column(db.Text)
     scheduled_after = db.Column(db.DateTime, nullable=True)
 
     total_pages = db.Column(db.Integer)
@@ -79,6 +80,19 @@ class DownloadQueueItem(BaseModel, TimestampMixin):
     def set_extra_urls(self, urls: list[str]) -> None:
         """Store extra URLs as JSON string"""
         self.extra_urls = json.dumps(urls) if urls else None
+
+    def get_chapter_order(self) -> Optional[list[str]]:
+        """Parse the user-confirmed chapter URL order from JSON string"""
+        if not self.chapter_order:
+            return None
+        try:
+            return json.loads(self.chapter_order)
+        except (json.JSONDecodeError, ValueError):
+            return None
+
+    def set_chapter_order(self, urls: Optional[list[str]]) -> None:
+        """Store the user-confirmed chapter URL order as JSON string"""
+        self.chapter_order = json.dumps(urls) if urls else None
 
     def get_queue_position(self) -> int:
         """Get position in queue (1-indexed)"""

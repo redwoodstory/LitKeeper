@@ -188,6 +188,8 @@ claude_plans
 
 # Local testing docker-compose
 docker-compose.local.yml
+data/
+stories/
 
 routes.py.backup
 

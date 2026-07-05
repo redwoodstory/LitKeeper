@@ -27,16 +27,18 @@ def queue_download() -> ResponseReturnValue:
             data = request.get_json()
             url = data.get('url', '')
             extra_urls = data.get('extra_urls', data.get('urls', []))
+            chapter_order = data.get('chapter_order')
         else:
             url = request.form.get('url', '')
             extra_urls = request.form.getlist('extra_urls') or request.form.getlist('urls')
+            chapter_order = None
 
         if extra_urls and not url:
             url = extra_urls[0]
             extra_urls = extra_urls[1:]
 
         formats = ['epub', 'html']
-        validated = StoryDownloadRequest(url=url, format=formats)
+        validated = StoryDownloadRequest(url=url, format=formats, chapter_order=chapter_order)
 
     except ValidationError as e:
         error_details = e.errors()[0]
@@ -82,6 +84,8 @@ def queue_download() -> ResponseReturnValue:
         queue_item.set_formats(validated.format)
         if is_multi:
             queue_item.set_extra_urls(list(extra_urls))
+        elif validated.chapter_order:
+            queue_item.set_chapter_order(validated.chapter_order)
         db.session.add(queue_item)
         db.session.commit()
         current_app.download_worker.wake()
@@ -159,6 +163,63 @@ def preview_story() -> ResponseReturnValue:
         return jsonify({
             "success": False,
             "message": "An error occurred while fetching story metadata"
+        }), 500
+
+@api.route("/series/preview", methods=['POST'])
+def preview_series_chapters() -> ResponseReturnValue:
+    """Resolve a chapter/series URL to its ordered chapter list without downloading any content.
+
+    Used by the chapter-order preview modal on the download form; does not create a queue item.
+    """
+    try:
+        data = request.get_json() or {}
+        url = (data.get('url') or '').strip()
+        if not url:
+            return jsonify({"success": False, "message": "url is required"}), 400
+
+        validated = StoryDownloadRequest(url=url, format=['epub', 'html'])
+
+    except ValidationError as e:
+        error_details = e.errors()[0]
+        error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
+        return jsonify({"success": False, "message": error_msg}), 400
+
+    try:
+        from app.services.story_downloader import detect_url_type, extract_series_url_from_chapter
+        from app.services.series_page_checker import SeriesPageChecker
+        from app.services.http_client import get_session, global_rate_limiter
+
+        session = get_session()
+        target_url = validated.url.split('?')[0]
+        url_type, series_url = detect_url_type(target_url)
+
+        if url_type == 'chapter':
+            global_rate_limiter.wait_if_needed()
+            series_url = extract_series_url_from_chapter(target_url, session)
+
+        if not series_url:
+            return jsonify({"success": True, "is_series": False})
+
+        global_rate_limiter.wait_if_needed()
+        series_info = SeriesPageChecker().check_series_parts(series_url)
+
+        parts = (series_info or {}).get('parts') or []
+        if len(parts) <= 1:
+            return jsonify({"success": True, "is_series": False})
+
+        return jsonify({
+            "success": True,
+            "is_series": True,
+            "series_title": series_info.get('series_title') or '',
+            "series_url": series_url,
+            "parts": parts,
+        })
+
+    except Exception as e:
+        log_error(f"Error previewing series chapters: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "message": "Failed to resolve chapter list. Please try again."
         }), 500
 
 @api.route("/save", methods=['POST'])
