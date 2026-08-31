@@ -577,6 +577,67 @@ def backfill_descriptions(rate: int):
     click.echo(f'Done. Updated: {updated}, Failed: {failed}.')
 
 
+@backfill_cli.command('stats')
+@click.option('--rate', default=5, show_default=True, help='Max requests per minute.')
+@click.option('--force', is_flag=True, default=False, help='Re-fetch stats even for stories that already have them.')
+def backfill_stats(rate: int, force: bool):
+    """Backfill missing community stats (score/views/favorites/comments) from Literotica."""
+    from app.models import Story
+    from app.models.base import db
+    from app.services.metadata_refresh.rate_limiter import RateLimiter
+    from app.services.story_downloader import fetch_story_metadata
+    from app.services.logger import log_action
+    from sqlalchemy import or_
+
+    query = Story.query.filter(Story.literotica_url.isnot(None))
+    if not force:
+        query = query.filter(or_(
+            Story.literotica_score.is_(None),
+            Story.literotica_views.is_(None),
+            Story.literotica_favorites.is_(None),
+            Story.literotica_comments.is_(None),
+        ))
+    stories = query.all()
+
+    if not stories:
+        click.echo('No stories missing community stats.')
+        return
+
+    rate_limiter = RateLimiter(max_requests=rate, time_window=60)
+    updated = 0
+    failed = 0
+
+    with click.progressbar(stories, label='Backfilling community stats') as bar:
+        for story in bar:
+            rate_limiter.wait_if_needed()
+            try:
+                metadata = fetch_story_metadata(story.literotica_url)
+                changed = False
+                for meta_key, col_attr in (
+                    ('score',     'literotica_score'),
+                    ('views',     'literotica_views'),
+                    ('favorites', 'literotica_favorites'),
+                    ('comments',  'literotica_comments'),
+                ):
+                    val = metadata.get(meta_key)
+                    if val is not None and (force or getattr(story, col_attr) is None):
+                        setattr(story, col_attr, val)
+                        changed = True
+                log_action(f"[BACKFILL-STATS] '{story.title}' -> score={metadata.get('score')} views={metadata.get('views')} "
+                           f"favorites={metadata.get('favorites')} comments={metadata.get('comments')}")
+                if changed:
+                    db.session.commit()
+                    updated += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                log_action(f"[BACKFILL-STATS] '{story.title}' -> ERROR: {e}")
+                db.session.rollback()
+                failed += 1
+
+    click.echo(f'Done. Updated: {updated}, Unchanged/failed: {failed}.')
+
+
 @backfill_cli.command('series-urls')
 def backfill_series_urls():
     """Backfill series URLs for existing stories."""

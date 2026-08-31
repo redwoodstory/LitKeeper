@@ -59,13 +59,21 @@ class SeriesPageChecker:
         """Build the standard result dict from a works list."""
         if not works:
             log_error(f"API returned empty works list for series {series_id}")
-            return {"total_parts": 0, "parts": [], "series_title": "", "description": ""}
+            return {
+                "total_parts": 0, "parts": [], "series_title": "", "description": "",
+                "stats": {"score": None, "views": None, "favorites": None, "comments": None},
+            }
 
         parts = [
             {
                 "part_number": i,
                 "title": work.get("title", f"Part {i}"),
                 "url": f"https://www.literotica.com/s/{work['url']}",
+                "score": work.get("rate_all"),
+                "rate_count": work.get("rate_count"),
+                "views": work.get("view_count"),
+                "favorites": work.get("favorite_count"),
+                "comments": work.get("comment_count"),
             }
             for i, work in enumerate(works, 1)
         ]
@@ -77,6 +85,47 @@ class SeriesPageChecker:
             "parts": parts,
             "series_title": series_title,
             "description": description,
+            "stats": self._aggregate_stats(parts),
+        }
+
+    def _aggregate_stats(self, parts: list) -> dict:
+        """
+        Aggregate per-chapter stats into series-wide totals.
+
+        Literotica publishes no series-level rating — only per-chapter ratings — so the
+        score is averaged across chapters weighted by each chapter's vote count (rate_count),
+        giving heavily-voted chapters more say than lightly-voted ones. Views/favorites/comments
+        are summed across all chapters.
+        """
+        weighted_score_total = 0.0
+        vote_total = 0
+        views_total = 0
+        favorites_total = 0
+        comments_total = 0
+        has_views = has_favorites = has_comments = False
+
+        for part in parts:
+            score = part.get("score")
+            rate_count = part.get("rate_count")
+            if score is not None and rate_count:
+                weighted_score_total += score * rate_count
+                vote_total += rate_count
+
+            if part.get("views") is not None:
+                views_total += part["views"]
+                has_views = True
+            if part.get("favorites") is not None:
+                favorites_total += part["favorites"]
+                has_favorites = True
+            if part.get("comments") is not None:
+                comments_total += part["comments"]
+                has_comments = True
+
+        return {
+            "score": round(weighted_score_total / vote_total, 2) if vote_total else None,
+            "views": views_total if has_views else None,
+            "favorites": favorites_total if has_favorites else None,
+            "comments": comments_total if has_comments else None,
         }
 
     def _fetch_series_title(self, session, series_url: str) -> str:

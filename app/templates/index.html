@@ -48,6 +48,18 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
   </button>
 
   <div id="addStoriesContent" class="hidden mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-4">
+    <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700 -mt-1">
+      <button type="button" id="addSourceTabLiterotica" onclick="switchAddSourceTab('literotica')"
+        class="px-3 py-2 text-sm font-medium border-b-2 border-primary text-primary transition-colors">
+        From Literotica
+      </button>
+      <button type="button" id="addSourceTabCustom" onclick="switchAddSourceTab('custom')"
+        class="px-3 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+        My Own Story
+      </button>
+    </div>
+
+    <div id="addSourcePanelLiterotica" class="space-y-4">
     <div>
       <label for="url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         Story, Series, or Author URL
@@ -121,6 +133,113 @@ if (sessionStorage.getItem('syncBannerDismissed') === 'true') {
         </svg>
         Browse for Stories
       </a>
+    </div>
+    </div>
+
+    <div id="addSourcePanelCustom" class="hidden space-y-4">
+      <p class="text-xs text-gray-500 dark:text-gray-400">
+        Add a story you've written yourself. It's kept separate from Literotica — no source link, no community rating, and it won't be checked for updates.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label for="customTitle" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+          <input type="text" id="customTitle" name="title" required
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:ring-2 focus:ring-primary focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500">
+        </div>
+        <div>
+          <label for="customAuthor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Author</label>
+          <input type="text" id="customAuthor" name="author" required
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:ring-2 focus:ring-primary focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label for="customCategorySelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category (optional)</label>
+          <select id="customCategorySelect" onchange="onCustomCategoryChange(this)"
+            class="w-full h-[50px] px-4 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:ring-2 focus:ring-primary focus:border-transparent">
+            <option value="">No category</option>
+            {% for category in categories %}
+            <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+            <option value="__new__">+ Add new category…</option>
+          </select>
+          <input type="text" id="customCategoryNew" name="category" placeholder="New category name"
+            class="hidden mt-2 w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:ring-2 focus:ring-primary focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500">
+        </div>
+        <div>
+          <label for="customTags" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags (optional, comma-separated)</label>
+          <input type="text" id="customTags" name="tags" placeholder="romance, slow-burn"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                   focus:ring-2 focus:ring-primary focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500">
+        </div>
+      </div>
+
+      <div>
+        <label for="customDescription" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description (optional)</label>
+        <textarea id="customDescription" name="description" rows="2"
+          class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                 focus:ring-2 focus:ring-primary focus:border-transparent
+                 placeholder-gray-400 dark:placeholder-gray-500"></textarea>
+      </div>
+
+      <div>
+        <div class="flex gap-1 mb-2">
+          <button type="button" id="customContentTabPaste" onclick="switchCustomContentTab('paste')"
+            class="px-3 py-1.5 text-xs font-medium rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+            Paste text
+          </button>
+          <button type="button" id="customContentTabUpload" onclick="switchCustomContentTab('upload')"
+            class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">
+            Upload file
+          </button>
+        </div>
+
+        <div id="customContentPanelPaste">
+          <textarea id="customContent" name="content" rows="8"
+            placeholder="Paste your story here..."
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm
+                   focus:ring-2 focus:ring-primary focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500"></textarea>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+            Press Enter once between paragraphs — each new line becomes its own paragraph. For multiple chapters, start a new line with <code>Chapter 2: Title</code>.
+          </p>
+        </div>
+
+        <div id="customContentPanelUpload" class="hidden">
+          <input type="file" id="customContentFile" name="content_file" accept=".txt,.epub"
+            class="w-full text-sm text-gray-600 dark:text-gray-300
+                   file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0
+                   file:text-sm file:font-medium file:bg-slate-100 dark:file:bg-slate-700
+                   file:text-slate-700 dark:file:text-slate-200 hover:file:bg-slate-200 dark:hover:file:bg-slate-600">
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+            .txt or .epub, up to 15MB.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <button type="button" id="customStorySubmitBtn" data-requires-online
+          class="btn-primary w-full sm:w-auto sm:px-14">
+          Add to Library
+        </button>
+      </div>
     </div>
   </div>
 
@@ -299,6 +418,129 @@ function toggleAddStories() {
     await submitDownload(url, extraUrls);
   });
 
+  function onCustomCategoryChange(select) {
+    const newInput = document.getElementById('customCategoryNew');
+    const isNew = select.value === '__new__';
+    newInput.classList.toggle('hidden', !isNew);
+    if (isNew) {
+      newInput.value = '';
+      newInput.focus();
+    } else {
+      newInput.value = select.value;
+    }
+  }
+
+  function switchAddSourceTab(tab) {
+    const literoticaTab = document.getElementById('addSourceTabLiterotica');
+    const customTab = document.getElementById('addSourceTabCustom');
+    const literoticaPanel = document.getElementById('addSourcePanelLiterotica');
+    const customPanel = document.getElementById('addSourcePanelCustom');
+    const isCustom = tab === 'custom';
+
+    literoticaPanel.classList.toggle('hidden', isCustom);
+    customPanel.classList.toggle('hidden', !isCustom);
+
+    literoticaTab.classList.toggle('border-primary', !isCustom);
+    literoticaTab.classList.toggle('text-primary', !isCustom);
+    literoticaTab.classList.toggle('border-transparent', isCustom);
+    literoticaTab.classList.toggle('text-slate-500', isCustom);
+
+    customTab.classList.toggle('border-primary', isCustom);
+    customTab.classList.toggle('text-primary', isCustom);
+    customTab.classList.toggle('border-transparent', !isCustom);
+    customTab.classList.toggle('text-slate-500', !isCustom);
+  }
+
+  function switchCustomContentTab(tab) {
+    const pasteTab = document.getElementById('customContentTabPaste');
+    const uploadTab = document.getElementById('customContentTabUpload');
+    const pastePanel = document.getElementById('customContentPanelPaste');
+    const uploadPanel = document.getElementById('customContentPanelUpload');
+    const isUpload = tab === 'upload';
+
+    pastePanel.classList.toggle('hidden', isUpload);
+    uploadPanel.classList.toggle('hidden', !isUpload);
+
+    pasteTab.classList.toggle('bg-slate-100', !isUpload);
+    pasteTab.classList.toggle('dark:bg-slate-700', !isUpload);
+    pasteTab.classList.toggle('text-slate-700', !isUpload);
+    pasteTab.classList.toggle('dark:text-slate-200', !isUpload);
+    pasteTab.classList.toggle('text-slate-500', isUpload);
+    pasteTab.classList.toggle('dark:text-slate-400', isUpload);
+
+    uploadTab.classList.toggle('bg-slate-100', isUpload);
+    uploadTab.classList.toggle('dark:bg-slate-700', isUpload);
+    uploadTab.classList.toggle('text-slate-700', isUpload);
+    uploadTab.classList.toggle('dark:text-slate-200', isUpload);
+    uploadTab.classList.toggle('text-slate-500', !isUpload);
+    uploadTab.classList.toggle('dark:text-slate-400', !isUpload);
+  }
+
+  document.getElementById('customStorySubmitBtn').addEventListener('click', async function() {
+    const btn = this;
+    const title = document.getElementById('customTitle').value.trim();
+    const author = document.getElementById('customAuthor').value.trim();
+    if (!title) { document.getElementById('customTitle').reportValidity(); return; }
+    if (!author) { document.getElementById('customAuthor').reportValidity(); return; }
+
+    const uploadPanelVisible = !document.getElementById('customContentPanelUpload').classList.contains('hidden');
+    const fileInput = document.getElementById('customContentFile');
+    const content = document.getElementById('customContent').value;
+
+    if (uploadPanelVisible && fileInput.files.length === 0) {
+      window.toast?.show('Please choose a .txt or .epub file to upload', 'error');
+      return;
+    }
+    if (!uploadPanelVisible && !content.trim()) {
+      window.toast?.show('Story content is required', 'error');
+      return;
+    }
+
+    const categorySelect = document.getElementById('customCategorySelect');
+    const category = categorySelect.value === '__new__'
+      ? document.getElementById('customCategoryNew').value.trim()
+      : categorySelect.value;
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('author', author);
+    formData.append('category', category);
+    formData.append('tags', document.getElementById('customTags').value.trim());
+    formData.append('description', document.getElementById('customDescription').value.trim());
+    if (uploadPanelVisible) {
+      formData.append('content_file', fileInput.files[0]);
+    } else {
+      formData.append('content', content);
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/custom-story', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.success !== false) {
+        window.toast?.show('Story added to your library', 'success');
+        document.getElementById('customTitle').value = '';
+        document.getElementById('customAuthor').value = '';
+        categorySelect.value = '';
+        document.getElementById('customCategoryNew').value = '';
+        document.getElementById('customCategoryNew').classList.add('hidden');
+        document.getElementById('customTags').value = '';
+        document.getElementById('customDescription').value = '';
+        document.getElementById('customContent').value = '';
+        fileInput.value = '';
+        refreshLibrary();
+      } else {
+        window.toast?.show(data.message || 'Failed to save story', 'error');
+      }
+    } catch {
+      window.toast?.show('Request failed. Please try again.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add to Library';
+    }
+  });
+
   async function submitDownload(url, extraUrls) {
     const btn = document.getElementById('downloadBtn');
     btn.disabled = true;
@@ -370,7 +612,7 @@ function toggleAddStories() {
              hx-get="/library/filter"
              hx-trigger="keyup changed delay:300ms"
              hx-target="#library-content"
-             hx-include="[name='category'], [name='sort_by'], [name='sort_order']"
+             hx-include="[name='category'], [name='sort_by'], [name='sort_order'], [name='source'], [name='min_community_score'], [name='page_length'], [name='user_rating']"
              style="height: 2.5rem; width: 100%"
              class="w-full h-10 px-4 pl-10 rounded-lg border border-slate-200 dark:border-gray-700
                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
@@ -381,145 +623,239 @@ function toggleAddStories() {
       </svg>
     </div>
 
-    {# Category filter #}
-    <select id="categoryFilter"
-            name="category"
-            data-requires-online
-            hx-get="/library/filter"
-            hx-trigger="change"
-            hx-target="#library-content"
-            hx-include="[name='search'], [name='sort_by'], [name='sort_order']"
-            class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
-                   bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
-                   focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                   sm:w-40">
-      <option value="all">All Categories</option>
-      <option value="uncategorized">Uncategorized</option>
-      {% for category in categories %}
-      <option value="{{ category }}">{{ category }}</option>
-      {% endfor %}
-    </select>
-
-    {# Reading Queue + Categories — side by side on mobile; sm:contents dissolves wrapper on desktop #}
+    {# Dedicated dropdowns: Filters / Sort / View — keeps the bar from becoming a wall of loose controls #}
     <div class="flex gap-2 sm:contents">
-      <button type="button"
-              id="queueFilterToggle"
-              onclick="toggleQueueFilter(this)"
-              class="flex-1 sm:flex-none h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
-                     text-slate-500 dark:text-slate-400
-                     hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400
-                     transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
-              title="Filter by reading queue">
-        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-        </svg>
-        <span>Reading Queue</span>
-      </button>
 
-      <button type="button"
-              id="categoryLabelToggle"
-              onclick="toggleCategoryLabels(this)"
-              class="flex-1 sm:flex-none h-10 px-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600
-                     text-slate-500 dark:text-slate-400
-                     hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400
-                     transition-all duration-200 inline-flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap"
-              title="Show category labels on covers">
-        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-        </svg>
-        <span>Categories</span>
-      </button>
-    </div>
+      {# Filters dropdown #}
+      <div class="relative flex-1 sm:flex-none">
+        <button type="button"
+                id="filtersDropdownToggle"
+                onclick="toggleLibraryDropdown('filtersDropdownToggle', 'filtersDropdownPanel')"
+                class="library-dropdown-toggle w-full sm:w-auto h-10 px-3 rounded-lg border border-slate-200 dark:border-gray-700
+                       bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium
+                       hover:bg-slate-50 dark:hover:bg-gray-700 transition-all duration-200
+                       inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M6 8h12M9 12h6M11 16h2"/>
+          </svg>
+          <span>Filters</span>
+          <span id="filtersActiveDot" class="hidden w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0"></span>
+          <svg class="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="filtersDropdownPanel"
+             class="library-dropdown-panel invisible opacity-0 pointer-events-none absolute z-20 mt-2 left-0 sm:right-0 sm:left-auto w-64 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-lg space-y-3">
+          <div>
+            <label for="categoryFilter" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Category</label>
+            <select id="categoryFilter"
+                    name="category"
+                    data-requires-online
+                    hx-get="/library/filter"
+                    hx-trigger="change"
+                    hx-target="#library-content"
+                    hx-include="[name='search'], [name='sort_by'], [name='sort_order'], [name='source'], [name='min_community_score'], [name='page_length'], [name='user_rating']"
+                    class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                           focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
+              <option value="all">All Categories</option>
+              <option value="uncategorized">Uncategorized</option>
+              {% for category in categories %}
+              <option value="{{ category }}">{{ category }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="sourceFilter" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Source</label>
+            <select id="sourceFilter"
+                    name="source"
+                    data-requires-online
+                    hx-get="/library/filter"
+                    hx-trigger="change"
+                    hx-target="#library-content"
+                    hx-include="[name='search'], [name='category'], [name='sort_by'], [name='sort_order'], [name='min_community_score'], [name='page_length'], [name='user_rating']"
+                    class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                           focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+                    title="Filter by story source">
+              <option value="all">All Sources</option>
+              <option value="literotica">Literotica</option>
+              <option value="custom">My Stories</option>
+            </select>
+          </div>
+          <div>
+            <label for="userRatingFilter" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Your Rating</label>
+            <select id="userRatingFilter"
+                    name="user_rating"
+                    data-requires-online
+                    onchange="window._onFilterSelectChange(this)"
+                    class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                           focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+                    title="Filter by your rating">
+              <option value="">All Ratings</option>
+              <option value="5">★★★★★</option>
+              <option value="4">★★★★+</option>
+              <option value="3">★★★+</option>
+              <option value="2">★★+</option>
+              <option value="1">★+</option>
+              <option value="unrated">Unrated</option>
+            </select>
+          </div>
+          <div>
+            <label for="minScoreFilter" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Community Score</label>
+            <select id="minScoreFilter"
+                    name="min_community_score"
+                    data-requires-online
+                    onchange="window._onFilterSelectChange(this)"
+                    class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                           focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+                    title="Filter by minimum community score">
+              <option value="">All Scores</option>
+              <option value="4.0">★ 4.0+</option>
+              <option value="4.5">★ 4.5+</option>
+              <option value="4.7">★ 4.7+</option>
+              <option value="4.9">★ 4.9+</option>
+            </select>
+          </div>
+          <div>
+            <label for="pageLengthFilter" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Page Length</label>
+            <select id="pageLengthFilter"
+                    name="page_length"
+                    data-requires-online
+                    onchange="window._onPageLengthChange(this)"
+                    class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                           focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+                    title="Filter by page length"
+                    data-min-pages="" data-max-pages="">
+              <option value="">All Lengths</option>
+              <option value="short">Short (&lt;10 pages)</option>
+              <option value="medium">Medium (10–50 pages)</option>
+              <option value="long">Long (&gt;50 pages)</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
-    {# Community score + page length filters #}
-    <div class="flex gap-2 sm:contents">
-      <select id="minScoreFilter"
-              name="min_community_score"
-              data-requires-online
-              onchange="window._onFilterSelectChange(this)"
-              class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
-                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
-                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                     flex-1 sm:flex-none sm:w-36"
-              title="Filter by minimum community score">
-        <option value="">All Scores</option>
-        <option value="4.0">★ 4.0+</option>
-        <option value="4.5">★ 4.5+</option>
-        <option value="4.7">★ 4.7+</option>
-        <option value="4.9">★ 4.9+</option>
-      </select>
+      {# Sort dropdown #}
+      <div class="relative flex-1 sm:flex-none">
+        <button type="button"
+                id="sortDropdownToggle"
+                onclick="toggleLibraryDropdown('sortDropdownToggle', 'sortDropdownPanel')"
+                class="library-dropdown-toggle w-full sm:w-auto h-10 px-3 rounded-lg border border-slate-200 dark:border-gray-700
+                       bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium
+                       hover:bg-slate-50 dark:hover:bg-gray-700 transition-all duration-200
+                       inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h10M3 12h6M3 17h3M16 6v12m0 0l-3-3m3 3l3-3"/>
+          </svg>
+          <span>Sort</span>
+          <svg class="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="sortDropdownPanel"
+             class="library-dropdown-panel invisible opacity-0 pointer-events-none absolute z-20 mt-2 left-0 sm:right-0 sm:left-auto w-64 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-lg space-y-3">
+          <div>
+            <label for="sortBy" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Sort by</label>
+            <select id="sortBy"
+                    name="sort_by"
+                    data-requires-online
+                    hx-get="/library/filter"
+                    hx-trigger="change"
+                    hx-target="#library-content"
+                    hx-include="[name='search'], [name='category'], [name='sort_order'], [name='source'], [name='min_community_score'], [name='page_length'], [name='user_rating']"
+                    class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
+                           focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
+              <option value="date">Date Added</option>
+              <option value="name">Title</option>
+              <option value="author">Author</option>
+              <option value="category">Category</option>
+              <option value="length">Story Length</option>
+              <option value="pages">Page Count</option>
+              <option value="rating">Rating</option>
+              <option value="community_score">Community Score</option>
+              <option value="last_opened">Last Opened</option>
+            </select>
+          </div>
+          <div>
+            <span class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Order</span>
+            <button type="button"
+                    id="sortOrderToggle"
+                    name="sort_order"
+                    value="desc"
+                    data-requires-online
+                    hx-get="/library/filter"
+                    hx-trigger="click"
+                    hx-target="#library-content"
+                    hx-include="[name='search'], [name='category'], [name='sort_by'], [name='sort_order'], [name='source'], [name='min_community_score'], [name='page_length'], [name='user_rating']"
+                    class="w-full h-10 rounded-lg border border-slate-200 dark:border-gray-700
+                           bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
+                           hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200
+                           flex items-center justify-center gap-2"
+                    title="Descending order">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+              <span id="sortOrderLabel">Descending</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <select id="pageLengthFilter"
-              name="page_length"
-              data-requires-online
-              onchange="window._onPageLengthChange(this)"
-              class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
-                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
-                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                     flex-1 sm:flex-none sm:w-36"
-              title="Filter by page length"
-              data-min-pages="" data-max-pages="">
-        <option value="">All Lengths</option>
-        <option value="short">Short (&lt;10 pages)</option>
-        <option value="medium">Medium (10–50 pages)</option>
-        <option value="long">Long (&gt;50 pages)</option>
-      </select>
-    </div>
-
-    {# Sort controls — grouped so they stay on one line on mobile; sm:contents dissolves the wrapper on desktop #}
-    <div class="flex items-center gap-2 sm:contents">
-      {# Vertical divider before sort (desktop only) #}
-      <div class="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700 flex-shrink-0 mx-1"></div>
-
-      {# Sort by #}
-      <select id="sortBy"
-              name="sort_by"
-              data-requires-online
-              hx-get="/library/filter"
-              hx-trigger="change"
-              hx-target="#library-content"
-              hx-include="[name='search'], [name='category'], [name='sort_order']"
-              class="h-10 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-gray-700
-                     bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm
-                     focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200
-                     flex-1 sm:flex-none sm:w-36">
-        <option value="date">Date Added</option>
-        <option value="name">Title</option>
-        <option value="author">Author</option>
-        <option value="category">Category</option>
-        <option value="length">Story Length</option>
-        <option value="pages">Page Count</option>
-        <option value="rating">Rating</option>
-        <option value="community_score">Community Score</option>
-        <option value="last_opened">Last Opened</option>
-      </select>
-
-      {# Sort order toggle #}
-      <button type="button"
-              id="sortOrderToggle"
-              name="sort_order"
-              value="desc"
-              data-requires-online
-              hx-get="/library/filter"
-              hx-trigger="click"
-              hx-target="#library-content"
-              hx-include="[name='search'], [name='category'], [name='sort_by'], [name='sort_order']"
-              class="h-10 w-10 rounded-lg border border-slate-200 dark:border-gray-700
-                     bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300
-                     hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200
-                     flex items-center justify-center flex-shrink-0"
-              title="Descending order">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-        </svg>
-      </button>
+      {# View options dropdown #}
+      <div class="relative flex-1 sm:flex-none">
+        <button type="button"
+                id="viewDropdownToggle"
+                onclick="toggleLibraryDropdown('viewDropdownToggle', 'viewDropdownPanel')"
+                class="library-dropdown-toggle w-full sm:w-auto h-10 px-3 rounded-lg border border-slate-200 dark:border-gray-700
+                       bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium
+                       hover:bg-slate-50 dark:hover:bg-gray-700 transition-all duration-200
+                       inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>View</span>
+          <svg class="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="viewDropdownPanel"
+             class="library-dropdown-panel invisible opacity-0 pointer-events-none absolute z-20 mt-2 right-0 w-56 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-lg space-y-1">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 px-1 pb-1">Show under covers</p>
+          <label class="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-gray-700 cursor-pointer">
+            <input type="checkbox" id="viewUserRating" onchange="setLibraryViewOption('user-rating', this.checked)"
+                   class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary">
+            <span class="text-sm text-gray-700 dark:text-gray-200">Your rating</span>
+          </label>
+          <label class="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-gray-700 cursor-pointer">
+            <input type="checkbox" id="viewCommunityScore" onchange="setLibraryViewOption('community-score', this.checked)"
+                   class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary">
+            <span class="text-sm text-gray-700 dark:text-gray-200">Community rating</span>
+          </label>
+          <label class="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-gray-700 cursor-pointer">
+            <input type="checkbox" id="viewCategory" onchange="setLibraryViewOption('category', this.checked)"
+                   class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary">
+            <span class="text-sm text-gray-700 dark:text-gray-200">Category</span>
+          </label>
+          <label class="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-gray-700 cursor-pointer">
+            <input type="checkbox" id="viewPageLength" onchange="setLibraryViewOption('page-length', this.checked)"
+                   class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary">
+            <span class="text-sm text-gray-700 dark:text-gray-200">Page length</span>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 
   <div id="library" class="htmx-indicator:opacity-50 transition-opacity">
     <div id="library-content">
     <script>
-      if (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_sort_order')) {
+      if (localStorage.getItem('library_sort_by') || localStorage.getItem('library_category') || localStorage.getItem('library_source') || localStorage.getItem('library_sort_order')) {
         document.getElementById('library-content').style.visibility = 'hidden';
       }
     </script>
@@ -551,6 +887,12 @@ function toggleAddStories() {
 
 <style>
 #library.show-categories .story-category-label { display: block !important; }
+#library.show-page-length .story-page-length-label { display: block !important; }
+#library.show-user-rating .card-user-rating { display: inline-flex !important; }
+#library.show-community-score .card-community-score { display: inline-flex !important; }
+#library:not(.show-user-rating) .card-community-score-paren { display: none; }
+#library.show-user-rating .card-community-score-star { display: none; }
+#library:not(.show-user-rating) .card-community-score-star { display: inline; }
 </style>
 
 <script>
@@ -561,6 +903,7 @@ window._onFilterSelectChange = function(select) {
   fetch(`/library/filter?${params.toString()}`)
     .then(r => r.text())
     .then(html => { libraryContent.innerHTML = html; htmx.process(libraryContent); });
+  updateFiltersActiveDot();
 };
 
 window._onPageLengthChange = function(select) {
@@ -577,37 +920,97 @@ window._onPageLengthChange = function(select) {
   window._onFilterSelectChange(select);
 };
 
-function toggleCategoryLabels(btn) {
-  const library = document.getElementById('library');
-  const active = library.classList.toggle('show-categories');
-  localStorage.setItem('library_show_categories', active ? '1' : '0');
-  btn.classList.toggle('border-purple-400', active);
-  btn.classList.toggle('dark:border-purple-500', active);
-  btn.classList.toggle('text-purple-600', active);
-  btn.classList.toggle('dark:text-purple-400', active);
-  btn.classList.toggle('border-dashed', !active);
-  btn.classList.toggle('border-slate-300', !active);
-  btn.classList.toggle('dark:border-slate-600', !active);
-  btn.classList.toggle('text-slate-500', !active);
-  btn.classList.toggle('dark:text-slate-400', !active);
+// --- Filters / Sort / View dropdowns ---
+
+// Panels stay laid out (not display:none) while closed — a <select> inside a
+// display:none ancestor can render its closed face as the first option in some
+// browsers even though .value is set correctly, making the category filter look
+// like it "randomly" resets. invisible/opacity keeps layout intact so that bug
+// can't happen.
+function closeLibraryDropdownPanel(panel) {
+  panel.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+}
+function openLibraryDropdownPanel(panel) {
+  panel.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
 }
 
-(function restoreCategoryToggle() {
-  if (localStorage.getItem('library_show_categories') !== '1') return;
+function toggleLibraryDropdown(btnId, panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const isOpen = !panel.classList.contains('invisible');
+  document.querySelectorAll('.library-dropdown-panel').forEach(p => { if (p.id !== panelId) closeLibraryDropdownPanel(p); });
+  if (isOpen) { closeLibraryDropdownPanel(panel); } else { openLibraryDropdownPanel(panel); }
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.closest('.library-dropdown-toggle') || e.target.closest('.library-dropdown-panel')) return;
+  document.querySelectorAll('.library-dropdown-panel').forEach(closeLibraryDropdownPanel);
+});
+
+function updateFiltersActiveDot() {
+  const dot = document.getElementById('filtersActiveDot');
+  if (!dot) return;
+  const category = document.getElementById('categoryFilter');
+  const source = document.getElementById('sourceFilter');
+  const minScore = document.getElementById('minScoreFilter');
+  const pageLength = document.getElementById('pageLengthFilter');
+  const userRating = document.getElementById('userRatingFilter');
+  const active = (category && category.value !== 'all') ||
+                 (source && source.value !== 'all') ||
+                 (minScore && minScore.value) ||
+                 (pageLength && pageLength.value) ||
+                 (userRating && userRating.value);
+  dot.classList.toggle('hidden', !active);
+}
+
+['categoryFilter', 'sourceFilter', 'minScoreFilter', 'pageLengthFilter', 'userRatingFilter'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', updateFiltersActiveDot);
+});
+updateFiltersActiveDot();
+
+// --- View options (what shows under each cover) ---
+
+const LIBRARY_VIEW_OPTIONS = {
+  'user-rating': { key: 'library_view_user_rating', cls: 'show-user-rating', checkboxId: 'viewUserRating', default: true },
+  'community-score': { key: 'library_view_community_score', cls: 'show-community-score', checkboxId: 'viewCommunityScore', default: false },
+  'category': { key: 'library_view_category', cls: 'show-categories', checkboxId: 'viewCategory', default: false },
+  'page-length': { key: 'library_view_page_length', cls: 'show-page-length', checkboxId: 'viewPageLength', default: false },
+};
+
+function libraryViewOptionActive(opt) {
+  const stored = localStorage.getItem(opt.key);
+  return stored === null ? opt.default : stored === '1';
+}
+
+function applyLibraryViewClasses() {
   const library = document.getElementById('library');
-  const btn = document.getElementById('categoryLabelToggle');
-  if (library) library.classList.add('show-categories');
-  if (btn) {
-    btn.classList.remove('border-dashed', 'border-slate-300', 'dark:border-slate-600', 'text-slate-500', 'dark:text-slate-400');
-    btn.classList.add('border-purple-400', 'dark:border-purple-500', 'text-purple-600', 'dark:text-purple-400');
-  }
-})();
+  if (!library) return;
+  Object.values(LIBRARY_VIEW_OPTIONS).forEach(opt => {
+    library.classList.toggle(opt.cls, libraryViewOptionActive(opt));
+  });
+}
+
+function setLibraryViewOption(name, active) {
+  const opt = LIBRARY_VIEW_OPTIONS[name];
+  if (!opt) return;
+  localStorage.setItem(opt.key, active ? '1' : '0');
+  applyLibraryViewClasses();
+}
+
+function initLibraryViewOptions() {
+  Object.values(LIBRARY_VIEW_OPTIONS).forEach(opt => {
+    const checkbox = document.getElementById(opt.checkboxId);
+    if (checkbox) checkbox.checked = libraryViewOptionActive(opt);
+  });
+  applyLibraryViewClasses();
+}
+
+initLibraryViewOptions();
 
 document.body.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'library-content') {
-    if (localStorage.getItem('library_show_categories') === '1') {
-      document.getElementById('library').classList.add('show-categories');
-    }
+    applyLibraryViewClasses();
   }
 });
 </script>

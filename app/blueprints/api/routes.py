@@ -4,7 +4,7 @@ from flask.typing import ResponseReturnValue
 from app.services import download_story_and_create_files, log_error, log_url, log_action, generate_cover_image, extract_cover_from_epub, get_library_data
 from app.utils import get_epub_directory, get_html_directory, get_cover_directory
 from app.utils.security import validate_file_in_directory
-from app.validators import StoryDownloadRequest, StoryMetadataUpdate
+from app.validators import StoryDownloadRequest, StoryMetadataUpdate, CustomStoryRequest
 from app.services.story_downloader import download_story, fetch_story_metadata
 from app.services.metadata_refresh_service import MetadataRefreshService
 from pydantic import ValidationError
@@ -198,6 +198,115 @@ def save_story() -> ResponseReturnValue:
             "message": "An error occurred while saving the story"
         }), 500
 
+CUSTOM_STORY_MAX_BYTES = 15 * 1024 * 1024  # 15MB
+CUSTOM_STORY_ALLOWED_EXTENSIONS = {'.txt', '.epub'}
+
+
+@api.route("/custom-story", methods=['POST'])
+def create_custom_story() -> ResponseReturnValue:
+    """Add a user-authored story (not scraped from Literotica) via pasted text or an uploaded .txt/.epub file."""
+    try:
+        uploaded_file = request.files.get('content_file')
+        raw_tags = request.form.get('tags', '')
+
+        content_from_upload: Optional[str] = None
+        epub_temp_path: Optional[str] = None
+
+        if uploaded_file and uploaded_file.filename:
+            ext = os.path.splitext(uploaded_file.filename)[1].lower()
+            if ext not in CUSTOM_STORY_ALLOWED_EXTENSIONS:
+                return jsonify({
+                    "success": False,
+                    "message": "Unsupported file type — use .txt or .epub"
+                }), 400
+
+            uploaded_file.seek(0, os.SEEK_END)
+            file_size = uploaded_file.tell()
+            uploaded_file.seek(0)
+            if file_size > CUSTOM_STORY_MAX_BYTES:
+                return jsonify({
+                    "success": False,
+                    "message": "File is too large (max 15MB)"
+                }), 400
+
+            if ext == '.txt':
+                content_from_upload = uploaded_file.read().decode('utf-8', errors='replace').strip()
+                if not content_from_upload:
+                    return jsonify({"success": False, "message": "Uploaded text file is empty"}), 400
+            else:
+                import tempfile
+                fd, epub_temp_path = tempfile.mkstemp(suffix='.epub')
+                os.close(fd)
+                uploaded_file.save(epub_temp_path)
+
+                try:
+                    import ebooklib.epub as _epub
+                    _epub.read_epub(epub_temp_path, options={'ignore_ncx': True})
+                except Exception:
+                    os.remove(epub_temp_path)
+                    return jsonify({
+                        "success": False,
+                        "message": "Couldn't read that EPUB file — it may be corrupted"
+                    }), 400
+
+        try:
+            validated = CustomStoryRequest(
+                title=request.form.get('title', ''),
+                author=request.form.get('author', ''),
+                category=request.form.get('category') or None,
+                tags=[t for t in raw_tags.split(',')] if raw_tags else [],
+                description=request.form.get('description') or None,
+                content=content_from_upload if content_from_upload is not None else request.form.get('content'),
+                formats=["epub", "html"] if not epub_temp_path else ["epub"],
+            )
+        except ValidationError as e:
+            if epub_temp_path and os.path.exists(epub_temp_path):
+                os.remove(epub_temp_path)
+            error_details = e.errors()[0]
+            error_msg = f"{error_details['loc'][0]}: {error_details['msg']}"
+            return jsonify({"success": False, "message": error_msg}), 400
+
+        if not epub_temp_path and not validated.content:
+            return jsonify({"success": False, "message": "Story content is required"}), 400
+
+        from app.services.story_processor import save_custom_story_from_text, save_custom_story_from_epub
+
+        if epub_temp_path:
+            try:
+                result = save_custom_story_from_epub(
+                    title=validated.title,
+                    author=validated.author,
+                    uploaded_epub_path=epub_temp_path,
+                    category=validated.category,
+                    tags=validated.tags,
+                    description=validated.description,
+                )
+            finally:
+                if os.path.exists(epub_temp_path):
+                    os.remove(epub_temp_path)
+        else:
+            result = save_custom_story_from_text(
+                title=validated.title,
+                author=validated.author,
+                content=validated.content,
+                category=validated.category,
+                tags=validated.tags,
+                description=validated.description,
+                formats=validated.formats,
+            )
+
+        status_code = 200 if result.success else 500
+        return jsonify(result.to_dict()), status_code
+
+    except Exception as e:
+        error_msg = f"Error saving custom story: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while saving the story"
+        }), 500
+
+
 @api.route("/download", methods=['GET', 'POST'])
 def download() -> ResponseReturnValue:
     """DEPRECATED: Use /api/queue for new clients. Maintained for backward compatibility."""
@@ -275,42 +384,136 @@ def get_library() -> ResponseReturnValue:
         log_error(f"Error fetching library: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"stories": []})
 
-@api.route("/story/<int:story_id>/cover")
-def get_story_cover(story_id: int) -> ResponseReturnValue:
+@api.route("/library/last_opened", methods=["GET"])
+def get_library_last_opened() -> ResponseReturnValue:
+    """Cheap id -> last_opened_at map, for clients (e.g. the koreader plugin)
+    that want fresh sort data without pulling the full /api/library payload.
+    """
     from app.models import Story
+
+    rows = (
+        Story.query.with_entities(Story.id, Story.last_opened_at)
+        .filter(Story.last_opened_at.isnot(None))
+        .all()
+    )
+    return jsonify({
+        "last_opened": {str(story_id): last_opened_at.isoformat() for story_id, last_opened_at in rows}
+    })
+
+@api.route("/epub/<int:story_id>", methods=["GET"])
+def get_epub_file(story_id: int) -> ResponseReturnValue:
+    """Stream the raw EPUB for offline sync clients (e.g. e-readers).
+
+    Unlike /epub/file/<id>, this does not update last_opened_at — a sync
+    download is not the same as the user opening the book to read it.
+    """
+    from app.models import StoryFormat
+
+    epub_format = StoryFormat.query.filter_by(story_id=story_id, format_type='epub').first()
+    if not epub_format or not os.path.exists(epub_format.file_path):
+        abort(404)
+
+    directory = os.path.dirname(epub_format.file_path)
+    filename = os.path.basename(epub_format.file_path)
+    response = send_from_directory(directory, filename, as_attachment=False,
+                                    mimetype='application/epub+zip')
+    response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+_COVER_CACHE_HEADERS = {'Cache-Control': 'public, max-age=31536000, immutable'}
+
+
+def _ensure_base_cover(story) -> Optional[str]:
+    """
+    Ensures the standard (web-facing) cover file exists on disk for this
+    story — extracting it from the EPUB if needed — and returns its path,
+    or None if no cover could be produced.
+    """
     from app.services import extract_cover_from_epub
 
-    story = Story.query.get_or_404(story_id)
     cover_directory = get_cover_directory()
     filename = f"{story.id}_{story.filename_base}.jpg"
 
     if not validate_file_in_directory(cover_directory, filename):
-        log_error(f"Path traversal blocked in cover for story {story_id}: {filename}")
+        log_error(f"Path traversal blocked in cover for story {story.id}: {filename}")
         abort(403)
 
     cover_path = os.path.join(cover_directory, filename)
     os.makedirs(cover_directory, exist_ok=True)
 
-    cache_headers = {
-        'Cache-Control': 'public, max-age=31536000, immutable',
-    }
-
     if os.path.exists(cover_path):
-        response = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
-        response.headers.update(cache_headers)
-        return response
+        return cover_path
 
     epub_path = os.path.join(get_epub_directory(), f"{story.id}_{story.filename_base}.epub")
     if os.path.exists(epub_path):
         try:
             if extract_cover_from_epub(epub_path, cover_path):
-                response = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
-                response.headers.update(cache_headers)
-                return response
+                return cover_path
         except Exception as e:
-            log_error(f"Error extracting cover from EPUB for story {story_id}: {str(e)}")
+            log_error(f"Error extracting cover from EPUB for story {story.id}: {str(e)}")
 
-    abort(404)
+    return None
+
+
+@api.route("/story/<int:story_id>/cover")
+def get_story_cover(story_id: int) -> ResponseReturnValue:
+    from app.models import Story
+
+    story = Story.query.get_or_404(story_id)
+    cover_path = _ensure_base_cover(story)
+    if not cover_path:
+        abort(404)
+
+    response = send_from_directory(
+        os.path.dirname(cover_path), os.path.basename(cover_path), mimetype='image/jpeg')
+    response.headers.update(_COVER_CACHE_HEADERS)
+    return response
+
+
+@api.route("/story/<int:story_id>/cover/koreader")
+def get_story_cover_koreader(story_id: int) -> ResponseReturnValue:
+    """
+    KOReader-specific cover: always the bold, high-contrast placeholder
+    (generate_koreader_cover_image) with a heavy rounded corner + visible
+    border baked in (make_koreader_cover) — never the web UI's Playfair
+    Display style. This app has no source of genuine third-party cover
+    art: every EPUB gets generate_cover_image's own output embedded as its
+    cover at creation time (see epub_generator.create_epub_file), so
+    extracting "the EPUB's cover" would just be re-extracting that same
+    web-styled placeholder — not a real cover to preserve. Cached as its
+    own file so the web UI's cover is untouched.
+    """
+    from app.models import Story
+    from app.services.cover_generator import make_koreader_cover, generate_koreader_cover_image
+
+    story = Story.query.get_or_404(story_id)
+
+    cover_directory = get_cover_directory()
+    filename = f"{story.id}_{story.filename_base}_koreader.jpg"
+    if not validate_file_in_directory(cover_directory, filename):
+        log_error(f"Path traversal blocked in koreader cover for story {story_id}: {filename}")
+        abort(403)
+
+    koreader_cover_path = os.path.join(cover_directory, filename)
+    os.makedirs(cover_directory, exist_ok=True)
+
+    if not os.path.exists(koreader_cover_path):
+        tmp_path = koreader_cover_path + ".src.jpg"
+        try:
+            author_name = story.author.name if story.author else 'Unknown Author'
+            category_name = story.category.name if story.category else None
+            generate_koreader_cover_image(story.title, author_name, tmp_path, category=category_name)
+            make_koreader_cover(tmp_path, koreader_cover_path)
+        except Exception as e:
+            log_error(f"Error building koreader cover for story {story_id}: {str(e)}\n{traceback.format_exc()}")
+            abort(500)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    response = send_from_directory(cover_directory, filename, mimetype='image/jpeg')
+    response.headers.update(_COVER_CACHE_HEADERS)
+    return response
 
 @api.route("/cover/<filename>")
 def get_cover(filename: str) -> ResponseReturnValue:
@@ -444,7 +647,7 @@ def get_missing_metadata() -> ResponseReturnValue:
         from app.models import Story
         from app.services.metadata_refresh_service import MetadataRefreshService
 
-        stories = Story.query.filter(Story.literotica_url.is_(None)).all()
+        stories = Story.query.filter(Story.literotica_url.is_(None), Story.source_type != 'custom').all()
         
         stories_needing_manual_intervention = []
         service = MetadataRefreshService()
@@ -620,6 +823,7 @@ def _story_to_modal_dict(story) -> dict:
         'html_file': f"{story.id}_{story.filename_base}.html",
         'epub_file': os.path.basename(next((f.file_path for f in story.formats if f.format_type == 'epub'), '')) or None,
         'source_url': story.literotica_url,
+        'source_type': story.source_type,
         'series_url': story.literotica_series_url,
         'page_count': story.literotica_page_count,
         'word_count': story.word_count,
@@ -798,6 +1002,52 @@ def update_story_metadata(story_id: int) -> ResponseReturnValue:
         return jsonify({
             "success": False,
             "message": "An error occurred while updating metadata"
+        }), 500
+
+@api.route("/story/<int:story_id>/content", methods=['GET'])
+def get_story_content(story_id: int) -> ResponseReturnValue:
+    from app.models import Story
+    from app.services.story_processor import get_custom_story_content
+
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({"success": False, "message": "Story not found"}), 404
+    if story.source_type != 'custom':
+        return jsonify({"success": False, "message": "Only custom stories have editable content"}), 403
+
+    data = get_custom_story_content(story_id)
+    if data is None:
+        return jsonify({"success": False, "message": "Story content not found"}), 404
+
+    return jsonify({"success": True, **data})
+
+
+@api.route("/story/<int:story_id>/content", methods=['PUT'])
+def update_story_content(story_id: int) -> ResponseReturnValue:
+    from app.models import Story
+    from app.services.story_processor import update_custom_story_content
+
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({"success": False, "message": "Story not found"}), 404
+    if story.source_type != 'custom':
+        return jsonify({"success": False, "message": "Only custom stories can have their content edited"}), 403
+
+    data = request.get_json(silent=True) or {}
+    content = data.get('content', '')
+    if not content.strip():
+        return jsonify({"success": False, "message": "Story content is required"}), 400
+
+    try:
+        result = update_custom_story_content(story_id, content)
+        status_code = 200 if result.success else 500
+        return jsonify(result.to_dict()), status_code
+    except Exception as e:
+        error_msg = f"Error updating story content: {str(e)}\n{traceback.format_exc()}"
+        log_error(error_msg)
+        return jsonify({
+            "success": False,
+            "message": "An error occurred while updating story content"
         }), 500
 
 @api.route("/story/<int:story_id>/rating", methods=['POST'])
@@ -1106,6 +1356,7 @@ def get_story_modal(story_id: int) -> ResponseReturnValue:
         'html_file': f"{story.id}_{story.filename_base}.html",
         'epub_file': os.path.basename(next((f.file_path for f in story.formats if f.format_type == 'epub'), '')) or None,
         'source_url': story.literotica_url,
+        'source_type': story.source_type,
         'series_url': story.literotica_series_url,
         'page_count': story.literotica_page_count,
         'word_count': story.word_count,

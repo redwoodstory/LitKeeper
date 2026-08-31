@@ -124,10 +124,20 @@
     {% if story.category %}
     <p class="story-category-label hidden text-center text-[10px] text-gray-500 dark:text-gray-400 mt-1 px-1 truncate leading-tight">{{ story.category }}</p>
     {% endif %}
-    <div class="card-rating-container flex items-center justify-center gap-0.5 mt-1 min-h-[10px] {{ 'opacity-0' if not story.rating }}">
-      {% for i in range(1, 6) %}
-        <span class="card-rating-star text-[10px] leading-none {{ 'text-amber-400' if (story.rating or 0) >= i else 'text-slate-300/30 dark:text-slate-600/30' }}">★</span>
-      {% endfor %}
+    {% if story.page_count %}
+    <p class="story-page-length-label hidden text-center text-[10px] text-gray-500 dark:text-gray-400 mt-1 px-1 truncate leading-tight">{{ story.page_count }} page{% if story.page_count != 1 %}s{% endif %}</p>
+    {% endif %}
+    <div class="card-meta-row flex items-center justify-center gap-1 mt-1 min-h-[10px]">
+      <span class="card-rating-container card-user-rating hidden items-center gap-0.5">
+        {% for i in range(1, 6) %}
+          <span class="card-rating-star text-[10px] leading-none {{ 'text-amber-400' if (story.rating or 0) >= i else 'text-slate-300/30 dark:text-slate-600/30' }}">★</span>
+        {% endfor %}
+      </span>
+      {% if story.community_score is not none %}
+      <span class="card-community-score hidden items-center gap-0.5 text-[10px] text-gray-500 dark:text-gray-400 leading-none whitespace-nowrap">
+        <span class="card-community-score-star">★</span><span class="card-community-score-paren">(</span>{{ "%.1f"|format(story.community_score) }}<span class="card-community-score-paren">)</span>
+      </span>
+      {% endif %}
     </div>
   </div>
 {% endmacro %}

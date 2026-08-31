@@ -93,6 +93,60 @@ def extract_series_url_from_chapter(chapter_url: str, session: requests.Session)
         log_error(f"Error extracting series URL from chapter: {str(e)}", chapter_url)
         return None
 
+def _parse_stat_value(raw_text: str) -> Optional[float]:
+    """
+    Parse a stat value that may carry a 'k'/'M' abbreviation, e.g. 'Views:145.3k' -> 145300.
+
+    Literotica abbreviates large view counts (and occasionally other stats) with a
+    k/M suffix instead of spelling out the full number — stripping non-digit characters
+    without accounting for the suffix silently truncates these by 1000x/1000000x.
+    """
+    match = re.search(r'([\d,]+(?:\.\d+)?)\s*([kKmM]?)', raw_text)
+    if not match:
+        return None
+    num_str, suffix = match.groups()
+    num_str = num_str.replace(',', '')
+    if not num_str:
+        return None
+    try:
+        val = float(num_str)
+    except ValueError:
+        return None
+    if suffix.lower() == 'k':
+        val *= 1_000
+    elif suffix.lower() == 'm':
+        val *= 1_000_000
+    return val
+
+
+def _extract_community_stats(soup: BeautifulSoup) -> dict:
+    """
+    Extract community rating/views/favorites/comments from a story page's stats block.
+
+    Returns a dict with keys: score, views, favorites, comments (each None if not found).
+    """
+    stats = {'score': None, 'views': None, 'favorites': None, 'comments': None}
+    for item in soup.find_all(class_=lambda c: c and '_stats__item_' in str(c)):
+        icon = item.find(class_=lambda c: c and any(
+            x in str(c) for x in ('_star_', '_heart_', '_comment_', '_diagram_')
+        ))
+        if not icon:
+            continue
+        val = _parse_stat_value(item.get_text(strip=True))
+        if val is None:
+            continue
+        cls = ' '.join(icon.get('class', []))
+        if '_star_' in cls:
+            stats['score'] = val
+        elif '_diagram_' in cls:
+            stats['views'] = round(val)
+        elif '_heart_' in cls:
+            stats['favorites'] = round(val)
+        elif '_comment_' in cls:
+            stats['comments'] = round(val)
+    return stats
+
+
 def _download_single_chapter(
     chapter_url: str,
     session: requests.Session,
@@ -103,7 +157,8 @@ def _download_single_chapter(
 
     Returns:
         tuple[chapter_content, metadata_dict]
-        metadata_dict contains: author, author_url, category, tags, page_count
+        metadata_dict contains: author, author_url, category, tags, page_count,
+        description, score, views, favorites, comments
     """
     import html as html_module
     chapter_content = ""
@@ -117,7 +172,11 @@ def _download_single_chapter(
         'category': None,
         'tags': [],
         'page_count': 0,
-        'description': None
+        'description': None,
+        'score': None,
+        'views': None,
+        'favorites': None,
+        'comments': None
     }
 
     while current_url:
@@ -158,6 +217,12 @@ def _download_single_chapter(
                 else:
                     desc_elem = soup.find("div", class_=lambda c: c and "_widget__info_" in str(c))
                     metadata['description'] = desc_elem.get_text(strip=True) if desc_elem else None
+
+                stats = _extract_community_stats(soup)
+                metadata['score'] = stats['score']
+                metadata['views'] = stats['views']
+                metadata['favorites'] = stats['favorites']
+                metadata['comments'] = stats['comments']
 
             content_div = (
                 soup.find(itemprop="articleBody") or
@@ -203,7 +268,7 @@ def _download_single_chapter(
 def _download_from_series_page(
     series_url: str,
     session: requests.Session
-) -> Optional[tuple[str, str, str, Optional[str], Optional[list[str]], Optional[str], int, str, Optional[str]]]:
+) -> Optional[tuple[str, str, str, Optional[str], Optional[list[str]], Optional[str], int, str, Optional[str], dict]]:
     """
     Download complete story using series page as source of truth.
 
@@ -233,6 +298,11 @@ def _download_from_series_page(
         story_category = None
         story_tags = []
         story_description = None
+        # Vote-weighted average score and summed views/favorites/comments across all
+        # chapters — Literotica has no series-level rating, only per-chapter ones, and
+        # the works API SeriesPageChecker already called gives every chapter's stats
+        # in the same request, so no extra fetches are needed to aggregate them.
+        story_stats = series_info.get('stats') or {'score': None, 'views': None, 'favorites': None, 'comments': None}
         total_pages = 0
         chapter_titles = []
         chapter_contents = []
@@ -280,18 +350,22 @@ def _download_from_series_page(
             story_author_url,
             total_pages,
             series_url,
-            story_description
+            story_description,
+            story_stats
         )
 
     except Exception as e:
         log_error(f"Error in series-first download: {str(e)}", series_url)
         return None
 
-def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str], Optional[str]]:
-    """Download and extract the full story content and metadata from the given Literotica URL."""
+def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[list[str]], Optional[str], Optional[int], Optional[str], Optional[str], Optional[dict]]:
+    """Download and extract the full story content and metadata from the given Literotica URL.
+
+    The final tuple element is a stats dict with keys: score, views, favorites, comments.
+    """
     try:
         session = get_session()
-        
+
         url = url.split('?')[0]
         from .logger import log_action
         log_action(f"Normalized URL to start from page 1: {url}")
@@ -311,18 +385,18 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                 else:
                     if url_type == 'series':
                         log_error("Series page parsing failed and no fallback available for series URLs", series_url)
-                        return None, None, None, None, None, None, None, None, None
+                        return None, None, None, None, None, None, None, None, None, None
                     log_url("Series download failed, falling back to sequential method")
             except Exception as e:
                 log_error(f"Error in series-first download: {str(e)}", series_url)
                 if url_type == 'series':
                     log_error("Cannot fall back to sequential download for series URLs", series_url)
-                    return None, None, None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None, None, None
                 log_url("Falling back to sequential chapter download method")
 
         if url_type == 'series':
             log_error("Series URL provided but no series_url extracted", url)
-            return None, None, None, None, None, None, None, None, None
+            return None, None, None, None, None, None, None, None, None, None
 
         log_url("Using sequential chapter download method")
 
@@ -335,6 +409,7 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
         story_tags = []
         story_author_url = None
         story_description = None
+        story_stats = {'score': None, 'views': None, 'favorites': None, 'comments': None}
         series_url = None
         chapter_urls = [url]
         processed_urls = set()
@@ -400,6 +475,14 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                             else:
                                 desc_elem = soup.find("div", class_=lambda c: c and "_widget__info_" in str(c))
                                 story_description = desc_elem.get_text(strip=True) if desc_elem else None
+
+                            stats = _extract_community_stats(soup)
+                            story_stats = {
+                                'score': stats['score'],
+                                'views': stats['views'],
+                                'favorites': stats['favorites'],
+                                'comments': stats['comments'],
+                            }
 
                     content_div = (
                         soup.find(itemprop="articleBody") or
@@ -474,23 +557,23 @@ def download_story(url: str) -> tuple[Optional[str], Optional[str], Optional[str
                 except Exception as e:
                     error_msg = f"Network error while downloading chapter {current_chapter}: {str(e)}"
                     log_error(error_msg, current_url)
-                    return None, None, None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None, None, None
                 except Exception as e:
                     error_msg = f"Error processing chapter {current_chapter}: {str(e)}\n{traceback.format_exc()}"
                     log_error(error_msg, current_url)
-                    return None, None, None, None, None, None, None, None, None
+                    return None, None, None, None, None, None, None, None, None, None
 
 
         story_content = ""
         for i, (title, content) in enumerate(zip(chapter_titles, chapter_contents), 1):
             story_content += f"{CHAPTER_SENTINEL}CHAPTER:{i}{CHAPTER_SENTINEL}{title}\n\n{content}"
 
-        return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages, series_url, story_description
+        return story_content, story_title, story_author, story_category, story_tags, story_author_url, total_pages, series_url, story_description, story_stats
 
     except Exception as e:
         error_msg = f"Unexpected error in download_story: {str(e)}\n{traceback.format_exc()}"
         log_error(error_msg, url)
-        return None, None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None
 
 def fetch_story_metadata(url: str) -> dict:
     """
@@ -498,6 +581,13 @@ def fetch_story_metadata(url: str) -> dict:
 
     Returns a dict with: title, author, author_url, category, tags, page_count, series_url.
     Returns an empty dict on failure.
+
+    Series landing pages (/series/se/...) don't carry their own title/author/tags/rating —
+    only individual chapter pages do — so a series URL here is resolved to its first chapter
+    for those fields. score/views/favorites/comments are instead taken from the series-wide
+    aggregate (vote-weighted average score, summed views/favorites/comments across every
+    chapter), since Literotica publishes no single series-level rating and a single chapter's
+    numbers would understate a multi-chapter work.
     """
     import html as html_module
     import re
@@ -505,6 +595,22 @@ def fetch_story_metadata(url: str) -> dict:
     try:
         session = get_session()
         url = url.split('?')[0]
+
+        url_type, _ = detect_url_type(url)
+        if url_type == 'series':
+            from .series_page_checker import SeriesPageChecker
+            series_info = SeriesPageChecker().check_series_parts(url)
+            if series_info and series_info.get('parts'):
+                metadata = fetch_story_metadata(series_info['parts'][0]['url'])
+                if metadata:
+                    metadata['series_url'] = url
+                    stats = series_info.get('stats') or {}
+                    for key in ('score', 'views', 'favorites', 'comments'):
+                        if stats.get(key) is not None:
+                            metadata[key] = stats[key]
+                return metadata
+            log_error(f"Could not resolve series URL to a chapter for stats fetch", url)
+            return {}
 
         response = session.get(url, timeout=10)
         response.raise_for_status()
@@ -556,30 +662,7 @@ def fetch_story_metadata(url: str) -> dict:
             desc_elem = soup.find('div', class_=lambda c: c and '_widget__info_' in str(c))
             description = desc_elem.get_text(strip=True) if desc_elem else None
 
-        score = views = favorites = comments = None
-        for item in soup.find_all(class_=lambda c: c and '_stats__item_' in str(c)):
-            icon = item.find(class_=lambda c: c and any(
-                x in str(c) for x in ('_star_', '_heart_', '_comment_', '_diagram_')
-            ))
-            if not icon:
-                continue
-            raw = item.get_text(strip=True)
-            digits = ''.join(ch for ch in raw if ch.isdigit() or ch == '.')
-            if not digits:
-                continue
-            try:
-                val = float(digits)
-            except ValueError:
-                continue
-            cls = ' '.join(icon.get('class', []))
-            if '_star_' in cls:
-                score = val
-            elif '_diagram_' in cls:
-                views = int(val)
-            elif '_heart_' in cls:
-                favorites = int(val)
-            elif '_comment_' in cls:
-                comments = int(val)
+        stats = _extract_community_stats(soup)
 
         return {
             'title': title,
@@ -590,10 +673,10 @@ def fetch_story_metadata(url: str) -> dict:
             'page_count': page_count,
             'series_url': series_url,
             'description': description,
-            'score': score,
-            'views': views,
-            'favorites': favorites,
-            'comments': comments,
+            'score': stats['score'],
+            'views': stats['views'],
+            'favorites': stats['favorites'],
+            'comments': stats['comments'],
         }
 
     except Exception as e:
@@ -609,13 +692,13 @@ def download_and_combine_stories(urls: list[str]) -> tuple:
     series_url, description).  Each downloaded story becomes a chapter group
     separated by CHAPTER_SENTINEL markers.
 
-    Returns an 11-tuple:
+    Returns a 12-tuple:
         (content, title, author, category, tags, author_url, total_pages,
-         series_url, description, all_authors, all_tags)
+         series_url, description, all_authors, all_tags, stats)
     Returns a tuple of Nones on complete failure.
     """
     if not urls:
-        return None, None, None, None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None, None, None
 
     from .logger import log_action
     combined_content = ""
@@ -632,7 +715,7 @@ def download_and_combine_stories(urls: list[str]) -> tuple:
     for idx, url in enumerate(urls):
         log_action(f"[CombineDownload] Downloading {idx + 1}/{len(urls)}: {url}")
         result = download_story(url)
-        content, title, author, category, tags, author_url, pages, series_url, description = result
+        content, title, author, category, tags, author_url, pages, series_url, description, stats = result
 
         if not content or not title:
             log_error(f"[CombineDownload] Failed to download {url}, skipping")
@@ -657,7 +740,7 @@ def download_and_combine_stories(urls: list[str]) -> tuple:
         downloaded_stories.append((author, content))
 
     if first_meta is None or not downloaded_stories:
-        return None, None, None, None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None, None, None
 
     has_multiple_authors = len(set(all_authors)) > 1
 
@@ -674,8 +757,8 @@ def download_and_combine_stories(urls: list[str]) -> tuple:
             combined_content += f"{CHAPTER_SENTINEL}CHAPTER:{chapter_offset + ch_idx + 1}{CHAPTER_SENTINEL}{ch_text}"
         chapter_offset += len(chapter_texts)
 
-    _, title, author, category, tags, author_url, _, series_url, description = first_meta
-    return combined_content, title, author, category, tags, author_url, total_pages, series_url, description, all_authors, all_tags
+    _, title, author, category, tags, author_url, _, series_url, description, stats = first_meta
+    return combined_content, title, author, category, tags, author_url, total_pages, series_url, description, all_authors, all_tags, stats
 
 
 def extract_chapter_titles(story_content: str) -> list[str]:

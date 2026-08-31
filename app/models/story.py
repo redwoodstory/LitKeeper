@@ -15,6 +15,8 @@ class Story(BaseModel, TimestampMixin):
     literotica_series_url = db.Column(db.String(512), index=True)
     literotica_page_count = db.Column(db.Integer)
 
+    source_type = db.Column(db.String(20), nullable=False, default='literotica', server_default='literotica', index=True)
+
     word_count = db.Column(db.Integer)
     chapter_count = db.Column(db.Integer, default=1)
 
@@ -93,6 +95,7 @@ class Story(BaseModel, TimestampMixin):
             'epub_file': os.path.basename(epub_format.file_path) if epub_format else None,
             'html_file': f"{self.id}_{self.filename_base}.html" if html_format else None,
             'source_url': self.literotica_url,
+            'source_type': self.source_type,
             'page_count': self.literotica_page_count,
             'word_count': self.word_count,
             'size': epub_format.file_size if epub_format else None,

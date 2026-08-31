@@ -1,11 +1,23 @@
 from __future__ import annotations
 import os
-from flask import jsonify, request, abort, send_from_directory
+from flask import jsonify, request, abort, send_from_directory, render_template
 from . import epub
 from app.models import Story, ReadingProgress, StoryFormat
 from app.services.epub_service import EpubService
 from app.utils import get_epub_directory
 from datetime import datetime
+
+@epub.route('/reader/<int:story_id>')
+def reader(story_id: int):
+    """Render the EPUB reader page."""
+    story = Story.query.get_or_404(story_id)
+
+    if not EpubService.get_epub_path(story):
+        abort(404, description="EPUB file not found for this story")
+
+    progress = EpubService.get_reading_progress(story_id)
+
+    return render_template('epub_reader.html', story=story, story_id=story_id, progress=progress)
 
 @epub.route('/api/progress/bulk', methods=['GET'])
 def get_progress_bulk():
@@ -32,7 +44,8 @@ def get_progress_bulk():
                 'last_read_at': p.last_read_at.isoformat() if p.last_read_at else None,
                 'cfi': p.cfi,
                 'paragraph_id': p.paragraph_id,
-                'percentage': p.percentage
+                'percentage': p.percentage,
+                'progress_format': p.progress_format
             }
         else:
             result[str(story_id)] = {
@@ -43,7 +56,8 @@ def get_progress_bulk():
                 'last_read_at': None,
                 'cfi': None,
                 'paragraph_id': None,
-                'percentage': None
+                'percentage': None,
+                'progress_format': None
             }
 
     return jsonify({'progress': result})
@@ -64,7 +78,8 @@ def get_progress(story_id: int):
             'last_read_at': None,
             'cfi': None,
             'paragraph_id': None,
-            'percentage': None
+            'percentage': None,
+            'progress_format': None
         })
 
     return jsonify({
@@ -75,7 +90,8 @@ def get_progress(story_id: int):
         'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else None,
         'cfi': progress.cfi,
         'paragraph_id': progress.paragraph_id,
-        'percentage': progress.percentage
+        'percentage': progress.percentage,
+        'progress_format': progress.progress_format
     })
 
 @epub.route('/api/progress/<int:story_id>', methods=['POST'])
@@ -92,7 +108,8 @@ def update_progress(story_id: int):
         is_completed=data.get('is_completed'),
         cfi=data.get('cfi'),
         paragraph_id=data.get('paragraph_id'),
-        percentage=data.get('percentage')
+        percentage=data.get('percentage'),
+        progress_format=data.get('progress_format')
     )
 
     return jsonify({
@@ -103,7 +120,8 @@ def update_progress(story_id: int):
         'is_completed': progress.is_completed,
         'cfi': progress.cfi,
         'paragraph_id': progress.paragraph_id,
-        'percentage': progress.percentage
+        'percentage': progress.percentage,
+        'progress_format': progress.progress_format
     })
 
 @epub.route('/api/progress/<int:story_id>', methods=['DELETE'])

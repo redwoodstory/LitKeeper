@@ -113,7 +113,8 @@ class BulkFormatGeneratorService:
         
         stories_without_html = Story.query.filter(
             Story.formats.any(StoryFormat.format_type == 'epub'),
-            ~Story.formats.any(StoryFormat.format_type == 'json')
+            ~Story.formats.any(StoryFormat.format_type == 'json'),
+            Story.source_type != 'custom'
         ).all()
         
         total = len(stories_without_html)
@@ -247,6 +248,64 @@ class BulkFormatGeneratorService:
                 errors.append({"story_id": story.id, "title": story.title, "error": str(e)})
 
         summary = f"Cover regeneration complete: {successful} successful, {failed} failed out of {total} total"
+        self._write_log(summary)
+        return {
+            "success": True,
+            "total": total,
+            "successful": successful,
+            "failed": failed,
+            "errors": errors,
+            "message": summary,
+        }
+
+    def regenerate_all_koreader_covers(self) -> dict:
+        """
+        Regenerates the koreader-format cover (bold sans-serif, high-contrast
+        palette) for every story — the format served by /api/story/<id>/cover/koreader
+        and consumed by both the KOReader plugin and the litkeeper-mobile app.
+        Mirrors regenerate_all_covers, but that method only touches the
+        Playfair-serif "standard" cover; this is a separate cache file
+        (see get_story_cover_koreader in blueprints/api/routes.py), so it's
+        never picked up by the same job and needs its own bulk path — e.g. to
+        pre-populate every cover after a cover_generator.py change, rather
+        than relying on each story's cover being lazily generated the first
+        time a client happens to request it.
+        """
+        from app.services.cover_generator import make_koreader_cover, generate_koreader_cover_image
+
+        self._write_log("Starting bulk koreader cover regeneration")
+        stories = Story.query.options(joinedload(Story.author)).all()
+        total = len(stories)
+        successful = 0
+        failed = 0
+        errors: list[dict] = []
+        cover_dir = get_cover_directory()
+        os.makedirs(cover_dir, exist_ok=True)
+
+        self._write_log(f"Found {total} stories to regenerate koreader covers for")
+
+        for story in stories:
+            filename = f"{story.id}_{story.filename_base}_koreader.jpg"
+            cover_path = os.path.join(cover_dir, filename)
+            tmp_path = cover_path + ".src.jpg"
+            try:
+                author_name = story.author.name if story.author else 'Unknown Author'
+                category_name = story.category.name if story.category else None
+                generate_koreader_cover_image(story.title, author_name, tmp_path, category=category_name)
+                make_koreader_cover(tmp_path, cover_path)
+
+                successful += 1
+                self._write_log(f"✓ Regenerated koreader cover for: {story.title}")
+            except Exception as e:
+                failed += 1
+                error_msg = f"✗ Failed koreader cover for: {story.title} - {str(e)}"
+                self._write_log(error_msg, "error")
+                errors.append({"story_id": story.id, "title": story.title, "error": str(e)})
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+        summary = f"Koreader cover regeneration complete: {successful} successful, {failed} failed out of {total} total"
         self._write_log(summary)
         return {
             "success": True,

@@ -13,6 +13,11 @@ class ReadingProgress(BaseModel, TimestampMixin):
     cfi = db.Column(db.Text)
     paragraph_id = db.Column(db.Text)
     percentage = db.Column(db.Float)
+    # Which client format last wrote this row: 'text' (web paragraph reader)
+    # or 'epub' (Android CFI-based reader). Lets the web reader tell "no one
+    # has touched chapter/paragraph since the epub app read further" apart
+    # from "current_chapter's default of 1 is a real position."
+    progress_format = db.Column(db.String(10))
 
     last_read_at = db.Column(db.DateTime, index=True)
     reading_duration_seconds = db.Column(db.Integer, default=0)

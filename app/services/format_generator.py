@@ -53,7 +53,7 @@ class FormatGeneratorService:
 
             log_action(f"Generating HTML/JSON and updating metadata for story: {story.title}")
 
-            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _, story_description = download_story(url)
+            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _, story_description, story_stats = download_story(url)
 
             if not story_content:
                 return {
@@ -113,6 +113,18 @@ class FormatGeneratorService:
             if story_description and story.description != story_description:
                 story.description = story_description
                 fields_changed.append('description')
+
+            if story_stats:
+                for meta_key, col_attr in (
+                    ('score',     'literotica_score'),
+                    ('views',     'literotica_views'),
+                    ('favorites', 'literotica_favorites'),
+                    ('comments',  'literotica_comments'),
+                ):
+                    val = story_stats.get(meta_key)
+                    if val is not None and getattr(story, col_attr) != val:
+                        setattr(story, col_attr, val)
+                        fields_changed.append(col_attr)
 
             story.last_metadata_refresh = datetime.utcnow()
             story.metadata_refresh_status = 'success'
@@ -312,7 +324,7 @@ class FormatGeneratorService:
 
             log_action(f"Generating HTML/JSON from Literotica for story: {story.title}")
 
-            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _, story_description = download_story(story.literotica_url)
+            story_content, _, _, story_category, story_tags, story_author_url, story_pages, _, story_description, story_stats = download_story(story.literotica_url)
 
             if not story_content:
                 return {
@@ -322,6 +334,17 @@ class FormatGeneratorService:
 
             if story_description and story.description != story_description:
                 story.description = story_description
+
+            if story_stats:
+                for meta_key, col_attr in (
+                    ('score',     'literotica_score'),
+                    ('views',     'literotica_views'),
+                    ('favorites', 'literotica_favorites'),
+                    ('comments',  'literotica_comments'),
+                ):
+                    val = story_stats.get(meta_key)
+                    if val is not None and getattr(story, col_attr) != val:
+                        setattr(story, col_attr, val)
 
             chapter_titles = extract_chapter_titles(story_content)
 

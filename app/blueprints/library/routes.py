@@ -116,6 +116,7 @@ def index() -> ResponseReturnValue:
                     'html_file': f"{_s.id}_{_s.filename_base}.html",
                     'epub_file': os.path.basename(next((f.file_path for f in _s.formats if f.format_type == 'epub'), '')) or None,
                     'source_url': _s.literotica_url,
+                    'source_type': _s.source_type,
                     'series_url': _s.literotica_series_url,
                     'page_count': _s.literotica_page_count,
                     'word_count': _s.word_count,
@@ -204,6 +205,8 @@ def filter_library() -> ResponseReturnValue:
             min_community_score=min_community_score,
             min_pages=min_pages,
             max_pages=max_pages,
+            source=request.args.get('source', 'all'),
+            user_rating=request.args.get('user_rating', ''),
         )
 
         page = request.args.get('page', 1, type=int)
@@ -218,6 +221,8 @@ def filter_library() -> ResponseReturnValue:
             min_community_score=validated.min_community_score,
             min_pages=validated.min_pages,
             max_pages=validated.max_pages,
+            source=validated.source,
+            user_rating=validated.user_rating,
         )
         has_more = (page * PER_PAGE) < total
 
@@ -236,6 +241,10 @@ def filter_library() -> ResponseReturnValue:
             next_url_params['min_pages'] = validated.min_pages
         if validated.max_pages > 0:
             next_url_params['max_pages'] = validated.max_pages
+        if validated.source != 'all':
+            next_url_params['source'] = validated.source
+        if validated.user_rating:
+            next_url_params['user_rating'] = validated.user_rating
         next_url = f"/library/filter?{urlencode(next_url_params)}"
 
         template = "_library_more.html" if page > 1 else "_library_content.html"

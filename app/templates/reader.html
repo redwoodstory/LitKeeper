@@ -84,7 +84,7 @@
 {% if story_id %}
 <script>
   window.STORY_ID = {{ story_id }};
-  window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'paragraph_id': progress.paragraph_id, 'percentage': progress.percentage, 'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else none} | tojson | safe }}{% else %}null{% endif %};
+  window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'paragraph_id': progress.paragraph_id, 'percentage': progress.percentage, 'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else none, 'progress_format': progress.progress_format} | tojson | safe }}{% else %}null{% endif %};
   window.SOURCE_URL = {{ (story.source_url or '') | tojson }};
   window.CURRENT_RATING = {{ (current_rating or 0) | tojson }};
   {% if target_chapter is not none %}

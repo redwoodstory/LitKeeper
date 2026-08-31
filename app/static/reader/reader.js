@@ -267,7 +267,8 @@
         current_paragraph: para,
         scroll_position: scrollPos,
         percentage: pct,
-        paragraph_id: paragraphId || null
+        paragraph_id: paragraphId || null,
+        progress_format: 'text'
       };
 
       // Save locally first (offline resilience)
@@ -314,7 +315,8 @@
             current_paragraph: record.current_paragraph,
             scroll_position: record.scroll_position,
             percentage: record.percentage,
-            paragraph_id: record.paragraph_id || null
+            paragraph_id: record.paragraph_id || null,
+            progress_format: 'text'
           })
         });
         pendingSync = false;
@@ -377,10 +379,23 @@
 
       if (!progress) return;
 
-      const { paragraph_id: paragraphId, current_chapter: chapter, current_paragraph: para, percentage: pct } = progress;
+      const {
+        paragraph_id: paragraphId,
+        current_chapter: chapter,
+        current_paragraph: para,
+        percentage: pct,
+        progress_format: format,
+      } = progress;
+
+      // Chapter/paragraph/paragraph_id are only meaningful when this reader (or a
+      // prior session of it) wrote them last. `current_chapter` defaults to 1 in
+      // the database even for rows the Android (CFI-based) app created, so without
+      // this check a story read only on Android would wrongly "resume" at the very
+      // start of chapter 1 instead of respecting its real, percentage-based progress.
+      const chapterDataIsTrustworthy = format === 'text';
 
       // Priority 1: global paragraph ID (synced from iOS or saved by this reader)
-      if (paragraphId) {
+      if (chapterDataIsTrustworthy && paragraphId) {
         const el = document.getElementById(paragraphId);
         if (el) {
           el.scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -389,8 +404,7 @@
       }
 
       // Priority 2: chapter + paragraph index (HTML reader coordinate)
-      // chapter === 0 means progress came from the EPUB reader which always writes 0.
-      if (chapter && chapter > 0) {
+      if (chapterDataIsTrustworthy && chapter && chapter > 0) {
         const target = document.querySelector(`[data-chapter="${chapter}"][data-para="${para}"]`);
         if (target) {
           target.scrollIntoView({ behavior: 'instant', block: 'start' });

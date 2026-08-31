@@ -100,6 +100,58 @@ class StoryMetadataUpdate(BaseModel):
     def validate_tags(cls, v: list[str]) -> list[str]:
         return [tag.strip() for tag in v if tag.strip()]
 
+class CustomStoryRequest(BaseModel):
+    """Validation schema for adding a user-authored custom story (not from Literotica)."""
+    title: str
+    author: str
+    category: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    description: str | None = None
+    content: str | None = None
+    formats: list[Literal["epub", "html"]] = Field(default=["epub"], min_length=1)
+
+    @field_validator('title')
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Title cannot be empty")
+        return v
+
+    @field_validator('author')
+    @classmethod
+    def validate_author(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Author cannot be empty")
+        return v
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, v: str | None) -> str | None:
+        return v.strip() if v else None
+
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v: str | None) -> str | None:
+        return v.strip() if v else None
+
+    @field_validator('tags')
+    @classmethod
+    def validate_tags(cls, v: list[str]) -> list[str]:
+        return [tag.strip() for tag in v if tag.strip()]
+
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        # Browser form submissions (and Windows-authored .txt uploads) normalize/use
+        # CRLF line endings, but chapter-splitting downstream matches LF-only patterns.
+        v = v.replace('\r\n', '\n').replace('\r', '\n').strip()
+        return v if v else None
+
+
 class LibraryFilterRequest(BaseModel):
     """Validation schema for library filter requests."""
     search: str = ""
@@ -110,6 +162,8 @@ class LibraryFilterRequest(BaseModel):
     min_community_score: float = 0.0
     min_pages: int = 0
     max_pages: int = 0
+    source: Literal["all", "literotica", "custom"] = "all"
+    user_rating: Literal["", "1", "2", "3", "4", "5", "unrated"] = ""
 
     @field_validator('search')
     @classmethod

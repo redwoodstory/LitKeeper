@@ -75,10 +75,10 @@ class LiteroticaSearcher:
         self.rate_limiter.wait_if_needed()
 
         try:
-            content, title, author, category, tags, author_url, page_count, series_url, description = download_story(url)
+            content, title, author, category, tags, author_url, page_count, series_url, description, stats = download_story(url)
 
             if title and author:
-                return {
+                result = {
                     "title": title,
                     "author": author,
                     "category": category,
@@ -90,6 +90,14 @@ class LiteroticaSearcher:
                     "literotica_url": url,
                     "_story_content": content,  # retained for HTML generation, not stored in DB
                 }
+                if stats:
+                    result.update({
+                        "score": stats.get("score"),
+                        "views": stats.get("views"),
+                        "favorites": stats.get("favorites"),
+                        "comments": stats.get("comments"),
+                    })
+                return result
 
             return None
 

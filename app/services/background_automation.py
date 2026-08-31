@@ -257,7 +257,8 @@ class BackgroundAutomation:
             
             stories_missing_metadata = Story.query.filter(
                 Story.literotica_url.is_(None),
-                Story.auto_refresh_excluded == False
+                Story.auto_refresh_excluded == False,
+                Story.source_type != 'custom'
             ).all()
             
             excluded_stories = Story.query.filter(

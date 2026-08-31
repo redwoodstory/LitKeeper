@@ -27,8 +27,6 @@ window.resetReadingProgress = async function(storyId) {
 };
 
 
-let _queueFilterActive = false;
-
 function _buildLibraryParams() {
   const params = new URLSearchParams();
   const searchInput = document.getElementById('searchInput');
@@ -37,45 +35,43 @@ function _buildLibraryParams() {
   const sortOrderToggle = document.getElementById('sortOrderToggle');
   const minScoreFilter = document.getElementById('minScoreFilter');
   const pageLengthFilter = document.getElementById('pageLengthFilter');
+  const sourceFilter = document.getElementById('sourceFilter');
+  const userRatingFilter = document.getElementById('userRatingFilter');
   if (searchInput) params.append('search', searchInput.value);
   if (categoryFilter) params.append('category', categoryFilter.value);
   if (sortBy) params.append('sort_by', sortBy.value);
   if (sortOrderToggle) params.append('sort_order', sortOrderToggle.value);
-  if (_queueFilterActive) params.append('queue_only', 'true');
   if (minScoreFilter && minScoreFilter.value) params.append('min_community_score', minScoreFilter.value);
   if (pageLengthFilter && pageLengthFilter.dataset.minPages) params.append('min_pages', pageLengthFilter.dataset.minPages);
   if (pageLengthFilter && pageLengthFilter.dataset.maxPages) params.append('max_pages', pageLengthFilter.dataset.maxPages);
+  if (sourceFilter && sourceFilter.value) params.append('source', sourceFilter.value);
+  if (userRatingFilter && userRatingFilter.value) params.append('user_rating', userRatingFilter.value);
   return params;
 }
 
 function refreshLibrary() {
-  const searchInput = document.getElementById('searchInput');
+  // Always force a direct refetch — htmx.trigger(searchInput, 'keyup') looked like
+  // it should work, but hx-trigger="keyup changed delay:300ms" only fires when the
+  // input's value actually changes, so triggering it programmatically without a
+  // value change was silently a no-op.
+  const libraryContent = document.getElementById('library-content');
+  if (!libraryContent) return;
 
-  if (searchInput) {
-    htmx.trigger(searchInput, 'keyup');
-  } else {
-    const libraryContent = document.getElementById('library-content');
-    if (libraryContent) {
-      const params = _buildLibraryParams();
+  const params = _buildLibraryParams();
 
-      fetch(`/library/filter?${params.toString()}`)
-        .then(response => response.text())
-        .then(html => {
-          libraryContent.innerHTML = html;
-          htmx.process(libraryContent);
-        })
-        .catch(error => {
-          console.error('[Library] Failed to refresh:', error);
-        });
-    }
-  }
+  fetch(`/library/filter?${params.toString()}`)
+    .then(response => response.text())
+    .then(html => {
+      libraryContent.innerHTML = html;
+      htmx.process(libraryContent);
+    })
+    .catch(error => {
+      console.error('[Library] Failed to refresh:', error);
+    });
 }
 
 document.body.addEventListener('htmx:configRequest', function(evt) {
   if (evt.detail.path === '/library/filter') {
-    if (_queueFilterActive) {
-      evt.detail.parameters['queue_only'] = 'true';
-    }
     const minScore = document.getElementById('minScoreFilter');
     if (minScore && minScore.value) evt.detail.parameters['min_community_score'] = minScore.value;
     const pageLength = document.getElementById('pageLengthFilter');
@@ -83,53 +79,10 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
       if (pageLength.dataset.minPages) evt.detail.parameters['min_pages'] = pageLength.dataset.minPages;
       if (pageLength.dataset.maxPages) evt.detail.parameters['max_pages'] = pageLength.dataset.maxPages;
     }
+    const userRating = document.getElementById('userRatingFilter');
+    if (userRating && userRating.value) evt.detail.parameters['user_rating'] = userRating.value;
   }
 });
-
-window.toggleQueueFilter = function(btn) {
-  _queueFilterActive = !_queueFilterActive;
-  console.log('[Queue Filter] Toggled, _queueFilterActive =', _queueFilterActive);
-
-  const svg = btn.querySelector('svg');
-
-  if (_queueFilterActive) {
-    btn.classList.remove(
-      'border-dashed', 'border-slate-300', 'dark:border-slate-600',
-      'text-slate-500', 'dark:text-slate-400',
-      'hover:border-indigo-400', 'dark:hover:border-indigo-500',
-      'hover:text-indigo-600', 'dark:hover:text-indigo-400'
-    );
-    btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'border-solid', 'hover:bg-indigo-700');
-    if (svg) svg.setAttribute('fill', 'currentColor');
-    btn.title = 'Clear reading queue filter';
-  } else {
-    btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'border-solid', 'hover:bg-indigo-700');
-    btn.classList.add(
-      'border-dashed', 'border-slate-300', 'dark:border-slate-600',
-      'text-slate-500', 'dark:text-slate-400',
-      'hover:border-indigo-400', 'dark:hover:border-indigo-500',
-      'hover:text-indigo-600', 'dark:hover:text-indigo-400'
-    );
-    if (svg) svg.setAttribute('fill', 'none');
-    btn.title = 'Filter by reading queue';
-  }
-
-  // Direct fetch — avoids htmx's `changed` modifier suppressing the request
-  const params = _buildLibraryParams();
-
-  const libraryContent = document.getElementById('library-content');
-  const url = `/library/filter?${params.toString()}`;
-  console.log('[Queue Filter] Fetching URL:', url);
-  if (libraryContent) {
-    fetch(url)
-      .then(r => r.text())
-      .then(html => {
-        libraryContent.innerHTML = html;
-        htmx.process(libraryContent);
-      })
-      .catch(err => console.error('[Queue] Filter failed:', err));
-  }
-};
 
 window.handleStarClick = function(storyId, rating) {
   updateRatingWidget(rating);
@@ -163,84 +116,13 @@ function updateLibraryCardStars(storyId, rating) {
     if (!container) return;
 
     const stars = container.querySelectorAll('.card-rating-star');
-    if (!stars.length) return;
-
-    if (!rating) {
-      container.classList.add('opacity-0');
-      return;
-    }
-
-    container.classList.remove('opacity-0');
     stars.forEach((star, index) => {
-      const filled = index + 1 <= rating;
+      const filled = !!(rating && index + 1 <= rating);
       star.classList.toggle('text-amber-400', filled);
       star.classList.toggle('text-slate-300/30', !filled);
       star.classList.toggle('dark:text-slate-600/30', !filled);
     });
   });
-}
-
-window.handleQueueToggle = function(storyId) {
-  const btns = document.querySelectorAll('#queueToggleBtn');
-  if (btns.length === 0) return;
-
-  const firstBtn = btns[0];
-  const currentlyInQueue = firstBtn.dataset.inQueue === 'true';
-  const newValue = !currentlyInQueue;
-
-  btns.forEach(btn => {
-    btn.dataset.inQueue = newValue ? 'true' : 'false';
-    updateQueueButton(btn, newValue);
-  });
-  updateLibraryCardQueueBadge(storyId, newValue);
-
-  fetch(`/api/story/${storyId}/queue`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ in_queue: newValue })
-  }).then(r => r.json()).then(data => {
-    if (typeof data.in_queue !== 'boolean') {
-      btns.forEach(btn => {
-        btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
-        updateQueueButton(btn, currentlyInQueue);
-      });
-      updateLibraryCardQueueBadge(storyId, currentlyInQueue);
-    }
-  }).catch(() => {
-    btns.forEach(btn => {
-      btn.dataset.inQueue = currentlyInQueue ? 'true' : 'false';
-      updateQueueButton(btn, currentlyInQueue);
-    });
-    updateLibraryCardQueueBadge(storyId, currentlyInQueue);
-  });
-};
-
-function updateQueueButton(btn, inQueue) {
-  const label = btn.querySelector('#queueToggleLabel');
-  const svg = btn.querySelector('svg');
-
-  if (label) label.textContent = inQueue ? 'In Queue' : 'Add to Queue';
-  if (svg) svg.setAttribute('fill', inQueue ? 'currentColor' : 'none');
-  btn.title = inQueue ? 'Remove from reading queue' : 'Add to reading queue';
-
-  if (inQueue) {
-    btn.classList.remove('text-indigo-600', 'dark:text-indigo-400', 'hover:text-indigo-700',
-                         'dark:hover:text-indigo-300', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/20',
-                         'border-indigo-200/60', 'dark:border-indigo-700');
-    btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'hover:bg-indigo-700');
-  } else {
-    btn.classList.add('text-indigo-600', 'dark:text-indigo-400', 'hover:text-indigo-700',
-                      'dark:hover:text-indigo-300', 'hover:bg-indigo-50', 'dark:hover:bg-indigo-900/20',
-                      'border-indigo-200/60', 'dark:border-indigo-700');
-    btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'hover:bg-indigo-700');
-  }
-}
-
-function updateLibraryCardQueueBadge(storyId, inQueue) {
-  const card = document.querySelector(`[data-story-id="${storyId}"]`);
-  if (!card) return;
-  const badge = card.querySelector('.queue-badge');
-  if (badge) badge.classList.toggle('hidden', !inQueue);
 }
 
 document.addEventListener('click', function(e) {
@@ -266,6 +148,13 @@ document.addEventListener('click', function(e) {
     }
     
     openEditMetadataModal(storyId, title, author, category, tags);
+  }
+
+  const editContentBtn = e.target.closest('.edit-content-btn');
+  if (editContentBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    openEditContentModal(parseInt(editContentBtn.dataset.storyId));
   }
 }, true);
 
@@ -1108,6 +997,97 @@ async function saveMetadataChanges(storyId) {
     showToast('An error occurred while updating metadata', 'error');
   }
 }
+
+window.openEditContentModal = async function(storyId) {
+  const modalHtml = `
+    <div id="editContentModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-200" onclick="closeEditContentModal(event)">
+      <div class="w-full max-w-3xl mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-2xl transform transition-all" onclick="event.stopPropagation()">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Story Content</h3>
+            <button onclick="closeEditContentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            Press Enter once between paragraphs — each new line becomes its own paragraph. For multiple chapters, start a new line with <code>Chapter 2: Title</code>.
+          </p>
+          <textarea id="editContentText" rows="16"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:border-transparent"
+            placeholder="Loading…"></textarea>
+          <div class="flex gap-3 pt-4">
+            <button type="button" onclick="closeEditContentModal()"
+                    class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-200">
+              Cancel
+            </button>
+            <button type="button" id="saveContentBtn" onclick="saveContentChanges(${storyId})"
+                    class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg transition-all duration-200">
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  const textarea = document.getElementById('editContentText');
+  try {
+    const res = await fetch(`/api/story/${storyId}/content`);
+    const data = await res.json();
+    if (res.ok) {
+      textarea.value = data.content || '';
+    } else {
+      textarea.placeholder = 'Failed to load';
+      showToast(data.message || 'Failed to load story content', 'error');
+    }
+  } catch (e) {
+    console.error('Error loading story content:', e);
+    textarea.placeholder = 'Failed to load';
+    showToast('Failed to load story content', 'error');
+  }
+};
+
+window.closeEditContentModal = function(event) {
+  if (event && event.target !== event.currentTarget) return;
+  const modal = document.getElementById('editContentModal');
+  if (modal) modal.remove();
+};
+
+window.saveContentChanges = async function(storyId) {
+  const content = document.getElementById('editContentText').value;
+  if (!content.trim()) {
+    showToast('Story content is required', 'error');
+    return;
+  }
+  const btn = document.getElementById('saveContentBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const response = await fetch(`/api/story/${storyId}/content`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content })
+    });
+    const result = await response.json();
+    if (response.ok) {
+      closeEditContentModal();
+      closeStoryModal();
+      showToast('Story content updated', 'success');
+      if (typeof refreshLibrary === 'function') refreshLibrary();
+    } else {
+      showToast(result.message || 'Failed to update story content', 'error');
+    }
+  } catch (error) {
+    console.error('Error updating story content:', error);
+    showToast('An error occurred while updating story content', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+};
 
 document.body.addEventListener('coverRegenerated', function(evt) {
   const { storyId } = evt.detail;

@@ -256,7 +256,7 @@ class DownloadQueueWorker:
         db.session.commit()
 
         story_data = download_story(item.url)
-        story_content, title, author, category, tags, author_url, page_count, series_url, story_description = story_data
+        story_content, title, author, category, tags, author_url, page_count, series_url, story_description, story_stats = story_data
 
         if not story_content or not title:
             raise Exception("Failed to download story content or extract metadata")
@@ -289,7 +289,8 @@ class DownloadQueueWorker:
             page_count=page_count,
             formats=formats,
             series_url=series_url,
-            story_description=story_description
+            story_description=story_description,
+            story_stats=story_stats
         )
 
         if not result.get('success'):
@@ -319,7 +320,7 @@ class DownloadQueueWorker:
         db.session.commit()
 
         story_data = download_and_combine_stories(all_urls)
-        story_content, title, author, category, tags, author_url, page_count, series_url, story_description, all_authors, all_tags = story_data
+        story_content, title, author, category, tags, author_url, page_count, series_url, story_description, all_authors, all_tags, story_stats = story_data
 
         if not story_content or not title:
             raise Exception("Failed to combine stories")
@@ -349,7 +350,8 @@ class DownloadQueueWorker:
             series_url=series_url,
             story_description=story_description,
             all_authors=all_authors,
-            all_tags=all_tags
+            all_tags=all_tags,
+            story_stats=story_stats
         )
 
         if not result.get('success'):

@@ -60,17 +60,31 @@
       <div class="settings-group">
         <label class="settings-label">Font Family</label>
         <select id="fontSelect" class="settings-select">
-          <option value="ProximaNovaMedium, system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', Helvetica, Arial, sans-serif">Proxima Nova</option>
-          <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif">System Default</option>
-          <option value="Georgia, 'Times New Roman', serif">Georgia</option>
-          <option value="'Palatino Linotype', 'Book Antiqua', Palatino, serif">Palatino</option>
-          <option value="'Times New Roman', Times, serif">Times New Roman</option>
-          <option value="Arial, Helvetica, sans-serif">Arial</option>
-          <option value="'Courier New', Courier, monospace">Courier New</option>
-          <option value="Verdana, Geneva, sans-serif">Verdana</option>
-          <option value="'Trebuchet MS', Helvetica, sans-serif">Trebuchet</option>
-          <option value="'Comic Sans MS', cursive, sans-serif">Comic Sans</option>
+          <optgroup label="Variable weight">
+            <option value="literata">Literata</option>
+            <option value="merriweather">Merriweather</option>
+            <option value="lora">Lora</option>
+            <option value="bitter">Bitter</option>
+            <option value="inter">Inter</option>
+            <option value="plusJakarta">Plus Jakarta Sans</option>
+            <option value="atkinson">Atkinson Hyperlegible</option>
+          </optgroup>
+          <optgroup label="System fonts">
+            <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif">System Default</option>
+            <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+            <option value="'Palatino Linotype', 'Book Antiqua', Palatino, serif">Palatino</option>
+            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="'Courier New', Courier, monospace">Courier New</option>
+            <option value="Verdana, Geneva, sans-serif">Verdana</option>
+            <option value="'Trebuchet MS', Helvetica, sans-serif">Trebuchet</option>
+            <option value="'Comic Sans MS', cursive, sans-serif">Comic Sans</option>
+          </optgroup>
         </select>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">Font Weight <span id="fontWeightValue" class="range-value">500</span></label>
+        <input type="range" id="fontWeightRange" class="settings-range" min="400" max="900" value="500" step="50">
       </div>
       <div class="settings-group">
         <label class="settings-label">Font Size <span id="fontSizeValue" class="range-value">18px</span></label>
@@ -83,6 +97,17 @@
       <div class="settings-group desktop-only-setting">
         <label class="settings-label">Reading Width <span id="widthValue" class="range-value">800px</span></label>
         <input type="range" id="widthRange" class="settings-range" min="600" max="1200" value="800" step="50">
+      </div>
+      <div class="settings-group desktop-only-setting">
+        <label class="settings-label">Columns</label>
+        <div class="theme-toggle-row">
+          <button id="columns1Btn" class="theme-btn" aria-label="1 column">
+            1 Column
+          </button>
+          <button id="columns2Btn" class="theme-btn" aria-label="2 columns">
+            2 Columns
+          </button>
+        </div>
       </div>
       <div class="settings-group mobile-only-setting">
         <label class="settings-label">Margin Width <span id="marginValue" class="range-value">16px</span></label>
@@ -136,7 +161,7 @@
   <script>
     window.STORY_ID = {{ story_id }};
     window.EPUB_URL = '/epub/file/{{ story_id }}';
-    window.INITIAL_PROGRESS = {% if progress %}{{ {'current_chapter': progress.current_chapter, 'current_paragraph': progress.current_paragraph, 'scroll_position': progress.scroll_position, 'cfi': progress.cfi, 'percentage': progress.percentage if progress.percentage is defined else None} | tojson | safe }}{% else %}{}{% endif %};
+    window.INITIAL_PROGRESS = {% if progress %}{{ {'cfi': progress.cfi, 'percentage': progress.percentage, 'last_read_at': progress.last_read_at.isoformat() if progress.last_read_at else none, 'progress_format': progress.progress_format} | tojson | safe }}{% else %}{}{% endif %};
   </script>
   <script src="/static/epub/epub_reader.js" type="module"></script>
 </body>

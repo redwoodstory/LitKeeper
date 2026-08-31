@@ -328,12 +328,24 @@
         </label>
       </div>
 
-      <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
-        hx-indicator="#btnCoversNew" id="btnCoversNew"
-        class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
-        <span class="htmx-indicator">Regenerating...</span>
-        <span class="htmx-not-indicator">Regenerate All Covers</span>
-      </button>
+      <div class="flex flex-wrap gap-3">
+        <button hx-post="/settings/regenerate-covers-new" hx-target="#coverStatus" hx-swap="innerHTML"
+          hx-indicator="#btnCoversNew" id="btnCoversNew"
+          class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+          <span class="htmx-indicator">Regenerating...</span>
+          <span class="htmx-not-indicator">Regenerate All Covers</span>
+        </button>
+
+        <button hx-post="/settings/regenerate-koreader-covers" hx-target="#coverStatus" hx-swap="innerHTML"
+          hx-indicator="#btnCoversKoreader" id="btnCoversKoreader"
+          class="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all duration-200 font-medium inline-flex items-center gap-2">
+          <span class="htmx-indicator">Regenerating...</span>
+          <span class="htmx-not-indicator">Regenerate All E-Reader Covers</span>
+        </button>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+        E-reader covers are the bold, high-contrast style used by KOReader and the LitKeeper mobile app.
+      </p>
 
       <div id="coverStatus"></div>
     </section>

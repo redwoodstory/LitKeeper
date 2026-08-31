@@ -111,7 +111,7 @@ class StoryUpdateChecker:
         try:
             log_action(f"Checking for updates: '{story.title}'")
 
-            story_content, _, _, _, _, _, new_page_count, _, new_description = download_story(story.literotica_url)
+            story_content, _, _, _, _, _, new_page_count, _, new_description, new_stats = download_story(story.literotica_url)
 
             if not story_content:
                 log_error(f"Failed to fetch story for update check: '{story.title}'")
@@ -138,6 +138,17 @@ class StoryUpdateChecker:
 
             if not story.description and new_description:
                 story.description = new_description
+
+            if new_stats:
+                for meta_key, col_attr in (
+                    ('score',     'literotica_score'),
+                    ('views',     'literotica_views'),
+                    ('favorites', 'literotica_favorites'),
+                    ('comments',  'literotica_comments'),
+                ):
+                    val = new_stats.get(meta_key)
+                    if val is not None:
+                        setattr(story, col_attr, val)
 
             story.last_update_check_at = datetime.utcnow()
 

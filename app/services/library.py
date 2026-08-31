@@ -32,6 +32,8 @@ def get_stories_page(
     min_community_score: float = 0.0,
     min_pages: int = 0,
     max_pages: int = 0,
+    source: str = 'all',
+    user_rating: str = '',
 ) -> Tuple[List[Dict], int]:
     """Return (page_stories, total_count). Uses DB-level ops when search is empty."""
     from app.models import Story, Category, db
@@ -41,6 +43,13 @@ def get_stories_page(
     # fall back to Python sort for those two cases only.
     PYTHON_SORT_FIELDS = {'author', 'category'}
     use_python_sort = sort_by in PYTHON_SORT_FIELDS
+
+    def _apply_user_rating_filter(query):
+        if user_rating == 'unrated':
+            return query.filter(Story.rating.is_(None))
+        if user_rating in ('1', '2', '3', '4', '5'):
+            return query.filter(Story.rating >= int(user_rating))
+        return query
 
     if search or use_python_sort:
         query = Story.query
@@ -57,6 +66,9 @@ def get_stories_page(
             query = query.filter(Story.literotica_page_count >= min_pages)
         if max_pages > 0:
             query = query.filter(Story.literotica_page_count <= max_pages)
+        if source and source != 'all':
+            query = query.filter(Story.source_type == source)
+        query = _apply_user_rating_filter(query)
 
         all_stories = [s.to_library_dict() for s in query.all()]
 
@@ -106,6 +118,9 @@ def get_stories_page(
         query = query.filter(Story.literotica_page_count >= min_pages)
     if max_pages > 0:
         query = query.filter(Story.literotica_page_count <= max_pages)
+    if source and source != 'all':
+        query = query.filter(Story.source_type == source)
+    query = _apply_user_rating_filter(query)
 
     col_map = {
         'date': Story.created_at,

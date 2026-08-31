@@ -10,6 +10,8 @@ let headerTimeout = null;
 const html = document.documentElement;
 const themeLightBtn = document.getElementById('themeLightBtn');
 const themeDarkBtn = document.getElementById('themeDarkBtn');
+const columns1Btn = document.getElementById('columns1Btn');
+const columns2Btn = document.getElementById('columns2Btn');
 const settingsToggle = document.getElementById('settingsToggle');
 const settingsPanel = document.getElementById('settingsPanel');
 const tocToggle = document.getElementById('tocToggle');
@@ -156,6 +158,8 @@ document.addEventListener('click', (e) => {
 });
 
 const fontSelect = document.getElementById('fontSelect');
+const fontWeightRange = document.getElementById('fontWeightRange');
+const fontWeightValue = document.getElementById('fontWeightValue');
 const fontSizeRange = document.getElementById('fontSizeRange');
 const fontSizeValue = document.getElementById('fontSizeValue');
 const lineHeightRange = document.getElementById('lineHeightRange');
@@ -163,27 +167,148 @@ const lineHeightValue = document.getElementById('lineHeightValue');
 const widthRange = document.getElementById('widthRange');
 const widthValue = document.getElementById('widthValue');
 
-const savedFont = localStorage.getItem('fontFamily') || "ProximaNovaMedium, system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', Helvetica, Arial, sans-serif";
+// Variable-weight webfonts bundled alongside the Android app (see
+// litkeeper-mobile/src/assets/fonts) so both readers offer the same faces at
+// the same usable weight ranges — all SIL Open Font License 1.1. Weight
+// bounds mirror litkeeper-mobile/src/state/readerSettings.ts exactly.
+// Atkinson Hyperlegible isn't a variable font, so it's two discrete static
+// faces (400/700) rather than a weight range.
+const EMBEDDED_FONTS = {
+  literata: {
+    family: 'Literata', fallback: 'Georgia, serif',
+    files: { '400 900': '/static/fonts/reader/literata-variable.woff2' },
+    format: 'woff2-variations', weightMin: 400, weightMax: 900, weightStep: 50,
+  },
+  merriweather: {
+    family: 'Merriweather', fallback: 'Georgia, serif',
+    files: { '300 900': '/static/fonts/reader/merriweather-variable.woff2' },
+    format: 'woff2-variations', weightMin: 300, weightMax: 900, weightStep: 50,
+  },
+  lora: {
+    family: 'Lora', fallback: 'Georgia, serif',
+    files: { '400 700': '/static/fonts/reader/lora-variable.woff2' },
+    format: 'woff2-variations', weightMin: 400, weightMax: 700, weightStep: 50,
+  },
+  bitter: {
+    family: 'Bitter', fallback: 'Georgia, serif',
+    files: { '300 800': '/static/fonts/reader/bitter-variable.woff2' },
+    format: 'woff2-variations', weightMin: 300, weightMax: 800, weightStep: 50,
+  },
+  inter: {
+    family: 'Inter', fallback: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+    files: { '300 800': '/static/fonts/reader/inter-variable.woff2' },
+    format: 'woff2-variations', weightMin: 300, weightMax: 800, weightStep: 50,
+  },
+  plusJakarta: {
+    family: 'Plus Jakarta Sans', fallback: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+    files: { '300 800': '/static/fonts/reader/plus-jakarta-sans-variable.woff2' },
+    format: 'woff2-variations', weightMin: 300, weightMax: 800, weightStep: 50,
+  },
+  atkinson: {
+    family: 'Atkinson Hyperlegible', fallback: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+    files: {
+      '400': '/static/fonts/reader/atkinson-hyperlegible-regular.woff2',
+      '700': '/static/fonts/reader/atkinson-hyperlegible-bold.woff2',
+    },
+    format: 'woff2', weightMin: 400, weightMax: 700, weightStep: 300,
+  },
+};
+
+// Fetched once per font and cached — a book's own paragraph/heading fonts are
+// asked for repeatedly (every settings tweak rebuilds the whole stylesheet),
+// but the underlying file never changes mid-session.
+const fontDataUriCache = new Map();
+
+function fetchFontDataUri(url) {
+  if (fontDataUriCache.has(url)) return fontDataUriCache.get(url);
+  const promise = fetch(url)
+    .then(res => res.blob())
+    .then(blob => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    }));
+  fontDataUriCache.set(url, promise);
+  return promise;
+}
+
+// Book content renders in foliate-js's per-chapter iframe, and setStyles()
+// injects CSS directly into *that* document's <head> — not this page's. Its
+// base URL is the EPUB's internal (blob) structure, so a normal or even
+// root-relative asset path wouldn't resolve there (see the identical problem
+// solved the same way in litkeeper-mobile/src/screens/ReaderScreen.tsx,
+// FONT_FACE_RULES). A self-contained data: URI sidesteps the base URL
+// entirely, regardless of which document the stylesheet ends up in.
+async function buildEmbeddedFontFaceCss(fontId) {
+  const font = EMBEDDED_FONTS[fontId];
+  if (!font) return '';
+  const faces = await Promise.all(
+    Object.entries(font.files).map(async ([weight, url]) => {
+      const dataUri = await fetchFontDataUri(url);
+      return `@font-face {
+        font-family: '${font.family}';
+        font-style: normal;
+        font-weight: ${weight};
+        src: url(${dataUri}) format('${font.format}');
+      }`;
+    })
+  );
+  return faces.join('\n');
+}
+
+function getFontWeightBounds(fontId) {
+  const font = EMBEDDED_FONTS[fontId];
+  if (font) return { min: font.weightMin, max: font.weightMax, step: font.weightStep };
+  // Plain system-font stacks: most only reliably render two real weights
+  // (regular/bold), so offer that instead of in-between values that would
+  // just get synthetically (and poorly) faked by the browser.
+  return { min: 400, max: 700, step: 300 };
+}
+
+function applyFontWeightBounds(fontId, weight) {
+  const { min, max, step } = getFontWeightBounds(fontId);
+  fontWeightRange.min = min;
+  fontWeightRange.max = max;
+  fontWeightRange.step = step;
+  const clamped = Math.min(max, Math.max(min, parseInt(weight, 10) || min));
+  fontWeightRange.value = clamped;
+  fontWeightValue.textContent = clamped;
+  return clamped;
+}
+
+const savedFont = localStorage.getItem('fontFamily') || 'literata';
 const savedFontSize = localStorage.getItem('epubFontSize') || '18';
 const savedLineHeight = localStorage.getItem('epubLineHeight') || '1.6';
 
 fontSelect.value = savedFont;
+// A value from before this font list changed (the old ProximaNovaMedium
+// stack, or any other stale entry) won't match any <option> and leaves the
+// select showing nothing at all — fall back to the new default instead.
+if (fontSelect.selectedIndex === -1) fontSelect.value = 'literata';
+applyFontWeightBounds(fontSelect.value, localStorage.getItem('epubFontWeight') || '500');
 fontSizeRange.value = savedFontSize;
 fontSizeValue.textContent = savedFontSize + 'px';
 lineHeightRange.value = savedLineHeight;
 lineHeightValue.textContent = savedLineHeight;
 
-function updateReaderStyles() {
+async function updateReaderStyles() {
   if (!view?.renderer) return;
 
   const theme = html.getAttribute('data-theme');
   const isDark = theme === 'dark';
   const fontSize = fontSizeRange.value;
+  const fontWeight = fontWeightRange.value;
   const lineHeight = lineHeightRange.value;
-  const fontFamily = fontSelect.value;
   const margin = parseInt(marginRange.value) || 0;
 
+  const fontId = fontSelect.value;
+  const embedded = EMBEDDED_FONTS[fontId];
+  const fontFamily = embedded ? `'${embedded.family}', ${embedded.fallback}` : fontId;
+  const fontFaceCss = embedded ? await buildEmbeddedFontFaceCss(fontId) : '';
+
   const styles = `
+    ${fontFaceCss}
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
       color-scheme: ${isDark ? 'dark' : 'light'};
@@ -192,12 +317,18 @@ function updateReaderStyles() {
       color: ${isDark ? '#e5e7eb' : '#1a1a1a'} !important;
       background: ${isDark ? '#0f1419' : '#ffffff'} !important;
       font-family: ${fontFamily} !important;
+      font-weight: ${fontWeight} !important;
       font-size: ${fontSize}px !important;
       line-height: ${lineHeight} !important;
       padding-left: ${margin}px !important;
       padding-right: ${margin}px !important;
     }
-    p, li, blockquote, dd, h1, h2, h3, h4, h5, h6 {
+    p, li, blockquote, dd {
+      line-height: ${lineHeight} !important;
+      font-family: ${fontFamily} !important;
+      font-weight: ${fontWeight} !important;
+    }
+    h1, h2, h3, h4, h5, h6 {
       line-height: ${lineHeight} !important;
       font-family: ${fontFamily} !important;
     }
@@ -209,8 +340,17 @@ function updateReaderStyles() {
 }
 
 fontSelect.addEventListener('change', (e) => {
-  const font = e.target.value;
-  localStorage.setItem('fontFamily', font);
+  const fontId = e.target.value;
+  localStorage.setItem('fontFamily', fontId);
+  const clamped = applyFontWeightBounds(fontId, fontWeightRange.value);
+  localStorage.setItem('epubFontWeight', clamped);
+  updateReaderStyles();
+});
+
+fontWeightRange.addEventListener('input', (e) => {
+  const weight = e.target.value;
+  fontWeightValue.textContent = weight;
+  localStorage.setItem('epubFontWeight', weight);
   updateReaderStyles();
 });
 
@@ -232,11 +372,23 @@ const savedWidth = localStorage.getItem('epubReadingWidth') || '800';
 widthRange.value = savedWidth;
 widthValue.textContent = savedWidth + 'px';
 
-if (window.innerWidth <= 768) {
-  document.documentElement.style.setProperty('--max-width', '100%');
-} else {
-  document.documentElement.style.setProperty('--max-width', savedWidth + 'px');
+// foliate-js derives its column count from container-width ÷ max-inline-size
+// (one reading-width's worth of text per column), so the *outer* #viewer
+// element — capped by --max-width, below — has to actually be wide enough to
+// hold that many columns side by side. Sizing it to exactly one reading-width
+// (as opposed to reading-width × column count) is what made 2-column mode a
+// no-op before this: the container was never wider than a single column, so
+// foliate had no room to ever place a second one next to it.
+function applyOuterMaxWidth() {
+  if (window.innerWidth <= 768) {
+    document.documentElement.style.setProperty('--max-width', '100%');
+    return;
+  }
+  const width = parseInt(widthRange.value, 10);
+  const columnCount = parseInt(localStorage.getItem('epubColumnCount') || '2', 10);
+  document.documentElement.style.setProperty('--max-width', (width * columnCount) + 'px');
 }
+applyOuterMaxWidth();
 
 widthRange.addEventListener('input', (e) => {
   const width = e.target.value;
@@ -244,12 +396,39 @@ widthRange.addEventListener('input', (e) => {
   localStorage.setItem('epubReadingWidth', width);
 
   if (window.innerWidth > 768) {
-    document.documentElement.style.setProperty('--max-width', width + 'px');
+    applyOuterMaxWidth();
     if (view?.renderer) {
       view.renderer.setAttribute('max-inline-size', width);
     }
   }
 });
+
+// foliate-js caps column count at how many `max-inline-size`-wide columns fit
+// in the viewport, so '2' is a ceiling, not a guarantee — on mobile (and on a
+// narrow desktop window) it still collapses to 1 regardless of this setting.
+const savedColumnCount = localStorage.getItem('epubColumnCount') || '2';
+
+function updateColumnButtons(count) {
+  columns1Btn.classList.toggle('active', count === '1');
+  columns2Btn.classList.toggle('active', count === '2');
+}
+updateColumnButtons(savedColumnCount);
+
+function setColumnCount(count) {
+  localStorage.setItem('epubColumnCount', count);
+  updateColumnButtons(count);
+  applyOuterMaxWidth();
+  if (view?.renderer) {
+    view.renderer.setAttribute('max-column-count', count);
+    // Unlike 'max-inline-size', the paginator's attributeChangedCallback for
+    // 'max-column-count' only updates the CSS variable — it doesn't re-render
+    // on its own, so the page split doesn't actually change until forced.
+    view.renderer.render();
+  }
+}
+
+columns1Btn.addEventListener('click', () => setColumnCount('1'));
+columns2Btn.addEventListener('click', () => setColumnCount('2'));
 
 const marginRange = document.getElementById('marginRange');
 const marginValue = document.getElementById('marginValue');
@@ -413,7 +592,8 @@ async function syncProgressToServer() {
         current_chapter: localProgress.current_chapter,
         scroll_position: localProgress.scroll_position,
         cfi: localProgress.cfi,
-        percentage: localProgress.percentage
+        percentage: localProgress.percentage,
+        progress_format: 'epub'
       })
     });
 
@@ -432,6 +612,7 @@ async function saveProgress(fraction, cfi) {
     scroll_position: 0,
     cfi: cfi || '',
     percentage: fraction,
+    progress_format: 'epub',
     timestamp: new Date().toISOString(),
     synced: false
   };
@@ -454,7 +635,8 @@ async function saveProgress(fraction, cfi) {
         current_chapter: 0,
         scroll_position: 0,
         cfi: cfi || '',
-        percentage: fraction
+        percentage: fraction,
+        progress_format: 'epub'
       })
     });
 
@@ -514,7 +696,9 @@ async function initializeReader() {
     
     console.log('[Foliate] Setting renderer attributes...');
     view.renderer.setAttribute('flow', 'paginated');
-    view.renderer.setAttribute('animated', '');
+    // Deliberately no 'animated' attribute: it gates the paginator's 150ms
+    // eased scroll on every page turn (button, keyboard, and touch-release
+    // snap alike) — leaving it off makes all of those land instantly instead.
     view.renderer.setAttribute('margin', '0');
     view.renderer.setAttribute('gap', '0');
     
@@ -525,10 +709,11 @@ async function initializeReader() {
     } else {
       view.renderer.setAttribute('max-inline-size', savedWidth);
     }
+    view.renderer.setAttribute('max-column-count', savedColumnCount);
     console.log('[Foliate] Renderer attributes set');
 
     console.log('[Foliate] Updating styles...');
-    updateReaderStyles();
+    await updateReaderStyles();
     console.log('[Foliate] Styles updated');
     
     setTimeout(() => {
@@ -600,6 +785,14 @@ async function initializeReader() {
         return;
       }
 
+      // The zero-dimension reflow workaround above triggers a spurious relocate
+      // with a bare, chapter-start CFI and no fraction before layout settles.
+      // Saving it would clobber a precise saved position with a coarse one.
+      if (!Number.isFinite(fraction)) {
+        console.log('[Progress] Skipping save, relocate fired before layout settled');
+        return;
+      }
+
       await saveProgress(fraction, cfi);
     });
 
@@ -635,6 +828,9 @@ async function initializeReader() {
 
     const localProgress = await progressDB.getProgress(storyId);
     let progressToUse = window.INITIAL_PROGRESS;
+    // IndexedDB here is only ever written by this reader, so a local hit is
+    // inherently epub-format and its CFI is always trustworthy.
+    let cfiIsTrustworthy = progressToUse?.progress_format === 'epub';
 
     if (localProgress) {
       const localTime = new Date(localProgress.timestamp || 0).getTime();
@@ -643,11 +839,16 @@ async function initializeReader() {
       if (localTime > serverTime) {
         console.log('[IndexedDB] Using local progress (newer than server)');
         progressToUse = localProgress;
+        cfiIsTrustworthy = true;
       }
     }
 
+    // A CFI left over from a previous epub session is stale once a different
+    // format (e.g. the HTML/JSON reader) has recorded progress since — in that
+    // case only `percentage` is safe to use, since it's the one field every
+    // format keeps up to date regardless of who wrote it last.
     let lastLocation = null;
-    if (progressToUse && progressToUse.cfi) {
+    if (progressToUse && progressToUse.cfi && cfiIsTrustworthy) {
       hasSavedProgress = true;
       console.log('[Progress] Restoring from CFI:', progressToUse.cfi);
       lastLocation = progressToUse.cfi;
@@ -686,9 +887,9 @@ async function initializeReader() {
     nextBtn.addEventListener('click', () => view.goRight());
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         view.goLeft();
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         view.goRight();
       }
     });
