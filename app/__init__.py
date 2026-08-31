@@ -286,16 +286,32 @@ def create_app() -> Flask:
     from flask import request, redirect, url_for, session, jsonify
     from app.models import AppConfig
 
+    from flask_cors import CORS
+
+    _cors_origins = [o.strip() for o in os.getenv(
+        'LITKEEPER_CORS_ORIGINS', 'http://localhost:5173,https://localhost'
+    ).split(',') if o.strip()]
+    _cors_resource_prefixes = ('/api/*', '/epub/api/*', '/epub/file/*', '/queue/api/*', '/download/*')
+    CORS(
+        app,
+        resources={prefix: {'origins': _cors_origins} for prefix in _cors_resource_prefixes},
+        allow_headers=['Content-Type', 'X-Api-Key'],
+        methods=['GET', 'POST', 'DELETE', 'PUT', 'OPTIONS'],
+        supports_credentials=False,
+    )
+
     _api_token = os.getenv('LITKEEPER_API_TOKEN', '')
 
     @app.before_request
     def enforce_api_token():
+        if request.method == 'OPTIONS':
+            return
         if not _api_token:
             return
         api_prefixes = ('/api/', '/epub/api/', '/epub/file/', '/queue/api/', '/download/')
         if not request.path.startswith(api_prefixes):
             return
-        # Valid API key → iOS app, allow through
+        # Valid API key → iOS/mobile client, allow through
         if request.headers.get('X-Api-Key') == _api_token:
             return
         # No X-Api-Key header → web browser, allow through (enforce_pin_lock handles auth)
