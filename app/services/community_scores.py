@@ -34,7 +34,20 @@ def sync_community_scores() -> int:
         row[0]: (row[1], row[2], row[3], row[4]) for row in rows
     }
 
-    stories = Story.query.filter(Story.literotica_url.in_(list(url_map.keys()))).all()
+    # Intersect in Python against this library's own URLs first, rather than
+    # binding the entire (potentially 500k+ row) dataset as literal IN (...)
+    # parameters — that single query was stalling the DB connection (and
+    # every other request queued behind it) for minutes on every app start.
+    library_urls = {
+        url for (url,) in db.session.query(Story.literotica_url)
+        .filter(Story.literotica_url.isnot(None))
+        .all()
+    }
+    matched_urls = library_urls & url_map.keys()
+    if not matched_urls:
+        return 0
+
+    stories = Story.query.filter(Story.literotica_url.in_(matched_urls)).all()
     updated = 0
 
     for story in stories:
