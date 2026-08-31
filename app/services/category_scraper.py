@@ -111,6 +111,8 @@ class CategoryScraper:
         stories = self._parse_top_page(soup)
         total_pages = self._parse_total_pages(soup)
         log_action(f"[CategoryScraper] Parsed {len(stories)} stories, {total_pages} total pages")
+        if not stories:
+            self._log_empty_diagnostics(resp)
         return {'stories': stories, 'page': page, 'total_pages': total_pages}
 
     # ------------------------------------------------------------------
@@ -156,6 +158,8 @@ class CategoryScraper:
         stories = self._parse_top_page(soup, parse_mode=parse_mode)
         total_pages = self._parse_total_pages(soup)
         log_action(f"[CategoryScraper] Parsed {len(stories)} stories, {total_pages} total pages")
+        if not stories:
+            self._log_empty_diagnostics(resp)
         return {'stories': stories, 'page': page, 'total_pages': total_pages}
 
     # ------------------------------------------------------------------
@@ -163,12 +167,129 @@ class CategoryScraper:
     # ------------------------------------------------------------------
 
     def _parse_top_page(self, soup: BeautifulSoup, parse_mode: str = 'rated') -> list[dict]:
+        cards = soup.select('article[class*="_card_"], div[class*="_card_"][class*="_content_"]')
+        if not cards:
+            cards = [a.find_parent(['article', 'li', 'div']) or a
+                     for a in soup.select('a[class*="_title_link_"]')]
+
         results = []
+        seen: set[str] = set()
+        for card in cards:
+            story = self._parse_top_card(card)
+            if story and story['url'] not in seen:
+                seen.add(story['url'])
+                results.append(story)
+        if results:
+            return results
+
         for row in soup.select('table.tbl tr'):
             story = self._parse_top_row(row, parse_mode=parse_mode)
             if story:
                 results.append(story)
+        if results:
+            return results
+
+        return self._parse_story_links(soup)
+
+    def _parse_story_links(self, soup: BeautifulSoup) -> list[dict]:
+        """Last-resort parser: any anchor pointing at a story page, regardless of markup."""
+        main = soup.select_one('main, section.core, div#content') or soup
+        results = []
+        seen: set[str] = set()
+        for a in main.select('a[href*="/s/"]'):
+            href = a.get('href', '').split('?')[0].split('#')[0]
+            if not re.search(r'/s/[a-z0-9\-]+$', href):
+                continue
+            if not href.startswith('http'):
+                href = 'https://www.literotica.com' + href
+            title = html_module.unescape(a.get_text(strip=True))
+            if not title or href in seen:
+                continue
+            seen.add(href)
+            results.append({
+                'url': href, 'title': title, 'score': None, 'vote_count': None,
+                'read_count': None, 'date_approve': None, 'description': None,
+                'author_name': None, 'author_url': None,
+            })
         return results
+
+    def _log_empty_diagnostics(self, resp) -> None:
+        body = resp.text or ''
+        markers = {
+            m: (m in body) for m in (
+                '_card_', '_title_link_', 'table.tbl', 'id="__next"',
+                'cf-browser-verification', 'Just a moment', 'Access denied',
+                'captcha', 'enable JavaScript',
+            )
+        }
+        story_links = len(re.findall(r'/s/[a-z0-9\-]+', body))
+        log_error(
+            f"[CategoryScraper] Empty parse — status={resp.status_code} "
+            f"bytes={len(body)} url={resp.url} story_link_hrefs={story_links} "
+            f"markers={markers}"
+        )
+
+    def _parse_top_card(self, card) -> dict | None:
+        title_a = card.select_one('a[class*="_title_link_"]')
+        if not title_a:
+            return None
+
+        url = title_a.get('href', '').split('?')[0]
+        if not url:
+            return None
+        title = html_module.unescape(title_a.get_text(strip=True))
+
+        score: str | None = None
+        read_count: str | None = None
+        for stat in card.select('span[class*="_view_stat_"]'):
+            kind = (stat.get('title') or '').strip().lower()
+            value = (stat.get('data-value') or '').strip()
+            if not value:
+                continue
+            if kind == 'rating':
+                score = value
+            elif kind == 'views':
+                read_count = value.replace(',', '')
+
+        desc_tag = card.select_one('p[class*="_description_"]')
+        description: str | None = None
+        if desc_tag:
+            raw = html_module.unescape(desc_tag.get_text(strip=True))
+            description = raw[:200] if len(raw) > 200 else raw or None
+
+        author_a = card.select_one('a[class*="_author_link_"]')
+        author_name: str | None = None
+        author_url: str | None = None
+        if author_a:
+            author_name = html_module.unescape(author_a.get_text(strip=True)) or None
+            ah = author_a.get('href', '')
+            if ah and not ah.startswith('http'):
+                ah = 'https://www.literotica.com' + ah
+            author_url = ah or None
+
+        date_approve: str | None = None
+        date_tag = card.select_one('time[class*="_date_"]')
+        if date_tag:
+            iso = (date_tag.get('datetime') or '').strip()
+            m = re.match(r'(\d{4})-(\d{2})-(\d{2})', iso)
+            if m:
+                date_approve = f'{m.group(2)}/{m.group(3)}/{m.group(1)}'
+            else:
+                text = date_tag.get_text(strip=True)
+                if re.match(r'\d{2}/\d{2}/\d{4}', text):
+                    date_approve = text
+
+        return {
+            'url': url,
+            'title': title,
+            'score': score,
+            'vote_count': None,
+            'read_count': read_count,
+            'date_approve': date_approve,
+            'description': description,
+            'author_name': author_name,
+            'author_url': author_url,
+        }
 
     def _parse_top_row(self, row, parse_mode: str = 'rated') -> dict | None:
         title_a = row.select_one('td.mcol a.title')
@@ -239,13 +360,17 @@ class CategoryScraper:
 
     def _parse_total_pages(self, soup: BeautifulSoup) -> int:
         max_page = 1
-        for a in soup.select('div.pager a[href]'):
-            try:
-                n = int(a.get_text(strip=True))
-                if n > max_page:
-                    max_page = n
-            except ValueError:
-                pass
+        selectors = ('nav[class*="_pagination_"] a[href]', 'div.pager a[href]')
+        for selector in selectors:
+            for a in soup.select(selector):
+                try:
+                    n = int(a.get_text(strip=True))
+                    if n > max_page:
+                        max_page = n
+                except ValueError:
+                    pass
+            if max_page > 1:
+                break
         return max_page
 
     # ------------------------------------------------------------------
