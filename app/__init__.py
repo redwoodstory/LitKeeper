@@ -141,6 +141,12 @@ def create_app() -> Flask:
     with app.app_context():
         db.create_all()
 
+        try:
+            from app.services.search_index import ensure_fts_schema
+            ensure_fts_schema()
+        except Exception:
+            pass
+
         from app.models import AppConfig
         from sqlalchemy.exc import OperationalError
 
@@ -651,5 +657,10 @@ def create_app() -> Flask:
         app.format_worker = FormatQueueWorker(app)
         app.format_worker.start()
         atexit.register(app.format_worker.stop)
+
+        from app.services.search_index_worker import SearchIndexWorker
+        app.search_index_worker = SearchIndexWorker(app)
+        app.search_index_worker.start()
+        atexit.register(app.search_index_worker.stop)
 
     return app

@@ -45,6 +45,7 @@ class Story(BaseModel, TimestampMixin):
     queued_at = db.Column(db.DateTime, nullable=True, index=True)
     last_opened_at = db.Column(db.DateTime, nullable=True, index=True)
     description = db.Column(db.Text, nullable=True)
+    content_indexed_at = db.Column(db.DateTime, nullable=True, index=True)
 
     author = db.relationship('Author', back_populates='stories', lazy='joined')
     category = db.relationship('Category', back_populates='stories', lazy='joined')

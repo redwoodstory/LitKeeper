@@ -168,7 +168,7 @@ class LibraryFilterRequest(BaseModel):
     @field_validator('search')
     @classmethod
     def validate_search(cls, v: str) -> str:
-        return v.strip().lower()
+        return v.strip().lower()[:200]
 
     @field_validator('category')
     @classmethod

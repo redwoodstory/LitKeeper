@@ -12,7 +12,7 @@ class StoryDeletionService:
     
     def delete_story(self, story_id: int) -> dict:
         try:
-            story = Story.query.get(story_id)
+            story = db.session.get(Story, story_id)
             if not story:
                 return {
                     "success": False,
@@ -53,6 +53,9 @@ class StoryDeletionService:
             SeenLiteroticaUrl.query.filter_by(story_id=story.id).delete()
             db.session.delete(story)
             db.session.commit()
+
+            from app.services import search_index
+            search_index.remove_story(story_id)
             
             return {
                 "success": True,

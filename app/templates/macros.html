@@ -121,6 +121,9 @@
         </div>
       </div>
     </div>
+    {% if story.content_snippet %}
+    <p class="story-content-snippet text-left text-[10px] text-gray-500 dark:text-gray-400 mt-1 px-1 leading-tight line-clamp-3 [&_mark]:bg-amber-200/70 [&_mark]:dark:bg-amber-500/30 [&_mark]:text-inherit [&_mark]:rounded-sm">{{ story.content_snippet | safe }}</p>
+    {% endif %}
     {% if story.category %}
     <p class="story-category-label hidden text-center text-[10px] text-gray-500 dark:text-gray-400 mt-1 px-1 truncate leading-tight">{{ story.category }}</p>
     {% endif %}

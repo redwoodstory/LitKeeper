@@ -26,6 +26,10 @@ def get_archive_directory() -> str:
     return os.path.join(get_stories_directory(), "archive")
 
 
+def get_logs_directory() -> str:
+    return os.path.join(get_data_directory(), "logs")
+
+
 def story_epub_path(story_id: int, filename_base: str) -> str:
     return os.path.join(get_epub_directory(), f"{story_id}_{filename_base}.epub")
 

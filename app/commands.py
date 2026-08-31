@@ -6,6 +6,40 @@ sync_cli = AppGroup('sync', help='Database/file sync operations.')
 migration_cli = AppGroup('migration', help='Database migration operations.')
 backfill_cli = AppGroup('backfill', help='Data backfill operations.')
 redownload_cli = AppGroup('redownload', help='Re-download story content from source.')
+search_cli = AppGroup('search', help='Full-text content search index operations.')
+
+
+@search_cli.command('reindex')
+@click.option('--all', 'rebuild', is_flag=True, help='Wipe and rebuild the entire index.')
+def search_reindex(rebuild: bool):
+    """Re-index stale stories (or --all to rebuild from scratch)."""
+    from app.services import search_index
+
+    if not search_index.fts5_available():
+        click.echo('SQLite FTS5 is not available in this build; content search is disabled.')
+        return
+
+    result = search_index.rebuild_all() if rebuild else search_index.reindex_stale()
+    click.echo(
+        f"Indexed {result.get('indexed', 0)}, "
+        f"pruned {result.get('pruned', 0)}, "
+        f"failed {result.get('failed', 0)}."
+    )
+
+
+@search_cli.command('status')
+def search_status():
+    """Show content-search index coverage."""
+    from app.services import search_index
+
+    s = search_index.status()
+    if not s.get('fts5'):
+        click.echo('SQLite FTS5 unavailable; content search is disabled.')
+        return
+    click.echo(
+        f"stories={s['total']} indexed={s['indexed']} "
+        f"stale={s['stale']} orphan_rows={s['orphans']}"
+    )
 
 
 def _get_sync_checker():
@@ -723,6 +757,7 @@ def register_commands(app):
     app.cli.add_command(migration_cli)
     app.cli.add_command(backfill_cli)
     app.cli.add_command(redownload_cli)
+    app.cli.add_command(search_cli)
 
     @app.cli.command('update-check')
     def update_check():

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "litkeeper",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["run.py"],
+      "port": 5017
+    }
+  ]
+}

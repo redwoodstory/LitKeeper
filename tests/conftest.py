@@ -31,6 +31,7 @@ def temp_dir() -> Generator[Path, None, None]:
 def app(temp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> Flask:
     """Create Flask app with test configuration."""
     monkeypatch.setenv("SECRET_KEY", "test-secret-key-for-testing-only-do-not-use-in-production")
+    monkeypatch.setenv("SKIP_BACKGROUND_WORKERS", "true")
     monkeypatch.setenv("ENABLE_NOTIFICATIONS", "false")
     monkeypatch.setenv("ENABLE_ACTION_LOG", "false")
     monkeypatch.setenv("ENABLE_ERROR_LOG", "false")

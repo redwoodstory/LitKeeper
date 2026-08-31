@@ -384,6 +384,70 @@ def get_library() -> ResponseReturnValue:
         log_error(f"Error fetching library: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"stories": []})
 
+@api.route("/library/search", methods=["GET"])
+def search_library() -> ResponseReturnValue:
+    """Full-text library search (metadata + story body). JSON sibling of /library/filter."""
+    from app.services.library import get_stories_page
+    from app.validators import LibraryFilterRequest
+
+    query = (request.args.get('q') or request.args.get('search') or '').strip()
+    if not query:
+        return jsonify({"error": "missing query parameter 'q'"}), 400
+
+    try:
+        page = max(1, request.args.get('page', 1, type=int) or 1)
+        per_page = min(100, max(1, request.args.get('per_page', 40, type=int) or 40))
+    except (ValueError, TypeError):
+        page, per_page = 1, 40
+
+    def _float(name: str) -> float:
+        try:
+            return float(request.args.get(name, 0) or 0)
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _int(name: str) -> int:
+        try:
+            return int(request.args.get(name, 0) or 0)
+        except (ValueError, TypeError):
+            return 0
+
+    try:
+        validated = LibraryFilterRequest(
+            search=query,
+            category=request.args.get('category', 'all'),
+            source=request.args.get('source', 'all'),
+            user_rating=request.args.get('user_rating', ''),
+            queue_only=request.args.get('queue_only') == 'true',
+            min_community_score=_float('min_community_score'),
+            min_pages=_int('min_pages'),
+            max_pages=_int('max_pages'),
+        )
+    except ValidationError as e:
+        return jsonify({"error": "invalid parameters", "detail": str(e)}), 400
+
+    stories, total = get_stories_page(
+        page=page,
+        per_page=per_page,
+        search=validated.search,
+        category=validated.category,
+        queue_only=validated.queue_only,
+        min_community_score=validated.min_community_score,
+        min_pages=validated.min_pages,
+        max_pages=validated.max_pages,
+        source=validated.source,
+        user_rating=validated.user_rating,
+    )
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    return jsonify({
+        "stories": stories,
+        "query": query,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total,
+        "total_pages": total_pages,
+    })
+
 @api.route("/library/last_opened", methods=["GET"])
 def get_library_last_opened() -> ResponseReturnValue:
     """Cheap id -> last_opened_at map, for clients (e.g. the koreader plugin)

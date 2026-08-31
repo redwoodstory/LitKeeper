@@ -73,8 +73,16 @@ def get_stories_page(
         all_stories = [s.to_library_dict() for s in query.all()]
 
         if search:
+            from app.services import search_index
+
             search_lower = search.lower()
+            by_id = {s['id']: s for s in all_stories}
+
+            fts_hits = search_index.search(search)
+            fts_snippets = {h['story_id']: h['snippet'] for h in fts_hits}
+
             scored = []
+            metadata_hit_ids = set()
             for story in all_stories:
                 score = 0
                 if search_lower in story.get('title', '').lower():
@@ -86,9 +94,21 @@ def get_stories_page(
                 if any(search_lower in t.lower() for t in story.get('tags', [])):
                     score += 10
                 if score > 0:
+                    if story['id'] in fts_snippets:
+                        story['content_snippet'] = fts_snippets[story['id']]
                     scored.append((score, story))
+                    metadata_hit_ids.add(story['id'])
             scored.sort(key=lambda x: x[0], reverse=True)
-            all_stories = [s for _, s in scored]
+            ordered = [s for _, s in scored]
+
+            # Body-only matches (respecting the DB-level filters already applied above)
+            for hit in fts_hits:
+                story = by_id.get(hit['story_id'])
+                if story is not None and hit['story_id'] not in metadata_hit_ids:
+                    story['content_snippet'] = hit['snippet']
+                    ordered.append(story)
+
+            all_stories = ordered
         else:
             def _sort_key(story: dict) -> tuple:
                 if sort_by == 'author':
