@@ -360,7 +360,17 @@ class View {
         }
     }
     expand() {
-        const { documentElement } = this.document
+        // Can be null: this fires from a ResizeObserver on doc.body and from
+        // doc.fonts.ready, both async relative to the load() that set them
+        // up. If the section changes (or this view is destroyed) before
+        // either fires, `this.document` reads the *iframe's current* state
+        // via its getter — not the doc these were registered against — which
+        // can momentarily be null. destroy() already guards the same access;
+        // do the same here rather than crash — a still-pending resize/load
+        // will call expand() again once there's a document to measure.
+        const doc = this.document
+        if (!doc) return
+        const { documentElement } = doc
         if (this.#column) {
             const side = this.#vertical ? 'height' : 'width'
             const otherSide = this.#vertical ? 'width' : 'height'
