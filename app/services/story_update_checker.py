@@ -342,7 +342,7 @@ def check_all_stories_for_updates(app: Flask) -> None:
     with app.app_context():
         try:
             from app.models import AppConfig
-            global_enabled = AppConfig.get_bool('auto_update_enabled', default=False)
+            global_enabled = AppConfig.query.filter_by(key='auto_update_enabled').first()
             if not global_enabled:
                 log_action("Scheduled story update check skipped: global auto-update is disabled")
                 return
